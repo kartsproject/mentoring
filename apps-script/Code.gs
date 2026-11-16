@@ -330,7 +330,9 @@ function op_(r, req) {
         if (s.cur && s.cur.id !== sid) s.done[s.cur.id] = now;
         var no = 0;
         ro.forEach(function (x) { if (x.name === nm) no = x.no; });
-        s.cur = { id: sid, name: nm, no: no, at: now };
+        var at = Number(req.at);                          // 운영 화면이 즉시 알린 시작 시각(타이머 일치)
+        if (!(at && Math.abs(at - now) < 15000)) at = now;
+        s.cur = { id: sid, name: nm, no: no, at: at };
         s.stage = {};   // 멘토링이 시작되면 연구원·운영진은 화면에서 내려감
         delete s.done[sid];
         delete s.zoom[sid];

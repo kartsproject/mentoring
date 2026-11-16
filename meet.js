@@ -53,7 +53,46 @@
     return this.join().then(function () { self.emit('rejoin'); });
   };
   Session.prototype.boost = function (ms) { this.fastUntil = Math.max(this.fastUntil, Date.now() + (ms || 10000)); };
-  Session.prototype.send = function (to, msg) { this.outbox.push({ to: to, msg: msg }); this.flush(); };
+  // 이미 연결된 상대에게는 영상 연결 안의 데이터 통로로 바로 보내고, 없으면 서버 메시지함으로
+  Session.prototype.send = function (to, msg) {
+    msg.from = msg.from || this.id;
+    if (this.router && this.router(to, msg)) return;
+    this.outbox.push({ to: to, msg: msg }); this.flush();
+  };
+  // 기다리지 말고 지금 바로 서버 상태 확인
+  Session.prototype.kick = function () { this.boost(8000); if (this._wake) this._wake(); };
+  // 빠른 신호로 받은 진행 상태(시작·종료)를 서버 반영 전까지 화면에 먼저 적용
+  Session.prototype.setOverride = function (cur, extra) {
+    this.ov = { cur: cur || null, prev: extra && extra.prev || null, until: Date.now() + 12000 };
+    if (this.raw) { this.view = this.patch(this.raw); this.emit('view', this.view); }
+    this.kick();
+  };
+  Session.prototype.patch = function (v) {
+    var ov = this.ov;
+    if (!ov || !v) return v;
+    if (Date.now() > ov.until) { this.ov = null; return v; }
+    var sc = v.cur || null;
+    if (this.role === 'student') {
+      var serverCalledMe = v.called;
+      var ovCalledMe = !!(ov.cur && ov.cur.id === v.me);
+      if (serverCalledMe === ovCalledMe && (ovCalledMe || !!v.busy === !!ov.cur)) { this.ov = null; return v; }
+      var p = Object.assign({}, v);
+      p.called = ovCalledMe; p.busy = !!ov.cur;
+      if (ovCalledMe) { p.cur = ov.cur; p.done = false; }
+      else { p.cur = null; if (v.called || (ov.prev && ov.prev === v.me)) p.done = true; }
+      return p;
+    }
+    if ((!sc && !ov.cur) || (sc && ov.cur && sc.id === ov.cur.id)) { this.ov = null; return v; }
+    var q = Object.assign({}, v);
+    q.cur = ov.cur ? Object.assign({ live: true }, ov.cur) : null;
+    var endedId = (sc && (!ov.cur || sc.id !== ov.cur.id)) ? sc.id : ov.prev;
+    if (q.students) q.students = q.students.map(function (st) {
+      if (st.id === endedId && !st.done) return Object.assign({}, st, { done: Date.now() });
+      return st;
+    });
+    if (ov.cur) { q.stage = []; if (q.next && q.next.id === ov.cur.id) q.next = null; }
+    return q;
+  };
   Session.prototype.flush = async function () {
     if (this.flushing) return;
     this.flushing = true;
@@ -74,7 +113,7 @@
     var body = Object.assign({ a: 'op', r: this.r, id: this.id, tok: this.tok, cmd: cmd }, args || {});
     var j = await api(body);
     if (!j.ok && j.error === 'auth') { await this.rejoin(); body.id = this.id; body.tok = this.tok; j = await api(body); }
-    this.boost(4000);
+    this.kick();
     return j;
   };
   Session.prototype.start = function () { if (!this.running) { this.running = true; this.loop(); } };
@@ -90,8 +129,9 @@
           this.offset = j.now - (t0 + Date.now()) / 2;
           if (j.msgs && j.msgs.length) this.boost(10000);
           for (var k = 0; k < (j.msgs || []).length; k++) this.emit('msg', j.msgs[k]);
-          this.view = j.view;
-          this.emit('view', j.view);
+          this.raw = j.view;
+          this.view = this.patch(j.view);
+          this.emit('view', this.view);
           this.emit('net', true, 0);
         } else if (j.error === 'auth') {
           await this.rejoin();
@@ -99,23 +139,43 @@
       } catch (e) { fails++; this.emit('net', false, fails); }
       var base = Date.now() < this.fastUntil ? 900 : this.interval;
       var wait = Math.max(150, base - (Date.now() - t0)) + (fails ? Math.min(6000, fails * 1000) : 0);
-      await sleep(wait);
+      var self = this;
+      await new Promise(function (res) { var t = setTimeout(res, wait); self._wake = function () { clearTimeout(t); self._wake = null; res(); }; });
+      this._wake = null;
     }
   };
 
-  /* ───────── 연결 정보 모으기(한 번에 보내기) ───────── */
-  function gather(pc, ms) {
+  /* ───────── 연결 정보 모으기 ─────────
+   * 다 모일 때까지 기다리지 않고, 쓸 만한 후보(외부 주소, 중계 서버가 있으면 중계 주소)가 모이면 바로 보냄.
+   * 늦게 모인 후보는 'cand' 메시지로 이어서 보냄.
+   */
+  function gather(pc, wantRelay) {
     if (pc.iceGatheringState === 'complete') return Promise.resolve();
+    var t0 = Date.now();
     return new Promise(function (res) {
+      var hasSrflx = false, hasRelay = false, finished = false;
       var done = function () {
-        clearTimeout(t);
+        if (finished) return; finished = true;
+        clearTimeout(t); clearInterval(iv);
         pc.removeEventListener('icegatheringstatechange', chk);
         pc.removeEventListener('icecandidate', cand);
         res();
       };
+      var good = function () {
+        var el = Date.now() - t0;
+        if (wantRelay) return (hasRelay && el > 300) || (hasSrflx && el > 1500);
+        return hasSrflx && el > 300;
+      };
       var chk = function () { if (pc.iceGatheringState === 'complete') done(); };
-      var cand = function (e) { if (!e.candidate) done(); };
-      var t = setTimeout(done, ms || 5000);
+      var cand = function (e) {
+        if (!e.candidate) return done();
+        var c = e.candidate.candidate || '';
+        if (/ typ srflx/.test(c)) hasSrflx = true;
+        if (/ typ relay/.test(c)) hasRelay = true;
+        if (good()) done();
+      };
+      var iv = setInterval(function () { if (good()) done(); }, 150);
+      var t = setTimeout(done, 2500);
       pc.addEventListener('icegatheringstatechange', chk);
       pc.addEventListener('icecandidate', cand);
     });
@@ -136,8 +196,17 @@
     // 미리 연결해 둔 연결에서 내 영상·음성을 보낼지(true) 멈출지(false)
     this.policy = o.sendPolicy || null;
     var self = this;
+    this.pendC = {};
     sess.on('msg', function (m) { self.onMsg(m).catch(function (e) { console.warn('msg', e); }); });
     this.watch = setInterval(function () { self.watchdog(); }, 2000);
+    this.wantRelay = (sess.ice || []).some(function (x) { return [].concat(x.urls || []).some(function (u) { return /^turns?:/.test(u); }); });
+    // 데이터 통로가 열린 상대에게는 서버를 거치지 않고 바로 보냄
+    sess.router = function (to, msg) {
+      if (!/^(ev|offer|answer|cand)$/.test(msg.t)) return false;
+      var L = self.all().find(function (x) { return x.peer === to && !x.closed && x.dc && x.dc.readyState === 'open'; });
+      if (!L) return false;
+      try { L.dc.send(JSON.stringify(msg)); return true; } catch (e) { return false; }
+    };
   }
   // 내가 요청한 연결(>)과 상대가 요청한 연결(<)을 따로 보관 — 서로 동시에 요청해도 충돌하지 않음
   Links.prototype.key = function (kind, peer, role) { return kind + (role === 'answer' ? '<' : '>') + peer; };
@@ -171,14 +240,38 @@
     pc.onconnectionstatechange = upd;
     pc.oniceconnectionstatechange = upd;
     pc.ondatachannel = function (e) { L.dc = e.channel; self.wireDc(L); };
+    // 처음 보낸 뒤에 모인 연결 후보는 모아서 이어 보냄
+    L.candQ = [];
+    pc.onicecandidate = function (e) {
+      if (!L.sdpSent || L.closed || !e.candidate) return;
+      L.candQ.push(e.candidate.toJSON ? e.candidate.toJSON() : e.candidate);
+      if (L.candT) return;
+      L.candT = setTimeout(function () {
+        L.candT = null;
+        if (L.closed || !L.candQ.length) return;
+        self.s.send(L.peer, { t: 'cand', cid: L.cid, cs: L.candQ.splice(0) });
+      }, 250);
+    };
     this.map.set(this.key(kind, peer, role), L);
     return L;
   };
 
   Links.prototype.wireDc = function (L) {
     var self = this;
-    L.dc.onopen = function () { L.dcOpen = true; self.onData(L, 'open'); };
-    L.dc.onmessage = function (e) { self.onData(L, 'msg', e.data); };
+    L.dc.onopen = function () { L.dcOpen = true; self.onData(L, 'open'); self.onChange(L); };
+    L.dc.onmessage = function (e) {
+      var m = null;
+      try { m = JSON.parse(e.data); } catch (err) {}
+      if (m && m.t) {
+        m.from = L.peer;   // 통로 상대가 보낸 사람
+        if (m.t === 'ev') return self.s.emit('ev', m);
+        return self.onMsg(m).catch(function (err) { console.warn('dc msg', err); });
+      }
+      self.onData(L, 'msg', e.data);
+    };
+  };
+  Links.prototype.addCands = function (L, cs) {
+    (cs || []).forEach(function (c) { L.pc.addIceCandidate(c).catch(function () {}); });
   };
 
   Links.prototype.offer = async function (kind, peer, peerNonce) {
@@ -194,14 +287,19 @@
     } else if (kind === 'view') {
       pc.addTransceiver('audio', { direction: 'recvonly' });
       pc.addTransceiver('video', { direction: 'recvonly' });
+    }
+    if (kind === 'ms' || kind === 'view') {
+      L.dc = pc.createDataChannel('c');   // 빠른 신호용 통로
+      this.wireDc(L);
     } else {
       L.dc = pc.createDataChannel('t');
       this.wireDc(L);
     }
     var off = await pc.createOffer();
     await pc.setLocalDescription(off);
-    await gather(pc);
+    await gather(pc, this.wantRelay);
     if (L.closed) return L;
+    L.sdpSent = true;
     this.s.send(peer, { t: 'offer', cid: L.cid, kind: kind, sdp: pc.localDescription.sdp });
     this.s.boost(20000);
     this.onChange(L);
@@ -215,6 +313,7 @@
       var L = this.make(m.kind, m.from, m.cid, 'answer');
       var pc = L.pc;
       await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+      if (this.pendC[m.cid]) { this.addCands(L, this.pendC[m.cid]); delete this.pendC[m.cid]; }
       if (m.kind === 'ms' || m.kind === 'view') {
         var ls = this.getLocal();
         if (ls) ls.getTracks().forEach(function (t) { pc.addTrack(t, ls); });
@@ -223,8 +322,9 @@
       }
       var ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      await gather(pc);
+      await gather(pc, this.wantRelay);
       if (L.closed) return;
+      L.sdpSent = true;
       this.s.send(m.from, { t: 'answer', cid: m.cid, sdp: pc.localDescription.sdp });
       this.s.boost(15000);
       this.onChange(L);
@@ -232,7 +332,12 @@
       var A = this.byCid(m.cid);
       if (A && A.role === 'offer' && A.pc.signalingState === 'have-local-offer') {
         await A.pc.setRemoteDescription({ type: 'answer', sdp: m.sdp });
+        if (this.pendC[m.cid]) { this.addCands(A, this.pendC[m.cid]); delete this.pendC[m.cid]; }
       }
+    } else if (m.t === 'cand') {
+      var C = this.byCid(m.cid);
+      if (C && C.pc.remoteDescription) this.addCands(C, m.cs);
+      else (this.pendC[m.cid] = this.pendC[m.cid] || []).push.apply(this.pendC[m.cid], m.cs || []);
     } else if (m.t === 'bye') {
       var B = this.byCid(m.cid);
       if (B) this.closeLink(B, false);

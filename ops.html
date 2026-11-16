@@ -170,7 +170,7 @@
   var PREFIX = C.PREFIX || '';
   var sess, links, rec = null, view = null, r = '';
   var lastOffer = {}, testing = null, testTried = {}, recKey = '', manualStop = '', armed = {};
-  var soundOn = true, role = 'ops', stageLocal = null, stageWantUntil = 0;
+  var savedZoom = '', soundOn = true, role = 'ops', stageLocal = null, stageWantUntil = 0;
   document.querySelectorAll('input[name=role]').forEach(function (x) {
     x.onchange = function () { $('#g-code-l').textContent = this.value === 'research' ? '연구원 코드' : '운영진 코드'; };
   });
@@ -210,6 +210,10 @@
       onData: onData
     });
     sess.on('view', onView);
+    sess.on('ev', function (m) {
+      if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev });
+      else sess.kick();
+    });
     UI.netbar(sess); UI.wakeLock();
     sess.start();
     setInterval(tick, 500);
@@ -433,7 +437,7 @@
       if (view.cur && !confirmClick(b, '진행 중 학생 종료 후 시작')) return;
       await callStudent(id);
     } else if (a === 'zoom') {
-      if (!s.zoom && !view.zoomUrl) { UI.toast('먼저 오른쪽 「예비 ZOOM」에 링크를 저장해 주세요'); return; }
+      if (!s.zoom && !view.zoomUrl && !savedZoom) { UI.toast('먼저 오른쪽 「예비 ZOOM」에 링크를 저장해 주세요'); return; }
       await sess.op('zoom', { sid: id, on: !s.zoom });
     } else if (a === 'untest') {
       delete testTried[id];
@@ -443,8 +447,22 @@
     }
   });
 
+  // 시작·종료는 연결된 사람에게 바로 알리고(0.5초 이내), 서버에도 같이 기록
+  function fastCur(cur) {
+    var prev = view && view.cur ? view.cur.id : null;
+    var ev = { t: 'ev', k: 'cur', cur: cur, prev: prev };
+    var to = { M: 1 };
+    if (cur) to[cur.id] = 1;
+    if (prev) to[prev] = 1;
+    (view && view.opsList || []).forEach(function (o) { if (o.id !== sess.id) to[o.id] = 1; });
+    Object.keys(to).forEach(function (id) { sess.send(id, Object.assign({}, ev)); });
+    sess.setOverride(cur, { prev: prev });
+  }
   async function callStudent(id) {
-    var j = await sess.op('call', { sid: id });
+    var st = view.students.find(function (x) { return x.id === id; }) || { name: id.replace(/^S_/, ''), no: 0 };
+    var at = Math.round(sess.now());
+    fastCur({ id: id, name: st.name, no: st.no, at: at });
+    var j = await sess.op('call', { sid: id, at: at });
     if (!j.ok) UI.toast('시작하지 못했습니다: ' + (j.error || ''));
   }
 
@@ -455,6 +473,7 @@
   };
   $('#b-end').onclick = async function () {
     if (!confirmClick(this, '종료 확인')) return;
+    fastCur(null);
     await sess.op('end');
     this.textContent = '이 학생 종료'; this.classList.add('coral');
   };
@@ -482,6 +501,7 @@
   $('#z-url').oninput = function () { this.dataset.dirty = '1'; };
   $('#b-zoom').onclick = async function () {
     var j = await sess.op('zoomurl', { url: $('#z-url').value.trim() });
+    if (j.ok) savedZoom = $('#z-url').value.trim();
     delete $('#z-url').dataset.dirty;
     UI.toast(j.ok ? 'ZOOM 링크를 저장했습니다' : '저장하지 못했습니다');
   };
@@ -519,6 +539,11 @@
       $('#b-scam').classList.toggle('coral', !(vt && vt.enabled));
     }
   }
+  function kickOthers() {
+    var to = { M: 1 };
+    (view && view.opsList || []).forEach(function (o) { if (o.id !== sess.id) to[o.id] = 1; });
+    Object.keys(to).forEach(function (id) { sess.send(id, { t: 'ev', k: 'kick' }); });
+  }
   function stopStage(msg) {
     if (!stageLocal) return;
     M.Media.stop(stageLocal); stageLocal = null;
@@ -528,7 +553,7 @@
     if (msg) UI.toast(msg);
   }
   $('#b-stage').onclick = async function () {
-    if (stageLocal) { stopStage(); await sess.op('stage', { on: false }); return; }
+    if (stageLocal) { stopStage(); await sess.op('stage', { on: false }); kickOthers(); return; }
     if (view && view.cur) { UI.toast('멘토링 중에는 화면에 나올 수 없습니다'); return; }
     this.disabled = true;
     var cam;
@@ -540,7 +565,7 @@
     if (!j.ok) {
       M.Media.stop(stageLocal); stageLocal = null;
       UI.toast(j.error === 'busy' ? '멘토링 중에는 화면에 나올 수 없습니다' : j.error === 'full' ? '화면에는 3명까지 나올 수 있습니다' : '화면에 나오지 못했습니다');
-    } else UI.toast('화면에 나왔습니다. 멘토와 이야기할 수 있습니다');
+    } else { UI.toast('화면에 나왔습니다. 멘토와 이야기할 수 있습니다'); kickOthers(); }
     if (!j.ok) stageWantUntil = 0;
     this.disabled = false;
     links.applyPolicy(); paintStageBtn(); paintStage();
@@ -576,7 +601,7 @@
   function autoRecord() {
     if (!rec || !view || view.host !== sess.id || !rec.supported()) return;
     var cur = view.cur;
-    var key = cur ? cur.id + '@' + cur.at : '';
+    var key = cur ? cur.id : '';
     // 학생이 바뀌거나 끝나면 저장
     if (rec.recording() && recKey && recKey !== key) { rec.stop(); recKey = ''; }
     if (!$('#sw-auto').checked || !cur || manualStop === key) return;
@@ -594,11 +619,11 @@
     manualStop = '';
     paintStage();
     rec.start(recName(), recTitle());
-    recKey = view.cur ? view.cur.id + '@' + view.cur.at : 'manual';
+    recKey = view.cur ? view.cur.id : 'manual';
   };
   $('#b-rec-stop').onclick = function () {
     if (!rec || !rec.recording()) return;
-    manualStop = view.cur ? view.cur.id + '@' + view.cur.at : '';
+    manualStop = view.cur ? view.cur.id : '';
     rec.stop(); recKey = '';
   };
 

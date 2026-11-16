@@ -220,6 +220,7 @@
       sendPolicy: function (L) { return L.kind !== 'ms' || !!(sess.view && sess.view.called); }
     });
     sess.on('view', render);
+    sess.on('ev', function (m) { if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev }); else sess.kick(); });
     sess.on('net', function (ok, fails) {
       var el = $('#w-net');
       el.className = 'chip ' + (ok ? 'ok' : fails > 2 ? 'bad' : 'warn');

@@ -96,8 +96,8 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
   // 학생가 시작
   const dl1 = ops.waitForEvent('download', { timeout: 90000 });
-  await ops.click('#b-next');
   const t0 = Date.now();
+  await ops.click('#b-next');
   await waitFor(sA, () => { const v = document.querySelector('#l-remote'); return !document.querySelector('#s-live').classList.contains('hide') && v.videoWidth > 0; }, null, 40000, 'student sees mentor');
   log('student A sees mentor after', Date.now() - t0, 'ms');
   await waitFor(mentor, () => document.querySelector('#v-remote').videoWidth > 0, null, 30000, 'mentor sees student');
@@ -131,6 +131,11 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
   // 종료(두 번 눌러 확인)
   await ops.click('#b-end'); await ops.click('#b-end');
+  const tE = Date.now();
+  await waitFor(mentor, () => !document.querySelector('#o-idle').classList.contains('hide'), null, 15000, 'mentor idle fast');
+  log('END: mentor idle after', Date.now() - tE, 'ms');
+  await waitFor(sB, () => !document.querySelector('#s-done').classList.contains('hide'), null, 15000, 'B done fast');
+  log('END: student done screen after', Date.now() - tE, 'ms');
   const d2 = await dl2;
   const f2 = path.join(OUT, d2.suggestedFilename()); await d2.saveAs(f2);
   log('saved', d2.suggestedFilename(), fs.statSync(f2).size, 'bytes');

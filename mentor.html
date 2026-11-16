@@ -134,6 +134,16 @@
       sendPolicy: function (L) { return L.kind !== 'ms' || isActive(L.peer); }
     });
     sess.on('view', onView);
+    sess.on('ev', function (m) {
+      if (m.k !== 'cur') return sess.kick();
+      sess.setOverride(m.cur, { prev: m.prev });
+      // 학생에게도 바로 전달(운영진과 직접 통로가 없는 경우 대비)
+      if (!m.fwd) {
+        var f = { t: 'ev', k: 'cur', cur: m.cur, prev: m.prev, fwd: true };
+        if (m.cur) sess.send(m.cur.id, Object.assign({}, f));
+        if (m.prev) sess.send(m.prev, Object.assign({}, f));
+      }
+    });
     UI.netbar(sess); UI.wakeLock();
     ctrls();
     go('s-main');
