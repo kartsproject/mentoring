@@ -401,7 +401,7 @@ function setup() {
   Logger.log('ICE 확인: ' + JSON.stringify(iceServers_()).slice(0, 300));
 }
 
-/** 회차 진행 상태를 비웁니다(리허설 후 등). 편집기에서 실행. 예: resetRoom_('test') */
+/** 리허설(test) 회차의 진행 상태를 비웁니다. 편집기에서 resetTestRoom 선택 → 실행 */
 function resetTestRoom() {
   cache_().remove('st|test');
   Logger.log('test 회차 초기화 완료');
