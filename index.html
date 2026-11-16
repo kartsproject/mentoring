@@ -289,6 +289,7 @@
     if (v.called) {
       if (screen !== 's-live') {
         go('s-live');
+        ensureLive();
         UI.show('#l-banner', true);
         setTimeout(function () { UI.show('#l-banner', false); }, 3500);
         try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
@@ -320,6 +321,22 @@
     $('#l-title').textContent = el > fb && el <= slot ? '질의응답 시간' : '멘토링 중';
   }
 
+  /* 멘토링이 시작되면 카메라·마이크를 자동으로 켬(대기 중 꺼 두었거나, 휴대폰이 잠깐 꺼져 카메라가 멈춘 경우 포함) */
+  var paintCtrls = function () {};
+  async function ensureLive() {
+    var dead = !local || local.getTracks().some(function (t) { return t.readyState === 'ended'; }) ||
+      !local.getVideoTracks().length || !local.getAudioTracks().length;
+    if (dead) {
+      try {
+        await dc.start({}); local = dc.stream; dc.stopMeterOnly();
+        links.replaceLocal(local); links.applyPolicy();
+        UI.attach($('#l-self'), local); UI.attach($('#w-self'), local);
+      } catch (e) { UI.toast(M.Media.errText(e), 5000); }
+    }
+    if (local) local.getTracks().forEach(function (t) { t.enabled = true; });
+    paintCtrls();
+  }
+
   /* 마이크·카메라 */
   function setupCtrls() {
     var mic = $('#b-mic'), cam = $('#b-cam'), flip = $('#b-flip');
@@ -329,6 +346,7 @@
       mic.innerHTML = mOn ? M.ICON.mic : M.ICON.micOff; mic.classList.toggle('off', !mOn);
       cam.innerHTML = cOn ? M.ICON.cam : M.ICON.camOff; cam.classList.toggle('off', !cOn);
     };
+    paintCtrls = paint;
     mic.onclick = function () { local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); };
     cam.onclick = function () { local.getVideoTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); };
     flip.innerHTML = M.ICON.flip;

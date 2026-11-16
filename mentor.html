@@ -20,6 +20,18 @@
   aside.queue li .tm { font-size: 12px; opacity: .6; }
   .phase { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.08); }
   .qtoggle { display: none; }
+  /* 큰 카운트다운 */
+  .bigtimer { position: absolute; top: 14px; right: 14px; z-index: 4; text-align: center; transform-origin: top right;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(6px); border-radius: 22px; padding: 8px 28px 10px; pointer-events: none; }
+  .bigtimer b { display: block; font-size: clamp(48px, 7.5vw, 104px); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .bigtimer small { display: block; font-size: 15px; font-weight: 700; margin-top: 4px; opacity: .85; }
+  .bigtimer.q b { color: var(--apricot); }
+  .bigtimer.last { background: rgba(232,73,88,.92); animation: pulse 1s infinite; }
+  .bigtimer.over { background: var(--coral); }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  .edge { position: absolute; inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0 0 6px var(--coral), inset 0 0 60px rgba(232,73,88,.6); animation: blink 1s infinite; }
+  .alert1 { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; background: var(--coral); color: #fff;
+    font-size: clamp(32px, 5vw, 64px); font-weight: 800; padding: 22px 44px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,.5); pointer-events: none; }
   @media (max-width: 900px) {
     aside.queue { position: fixed; right: 0; top: 0; bottom: 0; z-index: 20; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px rgba(0,0,0,.4); }
     aside.queue.open { transform: none; }
@@ -71,6 +83,9 @@
     </div>
     <div class="vbox">
       <video class="main" id="v-remote" autoplay playsinline></video>
+      <div class="bigtimer hide" id="bt"><b id="bt-t">10:00</b><small id="bt-s">피드백</small></div>
+      <div class="edge hide" id="edge"></div>
+      <div class="alert1 hide" id="a1">종료 1분 전</div>
       <div class="sgrid" id="g-stage"></div>
       <div class="overlay" id="o-idle"><div><h2>다음 학생을 기다리는 중입니다</h2><p id="o-next">운영진이 학생을 연결하면 바로 화면이 나타납니다.</p></div></div>
       <div class="overlay hide" id="o-conn"><div><div class="spinner"></div><h2 id="o-conn-t">학생과 연결하는 중</h2><p id="o-conn-s">잠시만 기다려 주세요</p></div></div>
@@ -95,7 +110,7 @@
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
   var PREFIX = C.PREFIX || '';
-  var sess, links, dc, local, view = null, lastOffer = {}, curKey = '';
+  var sess, links, dc, local, view = null, lastOffer = {}, curKey = '', ac = null, warned = '';
 
   $('#g-room').value = UI.param('r');
   try { $('#g-name').value = localStorage.getItem('meet_mentor') || ''; } catch (e) {}
@@ -125,6 +140,7 @@
   $('#f-check').onsubmit = function (e) {
     e.preventDefault();
     local = dc.stream; dc.stopMeterOnly();
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (er) {}
     UI.attach($('#v-self'), local);
     links = new M.Links(sess, {
       getLocal: function () { return local; },
@@ -200,7 +216,7 @@
     UI.show('#o-idle', !cur && !stage.length);
     UI.show('#o-conn', cur && !ok);
     UI.show('#v-label', !!cur);
-    UI.show('#t-timer', !!cur); UI.show('#t-phase', !!cur);
+    UI.show('#t-phase', !!cur);
     if (!cur) {
       $('#t-who').textContent = stage.length ? '연구원·운영진과 대화 중' : '학생을 기다리는 중';
       UI.attach($('#v-remote'), null);
@@ -215,14 +231,44 @@
     if (L && ok) UI.attach($('#v-remote'), L.stream);
   }
 
+  function beep() {
+    if (!ac) return;
+    try {
+      ac.resume();
+      [0, 0.35].forEach(function (d) {
+        var o = ac.createOscillator(), g = ac.createGain();
+        o.frequency.value = 880; o.connect(g); g.connect(ac.destination);
+        var t = ac.currentTime + d;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+        o.start(t); o.stop(t + 0.3);
+      });
+    } catch (e) {}
+  }
+
   function tick() {
-    if (!view || !view.cur) return;
+    var cur = view && view.cur;
+    UI.show('#bt', !!cur);
+    if (!cur) { UI.show('#edge', false); UI.show('#a1', false); warned = ''; return; }
     var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
-    var el = sess.now() - view.cur.at;
+    var el = sess.now() - cur.at, left = slot - el;
     var tm = $('#t-timer'), ph = $('#t-phase');
-    tm.textContent = UI.mmss(slot - el);
+    tm.textContent = UI.mmss(left);
     tm.className = 'timer' + (el > slot ? ' over' : el > fb ? ' q' : '');
     ph.textContent = el > slot ? '시간 초과' : el > fb ? '질의응답' : '피드백';
+    UI.show(tm, false);   // 큰 카운트다운으로 대신 표시
+    // 큰 카운트다운
+    var bt = $('#bt'), last = left <= 60000 && left > 0, over = left <= 0;
+    $('#bt-t').textContent = over ? '+' + UI.mmss(-left) : UI.mmss(left);
+    $('#bt-s').textContent = over ? '시간 초과 — 마무리해 주세요' : last ? '종료 1분 전' : el > fb ? '질의응답 시간' : '피드백 시간';
+    bt.className = 'bigtimer' + (over ? ' over' : last ? ' last' : el > fb ? ' q' : '');
+    UI.show('#edge', last || over);
+    // 1분 전이 되는 순간 크게 알림 + 소리
+    var key = cur.id;
+    if (last && warned !== key) {
+      warned = key;
+      UI.show('#a1', true); beep();
+      setTimeout(function () { UI.show('#a1', false); }, 4000);
+    }
   }
 
   function queue(v) {

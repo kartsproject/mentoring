@@ -110,6 +110,10 @@
 
   Recorder.prototype.recording = function () { return !!(this.rec && this.rec.state === 'recording'); };
 
+  // 자동 저장 폴더(파일 시스템 접근). 없으면 다운로드로 저장
+  Recorder.prototype.setDir = function (dir) { this.dir = dir || null; };
+  Recorder.autoSaveSupported = function () { return typeof window.showDirectoryPicker === 'function'; };
+
   Recorder.prototype.start = function (filename, title) {
     if (this.recording()) return false;
     if (!this.type) throw new Error('이 브라우저는 녹화를 지원하지 않습니다(크롬 사용)');
@@ -120,14 +124,57 @@
     var stream = new MediaStream(tracks);
     var rec = new MediaRecorder(stream, { mimeType: this.type, videoBitsPerSecond: 3000000, audioBitsPerSecond: 128000 });
     var chunks = [], self = this, started = Date.now();
-    rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
-    rec.onstop = function () {
-      var blob = new Blob(chunks, { type: self.type.split(';')[0] });
-      var f = { name: filename + '.' + self.ext(), blob: blob, size: blob.size, sec: Math.round((Date.now() - started) / 1000), at: started };
+    var fname = filename + '.' + this.ext();
+
+    // 폴더가 정해져 있으면 녹화하는 동안 파일에 바로 이어 씀(창·알림 없이 저장, 중간에 꺼져도 앞부분 보존)
+    var sink = null;
+    if (this.dir) {
+      sink = { q: [], w: null, busy: false, failed: false, idle: null };
+      this.dir.getFileHandle(fname, { create: true })
+        .then(function (fh) { return fh.createWritable(); })
+        .then(function (w) { sink.w = w; pump(); })
+        .catch(function (e) { console.warn('auto-save', e); sink.failed = true; if (sink.idle) sink.idle(); });
+    }
+    function pump() {
+      if (!sink || !sink.w || sink.busy) return;
+      sink.busy = true;
+      (async function () {
+        try { while (sink.q.length) await sink.w.write(sink.q.shift()); }
+        catch (e) { console.warn('auto-save write', e); sink.failed = true; }
+        sink.busy = false;
+        if (sink.idle && !sink.q.length) sink.idle();
+      })();
+    }
+    function drained() {
+      return new Promise(function (res) {
+        if (sink.failed || (sink.w && !sink.busy && !sink.q.length)) return res();
+        sink.idle = function () { if (sink.failed || (sink.w && !sink.busy && !sink.q.length)) { sink.idle = null; res(); } };
+        setTimeout(res, 15000);
+      });
+    }
+
+    rec.ondataavailable = function (e) {
+      if (!e.data || !e.data.size) return;
+      chunks.push(e.data);
+      if (sink && !sink.failed) { sink.q.push(e.data); pump(); }
+    };
+    rec.onstop = async function () {
+      var f = { name: fname, size: 0, sec: Math.round((Date.now() - started) / 1000), at: started };
+      chunks.forEach(function (c) { f.size += c.size; });
+      if (sink) {
+        await drained();
+        if (!sink.failed && sink.w) {
+          try { await sink.w.close(); f.saved = true; f.auto = true; f.folder = self.dir.name; chunks = null; }
+          catch (e) { sink.failed = true; }
+        }
+      }
+      if (!f.auto) {   // 자동 저장이 안 됐으면 다운로드로
+        f.blob = new Blob(chunks, { type: self.type.split(';')[0] });
+        self.save(f);
+      }
       self.files.unshift(f);
       // 메모리 보호: 최근 4개만 다시 받기 가능
       self.files.slice(4).forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); x.blob = null; x.url = null; });
-      self.save(f);
       self.onFile(f);
       self.onState(self.recording());   // 다음 학생 녹화가 이미 시작됐을 수 있음
     };
@@ -150,6 +197,41 @@
     a.href = f.url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
     f.saved = true;
     return true;
+  };
+
+  /* 저장 폴더 기억(다음에 열 때 다시 고르지 않도록) */
+  var DB = 'karts-meet', STORE = 'kv';
+  function idb(mode, fn) {
+    return new Promise(function (res, rej) {
+      var o = indexedDB.open(DB, 1);
+      o.onupgradeneeded = function () { o.result.createObjectStore(STORE); };
+      o.onerror = function () { rej(o.error); };
+      o.onsuccess = function () {
+        var tx = o.result.transaction(STORE, mode), st = tx.objectStore(STORE);
+        var r = fn(st);
+        tx.oncomplete = function () { res(r && r.result); };
+        tx.onerror = function () { rej(tx.error); };
+      };
+    });
+  }
+  Recorder.loadDir = function () { return idb('readonly', function (st) { return st.get('recdir'); }).catch(function () { return null; }); };
+  Recorder.saveDir = function (h) { return idb('readwrite', function (st) { st.put(h, 'recdir'); }).catch(function () {}); };
+  // 저장 폴더 확보: 기억된 폴더 권한 확인 → 없으면 고르기 (반드시 버튼 클릭 직후 호출)
+  Recorder.ensureDir = async function (forcePick) {
+    if (!Recorder.autoSaveSupported()) return null;
+    var h = forcePick ? null : await Recorder.loadDir();
+    if (h) {
+      try {
+        var q = await h.queryPermission({ mode: 'readwrite' });
+        if (q === 'granted') return h;
+        if ((await h.requestPermission({ mode: 'readwrite' })) === 'granted') return h;
+      } catch (e) {}
+    }
+    try {
+      h = await window.showDirectoryPicker({ id: 'karts-mentoring-rec', mode: 'readwrite', startIn: 'documents' });
+      await Recorder.saveDir(h);
+      return h;
+    } catch (e) { return null; }   // 취소
   };
 
   window.MeetRecorder = Recorder;
