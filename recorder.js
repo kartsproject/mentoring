@@ -39,6 +39,8 @@
     this.canvas.width = this.W; this.canvas.height = this.H;
     this.ctx = this.canvas.getContext('2d');
     this.tiles = { M: { video: null, label: '' }, S: { video: null, label: '' } };
+    this.group = [];      // 멘토링 전 화면 등장(연구원·운영진) — 있으면 오른쪽에 나눠 그림
+    this.idleText = '';   // 오른쪽이 비었을 때 보일 글(예: 멘토링 대기 중)
     this.title = '';
     this.type = pickType();
     this.rec = null;
@@ -74,12 +76,36 @@
     }
   };
 
+  // 멘토링 전 화면 등장한 사람들: [{key, video, label, stream}]
+  Recorder.prototype.setGroup = function (items) {
+    var self = this, keep = {};
+    this.group = (items || []).slice(0, 3).map(function (it) { keep['G:' + it.key] = 1; return { video: it.video, label: it.label || '' }; });
+    (items || []).slice(0, 3).forEach(function (it) { self.mixAudio('G:' + it.key, it.stream); });
+    Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('G:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
+  };
+  Recorder.prototype.mixAudio = function (key, stream) {
+    var at = stream && stream.getAudioTracks()[0];
+    var cur = this.srcNodes[key];
+    if (cur && cur.trackId === (at && at.id)) return;
+    if (cur) { try { cur.node.disconnect(); } catch (e) {} delete this.srcNodes[key]; }
+    if (at) {
+      try {
+        var node = this.ac.createMediaStreamSource(new MediaStream([at]));
+        node.connect(this.dest);
+        this.srcNodes[key] = { node: node, trackId: at.id };
+      } catch (e) { console.warn('audio mix', e); }
+    }
+  };
+
   Recorder.prototype.draw = function () {
     var c = this.ctx, W = this.W, H = this.H;
     c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
     var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
     this.drawTile(this.tiles.M, 0, top, tw, th, '멘토');
-    this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생');
+    if (this.group.length) {
+      var n = this.group.length, gh = (th - gap * (n - 1)) / n, self = this;
+      this.group.forEach(function (g, i) { self.drawTile(g, tw + gap, top + i * (gh + gap), tw, gh, ''); });
+    } else this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText);
     // 상단 표시줄
     c.fillStyle = '#1A1C1F'; c.fillRect(0, 0, W, top);
     ['#4F8AC9', '#D0628A', '#D46C3C', '#4E9B55'].forEach(function (col, i) { c.fillStyle = col; c.fillRect(i * W / 4, top - Math.round(3 * k), W / 4, Math.round(3 * k)); });   // 분야 색 띠
@@ -92,7 +118,7 @@
     c.textAlign = 'right'; c.fillStyle = '#A8ABB0'; c.fillText(ts, W - 16 * k, top / 2); c.textAlign = 'left';
   };
 
-  Recorder.prototype.drawTile = function (t, x, y, w, h, fallback) {
+  Recorder.prototype.drawTile = function (t, x, y, w, h, fallback, idle) {
     var c = this.ctx, v = t.video, k = this.k;
     c.fillStyle = '#000'; c.fillRect(x, y, w, h);
     var ok = v && v.readyState >= 2 && v.videoWidth > 0;
@@ -103,9 +129,11 @@
     } else {
       c.fillStyle = '#686C72'; c.font = '600 ' + Math.round(20 * k) + 'px "Pretendard Variable", Pretendard, sans-serif';
       c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText('영상 없음', x + w / 2, y + h / 2); c.textAlign = 'left';
+      c.fillText(idle || '영상 없음', x + w / 2, y + h / 2); c.textAlign = 'left';
+      if (idle) return;
     }
     var label = t.label || fallback;
+    if (!label) return;
     c.font = '700 ' + Math.round(17 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
     var lw = c.measureText(label).width + 22 * k;
     c.fillStyle = 'rgba(18,19,21,.72)'; c.fillRect(x + 12 * k, y + h - 44 * k, lw, 32 * k);
@@ -128,13 +156,24 @@
     var stream = new MediaStream(tracks);
     var rec = new MediaRecorder(stream, { mimeType: this.type, videoBitsPerSecond: this.vbps, audioBitsPerSecond: 128000 });
     var chunks = [], self = this, started = Date.now();
-    var fname = filename + '.' + this.ext();
+    // 같은 이름이 이미 있으면(같은 분에 다시 시작·다시 접속) 뒤에 -2, -3… 을 붙여 덮어쓰지 않음
+    this.used = this.used || {};
+    var ext = this.ext(), fname = filename + '.' + ext;
+    for (var i = 2; this.used[fname]; i++) fname = filename + '-' + i + '.' + ext;
+    this.used[fname] = 1;
 
     // 폴더가 정해져 있으면 녹화하는 동안 파일에 바로 이어 씀(창·알림 없이 저장, 중간에 꺼져도 앞부분 보존)
     var sink = null;
     if (this.dir) {
       sink = { q: [], w: null, busy: false, failed: false, idle: null };
-      this.dir.getFileHandle(fname, { create: true })
+      var dir = this.dir;
+      (async function () {
+        for (var j = 2; j < 100; j++) {
+          try { await dir.getFileHandle(fname); } catch (e) { break; }   // 폴더에 없으면 그 이름 사용
+          fname = filename + '-' + j + '.' + ext; self.used[fname] = 1;
+        }
+        return dir.getFileHandle(fname, { create: true });
+      })()
         .then(function (fh) { return fh.createWritable(); })
         .then(function (w) { sink.w = w; pump(); })
         .catch(function (e) { console.warn('auto-save', e); sink.failed = true; if (sink.idle) sink.idle(); });

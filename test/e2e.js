@@ -36,12 +36,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   // 운영진(녹화 창)
   await ops.goto(BASE + '/ops.html?r=test');
   await SHOT(ops, 'ops_gate');
-  await ops.fill('#g-name', '운영A'); await ops.fill('#g-code', 'o1234'); await ops.click('#g-btn');
+  await ops.fill('#g-name', '조성현'); await ops.fill('#g-code', 'o1234'); await ops.click('#g-btn');   // 녹화 담당(config RECORDERS)
   await ops.waitForSelector('#s-main:not(.hide)');
-  await ops.click('label.switch:has(#sw-host)');
-  await sleep(1500);
-  await ops.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));
-  log('ops in, host on, auto-save folder set');
+  await ops.waitForSelector('#recSetup:not(.hide)', { timeout: 10000 });
+  await sleep(500); await SHOT(ops, 'ops_recsetup');
+  await ops.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));   // 폴더 선택 창 대신(시험용)
+  await waitFor(ops, () => document.querySelector('#recSetup').classList.contains('hide') && !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording on login');
+  await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 15000, 'recorder took host');
+  log('recorder 조성현 in: folder set → recording from login (대기), host taken');
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
   await waitFor(ops, () => document.querySelectorAll('#list .st').length >= 4, null, 15000, 'roster cards');
   await waitFor(ops, () => /학생가/.test(document.querySelector('#alerts').textContent) && document.querySelector('.al.absent'), null, 15000, 'absent alert');
@@ -74,6 +76,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(mentor, () => { const v = document.querySelector('#g-stage video'); return v && v.videoWidth > 0; }, null, 30000, 'mentor sees researcher');
   log('mentor sees researcher on stage');
   await sleep(1500); await SHOT(mentor, 'mentor_stage'); await SHOT(res, 'research');
+  { const png = await ops.evaluate(() => window.__recFrame()); if (png) fs.writeFileSync(path.join(OUT, 's_rec_gap_stage.png'), Buffer.from(png.split(',')[1], 'base64')); }
   await res.click('#b-stage'); await sleep(1500); await res.close();
 
   // 학생 A: 이름+생년월일 → 유의사항 → 카메라 → 대기실
@@ -140,13 +143,18 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await SHOT(sA, 'stu_done');
   await sleep(3000);
   await ops.click('#b-end'); await ops.click('#b-end');
-  await waitFor(ops, () => [...document.querySelectorAll('#rec-files li')].filter(li => li.textContent.includes('자동 저장')).length >= 2, null, 30000, 'auto-saved');
-  log('2 recordings auto-saved');
+  await waitFor(ops, () => [...document.querySelectorAll('#rec-files li')].filter(li => li.textContent.includes('자동 저장')).length >= 3, null, 30000, 'auto-saved');
+  await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording resumes after end');
+  const names = await ops.evaluate(() => [...document.querySelectorAll('#rec-files li span:first-child')].map(x => x.textContent));
+  log('auto-saved:', names.join(' | '));
+  if (!names.some(n => /_대기_/.test(n))) throw new Error('no gap file');
+  log('student files + 대기 file saved, recording continues after last student');
   const vinfo = await ops.evaluate(async () => {
     const dir = await navigator.storage.getDirectory(); const out = [];
     for await (const [name, h] of dir.entries()) {
       if (!/\.(webm|mp4)$/.test(name)) continue;
-      const f = await h.getFile(); const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(f);
+      const f = await h.getFile(); if (!f.size) continue;   // 아직 녹화 중인 파일(닫히기 전 0바이트)
+      const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(f);
       await new Promise(r => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 5000); });
       v.currentTime = 2; await new Promise(r => { v.onseeked = r; setTimeout(r, 3000); });
       const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
