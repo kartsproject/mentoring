@@ -51,9 +51,10 @@
   <form class="card" id="f-gate" autocomplete="off">
     <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>2026 K예술영재 · 무용 온라인 멘토링</div>
     <h1>멘토 <em>입장</em></h1>
-    <p class="lead">안내받은 회차와 멘토 코드를 입력해 주세요.</p>
-    <label class="field"><span>회차</span><input id="g-room" placeholder="예: 3" required></label>
-    <label class="field"><span>성함</span><input id="g-name" placeholder="정은영" required></label>
+    <p class="lead">성함과 안내받은 멘토 코드를 입력해 주세요. 회차는 오늘 날짜에 맞춰 자동으로 들어갑니다.</p>
+    <div class="autor" id="g-rrow"><span class="autor-l">회차</span><b id="g-rauto"><i class="fdot"></i>오늘 날짜에 맞춰 자동</b><button class="lnk" type="button" id="g-rpick">직접 입력</button></div>
+    <label class="field hide" id="g-rbox"><span>회차 <small class="muted">(비우면 자동 · 리허설은 test)</small></span><input id="g-room" autocomplete="off"></label>
+    <label class="field"><span>성함</span><input id="g-name" required autocomplete="off"></label>
     <label class="field"><span>멘토 코드</span><input id="g-code" type="password" required></label>
     <div class="err" id="g-err"></div>
     <button class="btn full" id="g-btn">다음 — 카메라 확인</button>
@@ -119,7 +120,14 @@
   var PREFIX = C.PREFIX || '';
   var sess, links, dc, local, view = null, lastOffer = {}, curKey = '', ac = null, warned = '';
 
+  // 회차: 비워 두면 오늘 날짜에 맞는 회차로 자동 입장(주소에 ?r= 가 있으면 그 회차)
   $('#g-room').value = UI.param('r');
+  if (UI.param('r')) { UI.show('#g-rrow', false); UI.show('#g-rbox', true); }
+  $('#g-rpick').onclick = function () { UI.show('#g-rrow', false); UI.show('#g-rbox', true); $('#g-room').focus(); };
+  function roomErr(code) {
+    return code === 'bad_room' ? '회차 자동 찾기는 관문(Code.gs) Ver.2.1부터 됩니다. 지금은 「직접 입력」으로 회차를 넣어 주세요.'
+      : code === 'no_session' ? '시트 「회차」에서 날짜에 맞는 회차를 찾지 못했습니다. 「직접 입력」으로 회차를 넣어 주세요.' : '';
+  }
   try { $('#g-name').value = localStorage.getItem('meet_mentor') || ''; } catch (e) {}
 
   function go(id) {
@@ -130,16 +138,17 @@
   $('#f-gate').onsubmit = async function (e) {
     e.preventDefault();
     $('#g-btn').disabled = true; $('#g-err').textContent = '';
-    var r = $('#g-room').value.replace(/회차|\s/g, '');
+    var r = $('#g-room').value.replace(/회차|\s/g, '') || 'auto';
     sess = new M.Session({ r: r, role: 'mentor', name: $('#g-name').value.trim(), code: $('#g-code').value.trim(), interval: 1800 });
     try {
       await sess.join();
       try { localStorage.setItem('meet_mentor', sess.name); } catch (e2) {}
+      try { history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(sess.r)); } catch (e3) {}
       go('s-check');
       dc = new M.DeviceCheck({ video: $('#c-video'), meter: $('#c-meter'), selCam: $('#c-cam'), selMic: $('#c-mic'), err: $('#c-err') });
       dc.start().then(function () { $('#c-btn').disabled = false; }).catch(function (er) { $('#c-err').textContent = M.Media.errText(er); });
     } catch (err) {
-      $('#g-err').textContent = err.code === 'code' ? '멘토 코드가 맞지 않습니다.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')';
+      $('#g-err').textContent = roomErr(err.code) || (err.code === 'code' ? '멘토 코드가 맞지 않습니다.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')');
       $('#g-btn').disabled = false;
     }
   };

@@ -246,8 +246,9 @@
     <h1 id="g-title">운영·연구원 화면</h1>
     <p class="lead" id="g-lead">멘토링 중에는 보기만 하고, 멘토링 전에는 「화면 등장」으로 멘토와 이야기할 수 있습니다.</p>
     <div class="seg"><label><input type="radio" name="role" value="ops" checked><span>운영진</span></label><label><input type="radio" name="role" value="research"><span>연구원</span></label></div>
-    <label class="field"><span>회차</span><input id="g-room" placeholder="예: 3 (리허설은 test)" required></label>
-    <label class="field"><span>이름</span><input id="g-name" placeholder="홍길동" required></label>
+    <div class="autor" id="g-rrow"><span class="autor-l">회차</span><b id="g-rauto"><i class="fdot"></i>오늘 날짜에 맞춰 자동</b><button class="lnk" type="button" id="g-rpick">직접 입력</button></div>
+    <label class="field hide" id="g-rbox"><span>회차 <small class="muted">(비우면 자동 · 리허설은 test)</small></span><input id="g-room" autocomplete="off"></label>
+    <label class="field"><span>이름</span><input id="g-name" required autocomplete="off"></label>
     <label class="field"><span id="g-code-l">운영진 코드</span><input id="g-code" type="password" required></label>
     <div class="err" id="g-err"></div>
     <button class="btn full" id="g-btn">입장</button>
@@ -407,7 +408,14 @@
   document.querySelectorAll('input[name=role]').forEach(function (x) {
     x.onchange = function () { $('#g-code-l').textContent = this.value === 'research' ? '연구원 코드' : '운영진 코드'; };
   });
+  // 회차: 비워 두면 오늘 날짜에 맞는 회차로 자동 입장(주소에 ?r= 가 있으면 그 회차)
   $('#g-room').value = UI.param('r');
+  if (UI.param('r')) { UI.show('#g-rrow', false); UI.show('#g-rbox', true); }
+  $('#g-rpick').onclick = function () { UI.show('#g-rrow', false); UI.show('#g-rbox', true); $('#g-room').focus(); };
+  function roomErr(code) {
+    return code === 'bad_room' ? '회차 자동 찾기는 관문(Code.gs) Ver.2.1부터 됩니다. 지금은 「직접 입력」으로 회차를 넣어 주세요.'
+      : code === 'no_session' ? '시트 「회차」에서 날짜에 맞는 회차를 찾지 못했습니다. 「직접 입력」으로 회차를 넣어 주세요.' : '';
+  }
   try { $('#g-name').value = localStorage.getItem('meet_ops') || ''; } catch (e) {}
 
   function remember() { try { sessionStorage.setItem('meet_ops_login', JSON.stringify({ role: role, name: sess.name, code: sess.code })); } catch (e) {} }
@@ -417,6 +425,8 @@
     r = rr; role = rl;
     sess = new M.Session({ r: r, role: role, name: name, code: code, interval: PANEL ? 2000 : 1800, panel: PANEL });
     await sess.join();
+    r = sess.r;   // 자동으로 찾은 회차
+    try { history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(r) + (PANEL ? '&mode=room' : '')); } catch (e3) {}
     try { localStorage.setItem('meet_ops', sess.name); } catch (e2) {}
     remember();
     start();
@@ -424,10 +434,10 @@
   $('#f-gate').onsubmit = async function (e) {
     e.preventDefault();
     $('#g-btn').disabled = true; $('#g-err').textContent = '';
-    var rr = $('#g-room').value.replace(/회차|\s/g, ''), rl = document.querySelector('input[name=role]:checked').value;
+    var rr = $('#g-room').value.replace(/회차|\s/g, '') || 'auto', rl = document.querySelector('input[name=role]:checked').value;
     try { await login(rr, rl, $('#g-name').value.trim(), $('#g-code').value.trim()); }
     catch (err) {
-      $('#g-err').textContent = err.code === 'code' ? (rl === 'research' ? '연구원' : '운영진') + ' 코드가 맞지 않습니다.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')';
+      $('#g-err').textContent = roomErr(err.code) || (err.code === 'code' ? (rl === 'research' ? '연구원' : '운영진') + ' 코드가 맞지 않습니다.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')');
       $('#g-btn').disabled = false;
     }
   };

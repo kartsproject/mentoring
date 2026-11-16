@@ -1,5 +1,5 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.0
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.1
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
@@ -55,7 +55,7 @@ function out_(o) {
 function handle_(req) {
   try {
     var r = String(req.r || '');
-    if (req.a === 'join' && req.role === 'student' && (!r || r === 'auto')) r = 'auto';
+    if (req.a === 'join' && (!r || r === 'auto')) r = 'auto';   // 회차를 비우면 날짜에 맞춰 자동
     else if (!/^[\w-]{1,20}$/.test(r)) return { ok: false, error: 'bad_room' };
     switch (req.a) {
       case 'join': return join_(r, req);
@@ -179,6 +179,19 @@ function sessions_() {
 
 function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
 
+// 날짜로 회차 고르기(리허설 test 제외): 오늘 → 가장 가까운 앞으로의 회차 → 가장 최근 회차
+function autoRoom_() {
+  var se = sessions_(), td = today_();
+  var list = Object.keys(se).filter(function (k) { return k !== 'test' && se[k].date; })
+    .map(function (k) { return se[k]; });
+  var today = list.filter(function (x) { return x.date === td; })[0];
+  if (today) return today.r;
+  var up = list.filter(function (x) { return x.date > td; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; })[0];
+  if (up) return up.r;
+  var past = list.sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+  return past ? past.r : '';
+}
+
 /* ───────────── 기록 ───────────── */
 function log_(r, kind, name, text) {
   try {
@@ -205,6 +218,7 @@ function join_(r, req) {
   var name = String(req.name || '').trim().slice(0, 30);
   var p = props_();
   var id, me = null;
+  if (r === 'auto' && role !== 'student') { r = autoRoom_(); if (!r) return { ok: false, error: 'no_session' }; }
 
   if (role === 'mentor') {
     if (String(req.code || '') !== String(p.getProperty('MENTOR_CODE') || '__none__')) return { ok: false, error: 'code' };

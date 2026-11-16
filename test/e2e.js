@@ -177,6 +177,17 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await sB.waitForSelector('#room.on');
   log('student B reload → skipped login/rules, back in room');
 
+  // 회차 자동: 주소에 회차 없이 들어오면 날짜에 맞는 회차(오늘 11/16 → 2회차 11/21)
+  const m2 = await mk('mentor-auto');
+  await m2.goto(BASE + '/mentor.html');
+  if (!(await m2.isVisible('#g-rrow')) || await m2.isVisible('#g-room')) throw new Error('auto room row not shown');
+  if (await m2.getAttribute('#g-name', 'placeholder')) throw new Error('name placeholder still there');
+  await SHOT(m2, 'mentor_gate_auto');
+  await m2.fill('#g-name', '정은영'); await m2.fill('#g-code', 'm1234'); await m2.click('#g-btn');
+  await m2.waitForSelector('#s-check:not(.hide)', { timeout: 15000 });
+  const autoR = new URL(m2.url()).searchParams.get('r');
+  log('mentor without 회차 → auto room:', autoR);
+  if (autoR !== '2') throw new Error('auto room wrong: ' + autoR);
   console.log(JSON.stringify((await (await fetch(BASE + '/__stats')).json()).chat).slice(0, 600));
   await browser.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
