@@ -109,6 +109,14 @@
   .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
   .tile .overlay { font-size: 14px; }
   .tile .st2 { position: absolute; right: 10px; top: 10px; z-index: 2; }
+  .stage-cta { margin-top: 14px; padding: 11px 22px; font-size: 15px; pointer-events: auto; }
+  .stage-help { margin: 10px 0 0; font-size: 12.5px; color: var(--k-soft); }
+  .stbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;
+    padding: 10px; background: linear-gradient(transparent, rgba(18,19,21,.85) 45%); }
+  .stbar .btn.ghost { background: rgba(36,39,43,.8); }
+  .stctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 12px 12px; }
+  .stctl #h-talk { margin-right: auto; }
+  .stctl #b-stoff { padding: 7px 16px; }
   .curbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--k-line); flex-wrap: wrap; }
   .curbar .nm { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
   .curbar .sp { flex: 1; }
@@ -264,13 +272,6 @@
     <div class="tools">
       <span class="conn2" id="conn"><i></i><span>실시간</span></span>
       <span id="h-rec" class="chip on hide stage-only"><span class="rec-dot" style="background:#fff"></span><span>녹화 중</span></span>
-      <span id="st-ctrls" class="hide stage-only" style="display:inline-flex;gap:6px;align-items:center">
-        <span id="h-talk" class="chip"><span class="dot"></span><span>마이크 꺼짐</span></span>
-        <button class="btn sm" id="b-ptt" type="button" title="누르고 있는 동안 말하기 (키보드 스페이스와 같음)">누르고 말하기</button>
-        <button class="btn ghost sm" id="b-smic" type="button">스페이스로 말하기</button>
-        <button class="btn ghost sm" id="b-scam" type="button">카메라 켜짐</button>
-      </span>
-      <button class="btn sm stage-only" id="b-stage" type="button" title="멘토링 전에 내 카메라·마이크로 멘토 화면에 나옵니다">화면 등장</button>
       <label class="switch op-only stage-only" title="이 PC가 녹화와 연결 점검을 맡습니다"><input type="checkbox" id="sw-host"><i></i><span>이 PC에서 녹화</span></label>
       <button class="btn ghost sm stage-only" id="b-sound" type="button">영상 소리 켬</button>
       <span class="vsep stage-only"></span>
@@ -299,9 +300,20 @@
             <div class="overlay" id="o-M"><div>멘토 접속 전</div></div>
             <span class="label" id="l-M">멘토</span><span class="st2" id="st-M"></span></div>
           <div class="tile"><video id="v-S" autoplay playsinline></video>
-            <div class="overlay" id="o-S"><div>진행 중인 학생 없음</div></div>
+            <div class="overlay" id="o-S"><div><div id="o-S-t">진행 중인 학생 없음</div>
+              <button class="btn yel stage-cta" id="b-stage" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg><span>화면 등장</span></button>
+              <p class="stage-help" id="o-S-h">멘토링 전에 내 카메라·마이크로 멘토와 이야기합니다</p></div></div>
             <span class="label" id="l-S">학생</span><span class="st2" id="st-S"></span>
-            <div class="sgrid" id="g-stage"></div></div>
+            <div class="sgrid" id="g-stage"></div>
+            <div class="stbar hide" id="st-join"><button class="btn yel sm" id="b-stage2" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg><span>나도 화면 등장</span></button></div>
+            </div>
+        </div>
+        <div class="stctl hide" id="st-ctrls">
+          <span id="h-talk" class="chip"><span class="dot"></span><span>마이크 켜짐</span></span>
+          <button class="btn ghost sm" id="b-smic" type="button">마이크 끄기</button>
+          <button class="btn sm" id="b-ptt" type="button" title="누르고 있는 동안 말하기 (키보드 스페이스와 같음)">누르고 말하기</button>
+          <button class="btn ghost sm" id="b-scam" type="button">카메라 끄기</button>
+          <button class="btn coral sm" id="b-stoff" type="button">화면 끄기</button>
         </div>
         <div class="nextbar hide" id="nextbar">
           <div class="mini"><video id="v-N" autoplay playsinline muted></video><span class="label" id="l-N"></span></div>
@@ -641,7 +653,7 @@
         (LN && LN.state === 'connected' ? '<span class="chip ok">운영 연결됨</span> ' : '<span class="chip warn">운영 연결 중</span> ') +
         (mw === 'connected' ? '<span class="chip ok">멘토 미리 연결됨</span>' : '<span class="chip warn">멘토 미리 연결 중</span>');
     }
-    $('#o-S div').textContent = !cur ? '진행 중인 학생 없음' : !cur.live ? PREFIX + cur.name + ' — 접속 전' : '학생 화면 연결 중…';
+    $('#o-S-t').textContent = !cur ? (view.next ? '다음 학생 대기 중 · ' + PREFIX + view.next.name : '다음 학생 대기 중') : !cur.live ? PREFIX + cur.name + ' — 접속 전' : '학생 화면 연결 중…';
     $('#l-M').textContent = '멘토 ' + (view.mentorName || '');
     $('#l-S').textContent = cur ? PREFIX + cur.name : '학생';
     $('#st-M').innerHTML = view.mentorInfo ? devChips(view.mentorInfo) : '';
@@ -811,20 +823,20 @@
     b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
   })();
   function paintStageBtn() {
-    var b = $('#b-stage'), busy = view && view.cur;
-    b.textContent = stageLocal ? '화면에서 내려가기' : '화면 등장';
-    b.classList.toggle('coral', !!stageLocal);
-    b.disabled = !stageLocal && !!busy;
-    b.title = busy ? '멘토링 중에는 화면에 나올 수 없습니다' : '멘토링 전에 내 카메라·마이크로 멘토 화면에 나옵니다';
+    // 빈 학생 칸: 「화면 등장」 / 다른 사람이 나와 있으면 아래에 「나도 화면 등장」 / 내가 나와 있으면 아래에 조작·「화면 끄기」
+    var busy = !!(view && view.cur), others = !busy && ((view && view.stage) || []).some(function (m) { return m.id !== sess.id; });
+    UI.show('#b-stage', !busy && !stageLocal); UI.show('#o-S-h', !busy && !stageLocal);
+    UI.show('#st-join', !busy && !stageLocal && others);
     UI.show('#st-ctrls', !!stageLocal);
     if (stageLocal) {
       var at = stageLocal.getAudioTracks()[0], vt = stageLocal.getVideoTracks()[0], talking = !!(at && at.enabled);
-      $('#b-smic').textContent = pttMode ? '스페이스로 말하기' : '마이크 항상 켜짐';
+      $('#b-smic').textContent = pttMode ? '마이크 켜기' : '마이크 끄기';
       UI.show('#b-ptt', pttMode);
       var ht = $('#h-talk');
-      ht.classList.toggle('live', talking);
-      ht.querySelector('span:last-child').textContent = talking ? '말하는 중' : pttMode ? '스페이스를 누르고 말하세요' : '마이크 꺼짐';
-      $('#b-scam').textContent = vt && vt.enabled ? '카메라 켜짐' : '카메라 꺼짐';
+      ht.classList.toggle('live', talking && pttMode);
+      ht.classList.toggle('ok', talking && !pttMode);
+      ht.querySelector('span:last-child').textContent = talking ? (pttMode ? '말하는 중' : '마이크 켜짐') : '마이크 꺼짐 · 스페이스를 누르고 말하기';
+      $('#b-scam').textContent = vt && vt.enabled ? '카메라 끄기' : '카메라 켜기';
       $('#b-scam').classList.toggle('coral', !(vt && vt.enabled));
     }
   }
@@ -841,22 +853,26 @@
     paintStageBtn(); paintStage();
     if (msg) UI.toast(msg);
   }
+  async function stageOff() { if (!stageLocal) return; stopStage(); await sess.op('stage', { on: false }); kickOthers(); }
+  $('#b-stoff').onclick = function () { this.blur(); stageOff(); };
+  $('#b-stage2').onclick = function () { $('#b-stage').onclick.call(this); };
   $('#b-stage').onclick = async function () {
-    if (stageLocal) { stopStage(); await sess.op('stage', { on: false }); kickOthers(); return; }
+    if (stageLocal) { stageOff(); return; }
     if (view && view.cur) { UI.toast('멘토링 중에는 화면에 나올 수 없습니다'); return; }
     this.disabled = true;
     var cam;
     try { cam = await M.Media.get({}); }
     catch (e) { this.disabled = false; UI.toast(M.Media.errText(e), 5000); return; }
     stageWantUntil = Date.now() + 10000;   // 서버 반영 전에 도착한 상태 때문에 바로 내려가지 않도록
-    pttMode = true; pttHeld = false;
-    cam.getAudioTracks().forEach(function (t) { t.enabled = false; });   // 기본: 스페이스를 누를 때만 말하기
+    pttMode = false; pttHeld = false;   // 기본: 카메라·마이크 모두 켜짐(마이크를 끄면 스페이스를 누르는 동안만 말하기)
+    cam.getAudioTracks().forEach(function (t) { t.enabled = true; });
+    cam.getVideoTracks().forEach(function (t) { t.enabled = true; });
     stageLocal = cam;
     var j = await sess.op('stage', { on: true });
     if (!j.ok) {
       M.Media.stop(stageLocal); stageLocal = null; stageWantUntil = 0;
       UI.toast(j.error === 'busy' ? '멘토링 중에는 화면에 나올 수 없습니다' : j.error === 'full' ? '화면에는 3명까지 나올 수 있습니다' : '화면에 나오지 못했습니다');
-    } else { UI.toast('화면에 나왔습니다. 스페이스를 누르고 있는 동안 마이크가 켜집니다', 4000); kickOthers(); }
+    } else { UI.toast('화면에 나왔습니다. 카메라·마이크가 켜져 있습니다', 3500); kickOthers(); }
     this.disabled = false; this.blur();
     links.applyPolicy(); paintStageBtn(); paintStage();
   };

@@ -72,12 +72,20 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res.fill('#g-name', '연구원A'); await res.fill('#g-code', 'r1234'); await res.click('#g-btn');
   await res.waitForSelector('#s-main:not(.hide)');
   if (await res.isVisible('#p-rec') || await res.isVisible('#chatForm')) throw new Error('research should not see recording/chat send');
+  await sleep(1200); await SHOT(res, 'research_empty');
   await res.click('#b-stage');
   await waitFor(mentor, () => { const v = document.querySelector('#g-stage video'); return v && v.videoWidth > 0; }, null, 30000, 'mentor sees researcher');
   log('mentor sees researcher on stage');
   await sleep(1500); await SHOT(mentor, 'mentor_stage'); await SHOT(res, 'research');
   { const png = await ops.evaluate(() => window.__recFrame()); if (png) fs.writeFileSync(path.join(OUT, 's_rec_gap_stage.png'), Buffer.from(png.split(',')[1], 'base64')); }
-  await res.click('#b-stage'); await sleep(1500); await res.close();
+  if (!(await res.isVisible('#b-stoff'))) throw new Error('화면 끄기 not shown');
+  const micOnStage = await res.evaluate(() => document.querySelector('#h-talk').textContent);
+  log('research on stage — mic:', micOnStage);
+  if (!/켜짐/.test(micOnStage)) throw new Error('mic should be on when appearing');
+  await res.click('#b-stoff');
+  await waitFor(res, () => !document.querySelector('#b-stage').classList.contains('hide') && document.querySelector('#st-ctrls').classList.contains('hide'), null, 10000, 'back to waiting view');
+  log('화면 끄기 → back to next-student waiting view with 화면 등장 button');
+  await res.close();
 
   // 학생 A: 이름+생년월일 → 유의사항 → 카메라 → 대기실
   async function studentIn(p, name, birth, wrongFirst) {
