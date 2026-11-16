@@ -11,7 +11,8 @@
     this.view = null;
     this.SIM_OFF = 0; this.SIM_OPEN = false;
     this.sound = true; this.audio = null;
-    this.NOTIFIED = {}; this.ABS_ACK = {}; this.lastAlertSig = ''; this.lastDueBeep = 0; this.titleOn = false;
+    this.NOTIFIED = {}; this.POPPED = {}; this.prevLive = null; this.prevCur = '';
+    this.ABS_ACK = {}; this.lastAlertSig = ''; this.lastDueBeep = 0; this.titleOn = false;
     this.PENDING = []; this.seenChat = 0; this.lastChatMax = -1; this.lastChatSig = '';
     try { this.ABS_ACK = JSON.parse(sessionStorage.getItem('meet_ack') || '{}'); } catch (e) {}
     var self = this;
@@ -82,6 +83,7 @@
 
   /* ───── 학생 목록 그리기 ───── */
   Room.prototype.render = function (v) {
+    if (v !== this.view) this.events(v);
     this.view = v;
     var self = this, L = v.students, real = L.filter(function (x) { return !x.extra; });
     var on = real.filter(function (x) { return x.live; }).length;
@@ -117,12 +119,13 @@
           (f.due ? '<span class="badge due">' + UI.ico('clock') + '멘토링 시간</span>' : f.prep ? '<span class="badge prep">다음 차례</span>' : f.soon ? '<span class="badge soon">곧 차례</span>' : '') +
           (f.absent ? '<span class="badge absent">' + UI.ico('alert') + (x.seenAt ? '연결 끊김' : '미접속') + '</span>' : '') + chips.join('') + '</div>' +
         '<div class="act">' + acts.join('') + '</div>' +
-        '<div class="meta">' + (x.extra ? '명단 밖 접속(리허설·테스트)' : '대기실 ' + UI.esc(x.wait || '-') + ' · 멘토링 ' + UI.esc(x.time || '-') + (x.end ? '–' + UI.esc(x.end) : '')) + '</div>' +
-        (x.extra ? '' : self.phonesHtml(x, f.absent)) + '</div>';
+        '<div class="meta"><span>' + (x.extra ? '명단 밖 접속(리허설·테스트)' : '대기실 ' + UI.esc(x.wait || '-') + ' · 멘토링 ' + UI.esc(x.time || '-') + (x.end ? '–' + UI.esc(x.end) : '')) + '</span>' +
+        (x.extra ? '' : self.phonesHtml(x, f.absent)) + '</div></div>';
       if (!x.extra && brk && ++ri === brk) html += '<div class="brk">휴식</div>';
     });
     $('#list').innerHTML = html || '<div class="empty-list">명단이 없습니다. 시트 「명단」에 학생을 넣어 주세요.</div>';
     this.tick(true);
+    if (this.o.onRendered) this.o.onRendered();
     if ($('#guide').classList.contains('on')) this.renderGuide();
     if (this.SIM_OPEN || this.SIM_OFF) this.renderSim();
   };
@@ -138,20 +141,15 @@
     var sig = this.o.sess.r + '|' + (v.cur ? v.cur.id : '') + '|' + A.map(function (a) { return a.type + a.x.id + (a.x.seenAt ? 1 : 0) + (a.type === 'prep' ? (v.mentorInfo || {}).warm : ''); }).join();
     if (sig !== this.lastAlertSig) {
       this.lastAlertSig = sig;
-      var warm = (v.mentorInfo || {}).warm === 'connected';
-      $('#alerts').innerHTML = A.map(function (a) {
-        var x = a.x, who = (x.no ? x.no + '번 ' : '') + UI.esc(x.name);
-        if (a.type === 'due') return '<div class="al due"><div class="tx">' + UI.ico('clock') + '<b>' + who + '</b> 학생 멘토링 시간(' + fmt(a.at) + ')입니다 · [시작]을 눌러 주세요' +
-            (v.cur ? '<small>진행 중: ' + UI.esc(v.cur.name) + ' — 시작을 누르면 앞 학생은 자동으로 끝나고 녹화가 저장됩니다.</small>' : '') +
-            (x.live ? '' : '<small>' + UI.ico('alert') + '이 학생은 지금 대기실에 접속해 있지 않습니다.</small>' + self.phonesHtml(x)) + '</div>' +
-            (self.staff() ? '<button class="btn sm blink" data-a="call" data-id="' + x.id + '" type="button">' + UI.ico('clock') + '시작</button>' : '') + '</div>';
-        if (a.type === 'absent') return '<div class="al absent"><div class="tx">' + UI.ico('alert') + '<b>' + who + '</b> 학생 · 대기실 접속 시각(' + fmt(a.at) + ')이 지났는데 ' + (x.seenAt ? '연결이 끊겼습니다' : '아직 접속하지 않았습니다') +
-            self.phonesHtml(x) + '<small>대기실에 없으니 채팅 말고 <b>바로 전화</b>로 안내해 주세요. 접속하면 이 알림은 자동으로 사라집니다.</small></div>' +
-            '<button class="btn ghost sm" data-ack="' + x.id + '" type="button">확인함</button></div>';
-        if (a.type === 'prep') return '<div class="al prep"><div class="tx">' + UI.ico('target') + '<b>' + who + '</b> 학생 · 멘토링 ' + UI.esc(x.time) + ' · 다음 차례입니다' +
-            '<small>' + (warm ? '멘토와 미리 연결됨 — 앞 학생이 끝나면 [다음 시작]만 누르면 1초 안에 바뀝니다.' : '멘토와 미리 연결하는 중입니다(자동).') + ' 카메라·마이크 상태는 카드에서 확인하세요.</small></div></div>';
-        return '<div class="al soon"><div class="tx">' + UI.ico('clock') + '1분 뒤 <b>' + who + '</b> 학생 차례입니다 (' + fmt(a.at) + ')</div></div>';
-      }).join('');
+      var warm = (v.mentorInfo || {}).warm === 'connected', live = {};
+      A.forEach(function (a) {
+        var k = a.type + '|' + a.x.id; live[k] = 1;
+        var html = self.alertHtml(a, v, warm);
+        // 처음 생긴 알림만 띄움(같은 알림은 내용만 갱신). 멘토링 시간 알림은 아래에서 30초마다 다시 띄움
+        if (!self.POPPED[k]) { self.POPPED[k] = Date.now(); self.pop(k, html, a.type === 'due' || a.type === 'absent' ? 12000 : 7000, 'al ' + a.type); }
+        else self.pop(k, html, 0, 'al ' + a.type, true);
+      });
+      Object.keys(this.POPPED).forEach(function (k) { if (!live[k]) { delete self.POPPED[k]; self.unpop(k); } });
     }
     // 새 알림: 소리 + 데스크톱 알림
     A.forEach(function (a) {
@@ -164,7 +162,14 @@
         a.type === 'due' ? fmt(a.at) + ' 시작 · 운영 화면에서 [시작]을 눌러 주세요.' : '대기실 접속 시각 ' + fmt(a.at) + '이 지났습니다. 전화로 안내해 주세요.', k);
     });
     var due = A.some(function (a) { return a.type === 'due'; });
-    if (due && Date.now() - this.lastDueBeep > 30000) { if (this.lastDueBeep) this.alarm('due'); this.lastDueBeep = Date.now(); }   // 누를 때까지 30초마다 다시
+    if (due && Date.now() - this.lastDueBeep > 30000) {   // 누를 때까지 30초마다 다시(소리 + 위쪽 알림)
+      if (this.lastDueBeep) {
+        this.alarm('due');
+        var warm2 = (v.mentorInfo || {}).warm === 'connected';
+        A.filter(function (a) { return a.type === 'due'; }).forEach(function (a) { self.pop('due|' + a.x.id, self.alertHtml(a, v, warm2), 12000, 'al due'); });
+      }
+      this.lastDueBeep = Date.now();
+    }
     if (!due) this.lastDueBeep = 0;
     var hot = A.filter(function (a) { return a.type === 'due' || a.type === 'absent'; });
     if (this.o.onHot) this.o.onHot(hot.length);
@@ -172,11 +177,62 @@
     if (!(this.o.titleBusy && this.o.titleBusy())) document.title = this.titleOn ? (due ? '⏰ 시작할 학생이 있어요!' : '⚠ 미접속 학생') : this.o.title;
   };
 
+  Room.prototype.alertHtml = function (a, v, warm) {
+    var self = this, x = a.x, who = (x.no ? x.no + '번 ' : '') + UI.esc(x.name);
+    if (a.type === 'due') return '<div class="tx">' + UI.ico('clock') + '<b>' + who + '</b> 학생 멘토링 시간(' + fmt(a.at) + ')입니다 · [시작]을 눌러 주세요' +
+        (v.cur ? '<small>진행 중: ' + UI.esc(v.cur.name) + ' — 시작을 누르면 앞 학생은 자동으로 끝나고 녹화가 저장됩니다.</small>' : '') +
+        (x.live ? '' : '<small>' + UI.ico('alert') + '이 학생은 지금 대기실에 접속해 있지 않습니다.</small>' + self.phonesHtml(x)) + '</div>' +
+        (self.staff() ? '<button class="btn sm blink" data-a="call" data-id="' + x.id + '" type="button">' + UI.ico('clock') + '시작</button>' : '');
+    if (a.type === 'absent') return '<div class="tx">' + UI.ico('alert') + '<b>' + who + '</b> 학생 · 대기실 접속 시각(' + fmt(a.at) + ')이 지났는데 ' + (x.seenAt ? '연결이 끊겼습니다' : '아직 접속하지 않았습니다') +
+        self.phonesHtml(x) + '<small>채팅 말고 <b>바로 전화</b>로 안내해 주세요. 카드에도 「미접속」으로 남아 있습니다.</small></div>' +
+        '<button class="btn ghost sm" data-ack="' + x.id + '" type="button">확인함</button>';
+    if (a.type === 'prep') return '<div class="tx">' + UI.ico('target') + '<b>' + who + '</b> 학생 · 멘토링 ' + UI.esc(x.time) + ' · 다음 차례입니다' +
+        '<small>' + (warm ? '멘토와 미리 연결됨 — 앞 학생이 끝나면 [다음 시작]만 누르면 1초 안에 바뀝니다.' : '멘토와 미리 연결하는 중입니다(자동).') + '</small></div>';
+    return '<div class="tx">' + UI.ico('clock') + '1분 뒤 <b>' + who + '</b> 학생 차례입니다 (' + fmt(a.at) + ')</div>';
+  };
+  // 화면 위쪽 알림: 학생 목록·시작 버튼을 가리지 않는 자리에 잠깐 떴다가 사라짐
+  Room.prototype.pop = function (key, html, ttl, cls, onlyUpdate) {
+    var box = $('#alerts'), el = box.querySelector('[data-k="' + key.replace(/"/g, '') + '"]');
+    if (!el) {
+      if (onlyUpdate) return;
+      el = document.createElement('div'); el.dataset.k = key;
+      box.insertBefore(el, box.firstChild);
+      while (box.children.length > 4) box.lastChild.remove();
+    }
+    el.className = (cls || 'al info') + ' pop';
+    el.innerHTML = html + '<button class="x" type="button" aria-label="닫기">' + UI.ico('x') + '</button>';
+    if (ttl) {
+      clearTimeout(el._t);
+      el.classList.remove('out');
+      el._t = setTimeout(function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 300); }, ttl);
+    }
+  };
+  Room.prototype.unpop = function (key) { var el = $('#alerts').querySelector('[data-k="' + key.replace(/"/g, '') + '"]'); if (el) el.remove(); };
+  // 학생 접속·끊김, 멘토링 시작·종료를 짧게 알림
+  Room.prototype.events = function (v) {
+    var self = this, live = {}, prev = this.prevLive;
+    v.students.forEach(function (x) { if (!x.extra || x.live) live[x.id] = !!x.live; });
+    var cur = v.cur ? v.cur.id : '';
+    if (prev) {
+      v.students.forEach(function (x) {
+        if (prev[x.id] === undefined || prev[x.id] === live[x.id] || x.done) return;
+        var who = (x.no ? x.no + '번 ' : '') + UI.esc(x.name);
+        self.pop('ev|' + x.id, live[x.id] ? '<div class="tx">' + UI.ico('check') + '<b>' + who + '</b> 학생이 대기실에 들어왔습니다</div>'
+          : '<div class="tx">' + UI.ico('alert') + '<b>' + who + '</b> 학생 연결이 끊겼습니다' + self.phonesHtml(x) + '</div>', live[x.id] ? 5000 : 9000, live[x.id] ? 'al info ok' : 'al info warn');
+      });
+      if (cur !== this.prevCur) {
+        if (cur) self.pop('ev|cur', '<div class="tx">' + UI.ico('video') + '<b>' + ((v.cur.no ? v.cur.no + '번 ' : '') + UI.esc(v.cur.name)) + '</b> 학생 멘토링을 시작했습니다</div>', 6000, 'al info start');
+        else if (this.prevCur) self.pop('ev|cur', '<div class="tx">' + UI.ico('check') + '멘토링을 마쳤습니다 · 다음 학생 대기 중</div>', 5000, 'al info');
+      }
+    }
+    this.prevLive = live; this.prevCur = cur;
+  };
+
   /* ───── 알림 미리보기(리허설 시계) ───── */
   Room.prototype.setSim = function (ms) {
     this.SIM_OFF = ms == null ? 0 : ms - Date.now();
     var self = this;
-    this.NOTIFIED = {}; this.lastAlertSig = ''; this.lastDueBeep = 0;
+    this.NOTIFIED = {}; this.POPPED = {}; $('#alerts').innerHTML = ''; this.lastAlertSig = ''; this.lastDueBeep = 0;
     Object.keys(this.ABS_ACK).forEach(function (k) { if (k.indexOf('sim|') === 0) delete self.ABS_ACK[k]; });
     this.renderSim(); if (this.view) this.render(this.view);
   };
@@ -281,7 +337,9 @@
       if (self.staff()) self.mention(card.dataset.n);
     });
     $('#alerts').addEventListener('click', function (e) {
+      var x = e.target.closest('.x'); if (x) { var el = x.closest('.pop'); if (el) el.remove(); return; }
       var a = e.target.closest('[data-ack]');
+      if (a) { var pe = a.closest('.pop'); if (pe) pe.remove(); }
       if (a) {
         self.ABS_ACK[(self.SIM_OFF ? 'sim|' : '') + sess.r + '|' + a.dataset.ack] = 1;
         try { var keep = {}; Object.keys(self.ABS_ACK).forEach(function (k) { if (k.indexOf('sim|') !== 0) keep[k] = 1; }); sessionStorage.setItem('meet_ack', JSON.stringify(keep)); } catch (er) {}

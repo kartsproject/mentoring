@@ -16,7 +16,7 @@ async function waitFor(page, fn, arg, ms = 30000, label = '') {
   throw new Error('timeout: ' + label);
 }
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
-const SHOT = async (p, name) => { if (process.env.SHOTS) await p.screenshot({ path: path.join(OUT, 's_' + name + '.png') }); };
+const SHOT = async (p, name) => { if (process.env.SHOTS) try { await p.screenshot({ path: path.join(OUT, 's_' + name + '.png'), timeout: 10000 }); } catch (e) { console.log('(screenshot skipped:', name + ')'); } };
 const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textContent || '', sel);
 
 (async () => {
@@ -26,11 +26,12 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   });
   const mk = async (name, vp) => {
     const c = await browser.newContext({ viewport: vp || { width: 1600, height: 950 }, acceptDownloads: true, permissions: ['camera', 'microphone'] });
-    const p = await c.newPage();
+    const p = await c.newPage(); (global.__pages = global.__pages || []).push(p);
     p.on('pageerror', e => console.log(`[${name} pageerror]`, e.message));
     p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) console.log(`[${name} console]`, m.text()); });
     return p;
   };
+  global.__pages = [];
   const ops = await mk('ops'), mentor = await mk('mentor'), res = await mk('research'), sA = await mk('stuA', { width: 420, height: 860 }), sB = await mk('stuB', { width: 420, height: 860 });
 
   // 운영진(녹화 창)
@@ -47,6 +48,12 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
   await waitFor(ops, () => document.querySelectorAll('#list .st').length >= 4, null, 15000, 'roster cards');
   await waitFor(ops, () => /학생가/.test(document.querySelector('#alerts').textContent) && document.querySelector('.al.absent'), null, 15000, 'absent alert');
+  await SHOT(ops, 'ops_popups');
+  log('top popup alerts:', await ops.evaluate(() => [...document.querySelectorAll('#alerts .al')].map(e => e.className).join(' | ')));
+  await sleep(13000);
+  const left = await ops.evaluate(() => [...document.querySelectorAll('#alerts .al')].filter(e => /absent|due/.test(e.className)).length);
+  log('after 13s, absent/due popups left:', left);
+  if (left) throw new Error('popups should disappear');
   log('ops cards:', await ops.evaluate(() => document.querySelectorAll('#list .st').length), '/ alerts:', (await text(ops, '#alerts')).slice(0, 80));
   if (!/010-1111-2222/.test(await text(ops, '#list'))) throw new Error('phones not shown');
   log('phones shown on cards');
@@ -125,18 +132,21 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(sA, () => document.querySelector('#w-test').textContent.includes('완료'), null, 40000, 'test A');
   await waitFor(sA, () => document.querySelector('#w-warm').textContent.includes('준비 완료'), null, 40000, 'A warm');
   log('student A tested & prewarmed; status:', (await text(sA, '#status')).replace(/\s+/g, ' ').slice(0, 40));
-  await waitFor(ops, () => /멘토링 시간/.test(document.querySelector('#alerts').textContent), null, 15000, 'due alert');
+  await waitFor(ops, () => document.querySelector('#list .st.due'), null, 15000, 'due card');
+  if (await ops.evaluate(() => document.documentElement.scrollHeight > innerHeight + 2 || document.querySelector('#list').scrollHeight > document.querySelector('#list').clientHeight + 2)) throw new Error('student list does not fit on screen');
+  log('student list fits on screen (no scroll)');
   log('ops due alert shown for 학생가');
   await ops.screenshot({ path: path.join(OUT, '3_ops_waiting.png') });
   await panel.screenshot({ path: path.join(OUT, '3_panel.png') });
 
   // 대기실 창에서 시작 → 녹화 창이 녹화
   const t0 = Date.now();
-  await panel.click('#alerts button[data-a="call"]');
+  await panel.click('#list .st[data-id="S_학생가"] button[data-a="call"]');
   await waitFor(sA, () => !document.querySelector('#s-live').classList.contains('hide') && document.querySelector('#l-remote').videoWidth > 0, null, 30000, 'A live');
   log('started from panel window → student A live after', Date.now() - t0, 'ms');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
   log('recording started on host window');
+  if (process.env.SHOTS) { await SHOT(ops, 'ops_popup_start'); await ops.evaluate(() => { window.__tShift = 9 * 60000 + 5000; }); await sleep(1200); await SHOT(ops, 'ops_last1min'); await SHOT(panel, 'panel_last1min'); await ops.evaluate(() => { window.__tShift = 0; }); await ops.setViewportSize({ width: 1920, height: 1080 }); await sleep(1500); await SHOT(ops, 'ops_1920'); await ops.setViewportSize({ width: 1600, height: 950 }); }
   if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
   await sleep(4000);
 
@@ -199,4 +209,4 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   if (autoR !== '2') throw new Error('auto room wrong: ' + autoR);
   console.log(JSON.stringify((await (await fetch(BASE + '/__stats')).json()).chat).slice(0, 600));
   await browser.close();
-})().catch(e => { console.error('FAIL', e); process.exit(1); });
+})().catch(async e => { console.error('FAIL', e); try { for (const p of (global.__pages || [])) await p.screenshot({ path: path.join(OUT, 'fail_' + (global.__pages.indexOf(p)) + '.png') }); } catch (er) {} process.exit(1); });
