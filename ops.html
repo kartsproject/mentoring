@@ -377,7 +377,7 @@
 
 <div class="rsetup hide" id="recSetup" role="dialog" aria-modal="true" aria-labelledby="rs-t">
   <div class="card">
-    <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>녹화 담당 · <span id="rs-who"></span></div>
+    <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>운영진 · <span id="rs-who"></span></div>
     <h1 id="rs-t">녹화 <em>준비</em></h1>
     <p class="lead">이 창은 접속해 있는 동안 <b>계속 녹화</b>합니다. 학생 멘토링은 학생별 파일로, 그 밖의 시간은 「대기」 파일로 나눠 <b>FHD(1920×1080)</b>로 저장됩니다.</p>
     <div class="rs-dir" id="rs-dir"></div>
@@ -399,7 +399,7 @@
   var TITLE = PANEL ? '대기실 운영 | K예술영재 온라인 멘토링' : '운영 화면 | K예술영재 온라인 멘토링';
   var sess, links = null, rec = null, view = null, r = '', room = null;
   var lastOffer = {}, testing = null, testTried = {}, recKey = '', manualStop = '', armed = {};
-  var IS_REC = false, recOn = false, leaving = false, lastHostAsk = 0;   // IS_REC: 녹화 담당(config RECORDERS) · recOn: 이 창에서 녹화함
+  var IS_REC = false, recOn = false, leaving = false, lastHostAsk = 0;   // IS_REC: 자동 녹화하는 운영진 녹화 창 · recOn: 이 창에서 녹화함
   var savedZoom = '', soundOn = true, role = 'ops', stageLocal = null, stageWantUntil = 0, tab = 'list', hotN = 0;
   document.title = TITLE;
   if (PANEL) { document.body.classList.add('pmode'); $('#g-title').textContent = '대기실 창'; $('#g-lead').textContent = '학생 목록·시간 알림·채팅·공지를 따로 띄워 보는 창입니다(영상·녹화 없음).'; }
@@ -439,9 +439,11 @@
     document.body.classList.toggle('research', role === 'research');
     $('#h-title').textContent = (PANEL ? '대기실 창 · ' : '운영 화면 · ') + roomLabel();
     $('#h-me').innerHTML = UI.ico('user') + UI.esc(UI.roleName(role) + ' ' + sess.name);
-    var nrm = function (x) { return String(x || '').replace(/\s+/g, ''); };
-    IS_REC = !PANEL && role === 'ops' && (C.RECORDERS || []).map(nrm).indexOf(nrm(sess.name)) >= 0;
-    if (IS_REC) { $('#h-me').innerHTML = UI.ico('rec') + UI.esc('녹화 담당 ' + sess.name); $('#sw-host').parentNode.querySelector('span').textContent = '연결 점검 맡기'; $('#sw-auto').parentNode.querySelector('span').textContent = '자동 녹화(멘토링 아닌 시간도 「대기」 파일로)'; }
+    // 운영진 녹화 창은 모두 자동 녹화(폴더 자동 저장이 되는 PC 크롬·엣지만 — 휴대폰은 메모리가 넘칠 수 있어 녹화하지 않음)
+    var want = !PANEL && role === 'ops' && C.AUTO_RECORD_OPS !== false;
+    IS_REC = want && window.MeetRecorder.autoSaveSupported();
+    if (want && !IS_REC) setTimeout(function () { UI.toast('이 브라우저는 폴더 자동 저장이 안 돼 이 창에서는 녹화하지 않습니다. 녹화는 PC 크롬에서 해 주세요.', 6000); }, 800);
+    if (IS_REC) { $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화'); $('#sw-host').parentNode.querySelector('span').textContent = '연결 점검 맡기'; $('#sw-auto').parentNode.querySelector('span').textContent = '자동 녹화(멘토링 아닌 시간도 「대기」 파일로)'; }
     setTab(PANEL ? 'list' : (innerWidth <= 1000 ? 'stage' : 'list'));
     room = new window.MeetRoom({
       sess: sess, role: role, title: TITLE,

@@ -36,14 +36,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   // 운영진(녹화 창)
   await ops.goto(BASE + '/ops.html?r=test');
   await SHOT(ops, 'ops_gate');
-  await ops.fill('#g-name', '조성현'); await ops.fill('#g-code', 'o1234'); await ops.click('#g-btn');   // 녹화 담당(config RECORDERS)
+  await ops.fill('#g-name', '운영A'); await ops.fill('#g-code', 'o1234'); await ops.click('#g-btn');   // 운영진은 모두 자동 녹화
   await ops.waitForSelector('#s-main:not(.hide)');
   await ops.waitForSelector('#recSetup:not(.hide)', { timeout: 10000 });
   await sleep(500); await SHOT(ops, 'ops_recsetup');
   await ops.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));   // 폴더 선택 창 대신(시험용)
   await waitFor(ops, () => document.querySelector('#recSetup').classList.contains('hide') && !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording on login');
   await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 15000, 'recorder took host');
-  log('recorder 조성현 in: folder set → recording from login (대기), host taken');
+  log('ops 운영A in: folder set → recording from login (대기), host taken');
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
   await waitFor(ops, () => document.querySelectorAll('#list .st').length >= 4, null, 15000, 'roster cards');
   await waitFor(ops, () => /학생가/.test(document.querySelector('#alerts').textContent) && document.querySelector('.al.absent'), null, 15000, 'absent alert');
