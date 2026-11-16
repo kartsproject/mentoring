@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>온라인 멘토링실 | K예술영재</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .wait { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 26px 18px 40px; }
+  .wait .wrap { width: 100%; max-width: 520px; }
+  .who { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .who b { font-size: 15px; }
+  .status { background: var(--dark2); border: 1px solid var(--line); border-radius: 20px; padding: 26px 22px; text-align: center; margin-bottom: 14px; }
+  .status h1 { margin: 0 0 8px; font-size: 24px; }
+  .status p { margin: 0; color: #b9c6cb; line-height: 1.65; font-size: 15px; }
+  .pulse { width: 64px; height: 64px; border-radius: 50%; margin: 2px auto 16px; background: rgba(23,108,134,.35); display: grid; place-items: center; position: relative; }
+  .pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid #5cb8d4; animation: ring 2s infinite; }
+  .pulse i { width: 18px; height: 18px; border-radius: 50%; background: #8fd0e3; }
+  @keyframes ring { from { transform: scale(.8); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+  .rows { background: var(--dark2); border: 1px solid var(--line); border-radius: 16px; padding: 6px 16px; margin-bottom: 14px; }
+  .rows div { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; gap: 10px; }
+  .rows div:last-child { border-bottom: 0; }
+  .selfprev { position: relative; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16/10; margin-bottom: 14px; }
+  .selfprev video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .notice { background: rgba(255,176,152,.14); border: 1px solid rgba(255,176,152,.35); color: #ffd9cc; border-radius: 14px; padding: 13px 15px; font-size: 15px; line-height: 1.55; margin-bottom: 14px; }
+  .notice b { color: var(--apricot); display: block; font-size: 12px; margin-bottom: 3px; }
+  .zoomcard { position: fixed; inset: 0; background: rgba(10,14,16,.92); display: grid; place-items: center; z-index: 40; padding: 20px; }
+  .zoomcard .card { text-align: center; }
+  .ready-banner { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: var(--teal); color: #fff; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 4; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- 1. 입장 -->
+<section id="s-gate" class="gate">
+  <form class="card" id="f-gate" autocomplete="off">
+    <div class="brand"><i></i>K예술영재 프로젝트</div>
+    <h1 id="g-title">온라인 멘토링실</h1>
+    <p class="lead" id="g-lead">이름을 입력하고 입장해 주세요.</p>
+    <label class="field"><span>이름</span>
+      <div class="prefix"><b id="g-prefix">발레_</b><input id="g-name" placeholder="홍길동" maxlength="20" required></div>
+    </label>
+    <label class="check"><input type="checkbox" id="g-agree" required>
+      <span>멘토링 장면(학생·멘토 영상과 음성)은 <b>기록·피드백 자료로 쓰기 위해 녹화</b>되며, 사업 목적 외에는 쓰지 않습니다. 이에 동의합니다.</span></label>
+    <div class="err" id="g-err"></div>
+    <button class="btn full" id="g-btn">다음 — 카메라 확인</button>
+    <p class="note">문의: <span id="g-contact"></span></p>
+  </form>
+</section>
+
+<!-- 2. 카메라·마이크 확인 -->
+<section id="s-check" class="gate hide">
+  <form class="card" id="f-check">
+    <div class="brand"><i></i>카메라·마이크 확인</div>
+    <div class="preview"><video id="c-video" autoplay playsinline muted></video></div>
+    <label class="field"><span>카메라</span><select id="c-cam"></select></label>
+    <label class="field"><span>마이크 — 말해 보세요. 막대가 움직이면 정상입니다</span><select id="c-mic"></select></label>
+    <div class="meter"><i id="c-meter"></i></div>
+    <ul class="tips">
+      <li>휴대폰은 <b>가로로</b> 세워 두고, 동작이 잘 보이도록 <b>2~3m</b> 떨어져 주세요.</li>
+      <li>조용한 곳에서, 충전기를 연결해 두면 좋아요.</li>
+      <li>ZOOM 등 카메라를 쓰는 다른 앱은 꺼 주세요.</li>
+    </ul>
+    <div class="err" id="c-err"></div>
+    <button class="btn full" id="c-btn" disabled>대기실 입장</button>
+  </form>
+</section>
+
+<!-- 3. 대기실 -->
+<section id="s-wait" class="wait hide">
+  <div class="wrap">
+    <div class="who"><b id="w-me"></b><span class="chip teal" id="w-room"></span></div>
+    <div class="notice hide" id="w-notice"><b>운영진 안내</b><span></span></div>
+    <div class="status">
+      <div class="pulse"><i></i></div>
+      <h1 id="w-title">대기 중입니다</h1>
+      <p id="w-sub">차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀝니다.<br>이 화면을 켜 둔 채로 기다려 주세요.</p>
+    </div>
+    <div class="rows">
+      <div><span>연결 점검</span><span id="w-test" class="chip">점검 대기</span></div>
+      <div><span>멘토</span><span id="w-mentor" class="chip">접속 전</span></div>
+      <div><span>서버 연결</span><span id="w-net" class="chip ok"><i class="dot"></i>정상</span></div>
+    </div>
+    <div class="selfprev"><video id="w-self" autoplay playsinline muted></video><span class="label">내 화면</span></div>
+    <p class="note" style="text-align:center">화면이 꺼지거나 다른 앱으로 넘어가면 연결이 끊길 수 있어요.</p>
+  </div>
+</section>
+
+<!-- 4. 멘토링 -->
+<section id="s-live" class="stage hide">
+  <div class="topbar">
+    <span class="ttl" id="l-title">멘토링 중</span>
+    <span class="chip on"><span class="rec-dot" style="background:#fff"></span>녹화</span>
+    <span class="sp"></span>
+    <span class="timer" id="l-timer">10:00</span>
+  </div>
+  <div class="vbox">
+    <video class="main" id="l-remote" autoplay playsinline></video>
+    <div class="overlay" id="l-wait"><div><div class="spinner"></div><h2>멘토와 연결하는 중</h2><p>잠시만 기다려 주세요 (몇 초 걸려요)</p></div></div>
+    <span class="label" id="l-rlabel">멘토</span>
+    <div class="ready-banner hide" id="l-banner">멘토링이 시작되었습니다</div>
+    <div class="pip"><video id="l-self" autoplay playsinline muted></video></div>
+    <div class="ctrls">
+      <button class="cbtn" id="b-mic" title="마이크"></button>
+      <button class="cbtn" id="b-cam" title="카메라"></button>
+      <button class="cbtn hide" id="b-flip" title="카메라 전환"></button>
+    </div>
+  </div>
+</section>
+
+<!-- 5. 종료 -->
+<section id="s-done" class="gate hide">
+  <div class="card" style="text-align:center">
+    <div class="brand" style="justify-content:center"><i></i>멘토링 완료</div>
+    <h1>수고했어요!</h1>
+    <p class="lead">오늘 멘토링이 끝났습니다.<br>이제 창을 닫아도 됩니다.</p>
+  </div>
+</section>
+
+<!-- ZOOM 전환 -->
+<div class="zoomcard hide" id="z-card">
+  <div class="card">
+    <div class="brand" style="justify-content:center"><i></i>운영진 안내</div>
+    <h1>ZOOM으로 이동해 주세요</h1>
+    <p class="lead">연결이 원활하지 않아 ZOOM으로 멘토링을 진행합니다.<br>ZOOM 이름은 <b id="z-name"></b> 으로 바꿔 주세요.</p>
+    <a class="btn full coral" id="z-link" target="_blank" rel="noopener">ZOOM 입장</a>
+    <p class="note">ZOOM으로 들어가면 이 화면의 카메라는 자동으로 꺼집니다.</p>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="meet.js"></script>
+<script>
+(function () {
+  var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
+  var r = UI.param('r');
+  var PREFIX = C.PREFIX || '';
+
+  // 카카오톡 안 브라우저는 카메라가 안 되는 경우가 많아 기본 브라우저로 다시 엽니다
+  if (/KAKAOTALK/i.test(navigator.userAgent)) {
+    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+  }
+  if (!navigator.mediaDevices || !window.RTCPeerConnection) {
+    setTimeout(function () {
+      $('#g-err').textContent = '이 브라우저에서는 화상 멘토링을 쓸 수 없습니다. 크롬(안드로이드·PC) 또는 사파리(아이폰)로 열어 주세요.';
+    }, 0);
+  }
+  var sess = null, links = null, dc = null, local = null;
+  var screen = '', lastCurAt = 0, zoomGone = false;
+
+  $('#g-prefix').textContent = PREFIX || '이름';
+  if (!PREFIX) $('#g-prefix').classList.add('hide');
+  $('#g-contact').textContent = C.CONTACT || '';
+  if (!r) {
+    $('#g-lead').textContent = '접속 주소가 올바르지 않습니다. 안내받은 주소로 다시 들어와 주세요.';
+    $('#g-btn').disabled = true;
+  } else {
+    var label = r === 'test' ? '리허설' : r + '회차';
+    $('#g-title').textContent = (C.TITLE || '온라인 멘토링') + ' · ' + label;
+    $('#w-room').textContent = label;
+  }
+  try { $('#g-name').value = localStorage.getItem('meet_name') || ''; } catch (e) {}
+
+  function go(id) {
+    ['s-gate', 's-check', 's-wait', 's-live', 's-done'].forEach(function (s) { UI.show('#' + s, s === id); });
+    document.body.classList.toggle('dark', id === 's-wait' || id === 's-live');
+    screen = id;
+  }
+
+  /* 1. 입장 */
+  $('#f-gate').onsubmit = async function (e) {
+    e.preventDefault();
+    var name = $('#g-name').value.replace(/\s+/g, '');
+    if (!$('#g-agree').checked) { $('#g-err').textContent = '녹화 안내에 동의해 주세요.'; return; }
+    $('#g-btn').disabled = true; $('#g-err').textContent = '';
+    sess = new M.Session({ r: r, role: 'student', name: name, interval: 2500 });
+    try {
+      await sess.join();
+      try { localStorage.setItem('meet_name', name); } catch (e2) {}
+      go('s-check');
+      startCheck();
+    } catch (err) {
+      $('#g-err').textContent = err.code === 'not_in_roster'
+        ? '이번 회차 명단에 없는 이름입니다. 이름을 다시 확인해 주세요.'
+        : '입장하지 못했습니다. 잠시 후 다시 시도해 주세요. (' + (err.code || err.message) + ')';
+      $('#g-btn').disabled = false;
+    }
+  };
+
+  /* 2. 장치 확인 */
+  function startCheck() {
+    dc = new M.DeviceCheck({ video: $('#c-video'), meter: $('#c-meter'), selCam: $('#c-cam'), selMic: $('#c-mic'), err: $('#c-err') });
+    dc.start().then(function () { $('#c-btn').disabled = false; })
+      .catch(function (e) { $('#c-err').textContent = M.Media.errText(e); });
+  }
+  $('#f-check').onsubmit = function (e) {
+    e.preventDefault();
+    local = dc.stream;
+    dc.stopMeterOnly();
+    enterRoom();
+  };
+
+  /* 3. 대기실 ~ 멘토링 */
+  function enterRoom() {
+    $('#w-me').textContent = PREFIX + sess.name;
+    UI.attach($('#w-self'), local);
+    UI.attach($('#l-self'), local);
+    links = new M.Links(sess, {
+      getLocal: function () { return local; },
+      onRemote: function (L) { if (L.kind === 'ms') { UI.attach($('#l-remote'), L.stream); } },
+      onChange: function () { renderLive(); }
+    });
+    sess.on('view', render);
+    sess.on('net', function (ok, fails) {
+      var el = $('#w-net');
+      el.className = 'chip ' + (ok ? 'ok' : fails > 2 ? 'bad' : 'warn');
+      el.innerHTML = '<i class="dot"></i>' + (ok ? '정상' : '재연결 중');
+    });
+    UI.netbar(sess);
+    UI.wakeLock();
+    setupCtrls();
+    go('s-wait');
+    sess.start();
+    setInterval(tick, 500);
+  }
+
+  function render(v) {
+    // 정보 보고(운영 화면 표시용)
+    var ms = links.get('ms', 'M');
+    var vt = local && local.getVideoTracks()[0], at = local && local.getAudioTracks()[0];
+    sess.info = { n: M.NONCE, page: screen.replace('s-', ''), ms: ms ? ms.state : '', relay: ms ? ms.relay : null,
+                  cam: !!(vt && vt.enabled && vt.readyState === 'live'), mic: !!(at && at.enabled && at.readyState === 'live'),
+                  mobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) };
+
+    // ZOOM 전환
+    if (v.zoomUrl) {
+      $('#z-name').textContent = PREFIX + sess.name;
+      $('#z-link').href = v.zoomUrl;
+      UI.show('#z-card', true);
+    } else UI.show('#z-card', false);
+
+    // 공지
+    if (v.notice && v.notice.text) { $('#w-notice span').textContent = v.notice.text; UI.show('#w-notice', true); }
+    else UI.show('#w-notice', false);
+
+    // 점검·멘토 상태
+    var t = $('#w-test');
+    if (!v.test) { t.className = 'chip'; t.textContent = v.host ? '점검 대기' : '운영진 접속 전'; }
+    else if (v.test.ok) { t.className = 'chip ok'; t.innerHTML = '<i class="dot"></i>연결 확인 완료'; }
+    else { t.className = 'chip warn'; t.textContent = '연결 불안정 — 운영진이 안내 예정'; }
+    var mt = $('#w-mentor');
+    mt.className = 'chip ' + (v.mentorLive ? 'ok' : '');
+    mt.innerHTML = v.mentorLive ? '<i class="dot"></i>접속 중' : '접속 전';
+
+    if (v.called) {
+      if (screen !== 's-live') {
+        go('s-live');
+        UI.show('#l-banner', true);
+        setTimeout(function () { UI.show('#l-banner', false); }, 3500);
+        try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
+      }
+      lastCurAt = v.cur ? v.cur.at : lastCurAt;
+    } else {
+      if (ms) links.close('ms', 'M', false);
+      if (v.done) { if (screen !== 's-done') go('s-done'); }
+      else if (screen !== 's-wait') go('s-wait');
+    }
+    renderLive();
+  }
+
+  function renderLive() {
+    if (screen !== 's-live') return;
+    var L = links.get('ms', 'M');
+    var ok = L && L.state === 'connected' && L.stream.getVideoTracks().length;
+    UI.show('#l-wait', !ok);
+    if (L) UI.attach($('#l-remote'), L.stream);
+  }
+
+  function tick() {
+    if (screen !== 's-live' || !lastCurAt) return;
+    var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
+    var el = sess.now() - lastCurAt;
+    var tm = $('#l-timer');
+    tm.textContent = UI.mmss(slot - el);
+    tm.className = 'timer' + (el > slot ? ' over' : el > fb ? ' q' : '');
+    $('#l-title').textContent = el > fb && el <= slot ? '질의응답 시간' : '멘토링 중';
+  }
+
+  /* 마이크·카메라 */
+  function setupCtrls() {
+    var mic = $('#b-mic'), cam = $('#b-cam'), flip = $('#b-flip');
+    var paint = function () {
+      var at = local.getAudioTracks()[0], vt = local.getVideoTracks()[0];
+      var mOn = at && at.enabled, cOn = vt && vt.enabled;
+      mic.innerHTML = mOn ? M.ICON.mic : M.ICON.micOff; mic.classList.toggle('off', !mOn);
+      cam.innerHTML = cOn ? M.ICON.cam : M.ICON.camOff; cam.classList.toggle('off', !cOn);
+    };
+    mic.onclick = function () { local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); };
+    cam.onclick = function () { local.getVideoTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); };
+    flip.innerHTML = M.ICON.flip;
+    UI.show(flip, dc.camCount > 1);
+    flip.onclick = async function () {
+      try {
+        await dc.flip(); local = dc.stream; dc.stopMeterOnly();
+        links.replaceLocal(local);
+        UI.attach($('#l-self'), local); UI.attach($('#w-self'), local);
+        paint();
+      } catch (e) { UI.toast('카메라를 바꾸지 못했습니다'); }
+    };
+    paint();
+  }
+
+  $('#z-link').onclick = function () {
+    if (!zoomGone) { zoomGone = true; M.Media.stop(local); if (links) links.closeWhere(function () { return true; }, true); }
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>멘토 화면 | K예술영재 온라인 멘토링</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .mwrap { position: fixed; inset: 0; display: flex; background: var(--dark); }
+  .mwrap .stage { position: relative; flex: 1; inset: auto; }
+  aside.queue { width: 290px; background: var(--dark2); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+  aside.queue h3 { margin: 0; padding: 16px 18px 10px; font-size: 16px; }
+  aside.queue ol { list-style: none; margin: 0; padding: 0 10px 16px; overflow: auto; flex: 1; }
+  aside.queue li { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; font-size: 14px; }
+  aside.queue li.cur { background: rgba(23,108,134,.35); }
+  aside.queue li.done { opacity: .45; }
+  aside.queue li .no { width: 24px; height: 24px; border-radius: 50%; background: var(--dark3); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
+  aside.queue li .nm { flex: 1; font-weight: 600; }
+  aside.queue li .tm { font-size: 12px; opacity: .6; }
+  .phase { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.08); }
+  .qtoggle { display: none; }
+  @media (max-width: 900px) {
+    aside.queue { position: fixed; right: 0; top: 0; bottom: 0; z-index: 20; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px rgba(0,0,0,.4); }
+    aside.queue.open { transform: none; }
+    .qtoggle { display: inline-flex; }
+  }
+</style>
+</head>
+<body>
+
+<section id="s-gate" class="gate">
+  <form class="card" id="f-gate" autocomplete="off">
+    <div class="brand"><i></i>K예술영재 온라인 멘토링 · 멘토</div>
+    <h1>멘토 입장</h1>
+    <p class="lead">안내받은 회차와 멘토 코드를 입력해 주세요.</p>
+    <label class="field"><span>회차</span><input id="g-room" placeholder="예: 3" required></label>
+    <label class="field"><span>성함</span><input id="g-name" placeholder="정은영" required></label>
+    <label class="field"><span>멘토 코드</span><input id="g-code" type="password" required></label>
+    <div class="err" id="g-err"></div>
+    <button class="btn full" id="g-btn">다음 — 카메라 확인</button>
+  </form>
+</section>
+
+<section id="s-check" class="gate hide">
+  <form class="card" id="f-check">
+    <div class="brand"><i></i>카메라·마이크 확인</div>
+    <div class="preview"><video id="c-video" autoplay playsinline muted></video></div>
+    <label class="field"><span>카메라</span><select id="c-cam"></select></label>
+    <label class="field"><span>마이크 — 말씀해 보세요. 막대가 움직이면 정상입니다</span><select id="c-mic"></select></label>
+    <div class="meter"><i id="c-meter"></i></div>
+    <ul class="tips">
+      <li>학생 화면이 크게, 선생님 화면은 작게 보입니다.</li>
+      <li>학생이 바뀌면 운영진이 연결해 드립니다. 별도 조작은 필요 없습니다.</li>
+      <li>이어폰을 쓰시면 소리 울림이 줄어듭니다.</li>
+    </ul>
+    <div class="err" id="c-err"></div>
+    <button class="btn full" id="c-btn" disabled>멘토링실 열기</button>
+  </form>
+</section>
+
+<div class="mwrap hide" id="s-main">
+  <section class="stage">
+    <div class="topbar">
+      <span class="ttl" id="t-who">학생을 기다리는 중</span>
+      <span class="phase hide" id="t-phase">피드백</span>
+      <span class="sp"></span>
+      <span class="timer hide" id="t-timer">10:00</span>
+      <button class="btn ghost sm qtoggle" id="b-queue">순서</button>
+    </div>
+    <div class="vbox">
+      <video class="main" id="v-remote" autoplay playsinline></video>
+      <div class="overlay" id="o-idle"><div><h2>다음 학생을 기다리는 중입니다</h2><p id="o-next">운영진이 학생을 연결하면 바로 화면이 나타납니다.</p></div></div>
+      <div class="overlay hide" id="o-conn"><div><div class="spinner"></div><h2 id="o-conn-t">학생과 연결하는 중</h2><p id="o-conn-s">잠시만 기다려 주세요</p></div></div>
+      <span class="label hide" id="v-label"></span>
+      <div class="pip"><video id="v-self" autoplay playsinline muted></video></div>
+      <div class="ctrls">
+        <button class="cbtn" id="b-mic"></button>
+        <button class="cbtn" id="b-cam"></button>
+        <button class="cbtn hide" id="b-flip"></button>
+      </div>
+    </div>
+  </section>
+  <aside class="queue" id="queue">
+    <h3>오늘 순서</h3>
+    <ol id="q-list"></ol>
+  </aside>
+</div>
+
+<script src="config.js"></script>
+<script src="meet.js"></script>
+<script>
+(function () {
+  var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
+  var PREFIX = C.PREFIX || '';
+  var sess, links, dc, local, view = null, lastOffer = 0, curKey = '';
+
+  $('#g-room').value = UI.param('r');
+  try { $('#g-name').value = localStorage.getItem('meet_mentor') || ''; } catch (e) {}
+
+  function go(id) {
+    ['s-gate', 's-check', 's-main'].forEach(function (s) { UI.show('#' + s, s === id); });
+    document.body.classList.toggle('dark', id === 's-main');
+  }
+
+  $('#f-gate').onsubmit = async function (e) {
+    e.preventDefault();
+    $('#g-btn').disabled = true; $('#g-err').textContent = '';
+    var r = $('#g-room').value.replace(/회차|\s/g, '');
+    sess = new M.Session({ r: r, role: 'mentor', name: $('#g-name').value.trim(), code: $('#g-code').value.trim(), interval: 1800 });
+    try {
+      await sess.join();
+      try { localStorage.setItem('meet_mentor', sess.name); } catch (e2) {}
+      go('s-check');
+      dc = new M.DeviceCheck({ video: $('#c-video'), meter: $('#c-meter'), selCam: $('#c-cam'), selMic: $('#c-mic'), err: $('#c-err') });
+      dc.start().then(function () { $('#c-btn').disabled = false; }).catch(function (er) { $('#c-err').textContent = M.Media.errText(er); });
+    } catch (err) {
+      $('#g-err').textContent = err.code === 'code' ? '멘토 코드가 맞지 않습니다.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')';
+      $('#g-btn').disabled = false;
+    }
+  };
+
+  $('#f-check').onsubmit = function (e) {
+    e.preventDefault();
+    local = dc.stream; dc.stopMeterOnly();
+    UI.attach($('#v-self'), local);
+    links = new M.Links(sess, {
+      getLocal: function () { return local; },
+      onRemote: function (L) { if (L.kind === 'ms') UI.attach($('#v-remote'), L.stream); },
+      onChange: function () { paint(); }
+    });
+    sess.on('view', onView);
+    UI.netbar(sess); UI.wakeLock();
+    ctrls();
+    go('s-main');
+    sess.start();
+    setInterval(tick, 500);
+  };
+
+  $('#b-queue').onclick = function () { $('#queue').classList.toggle('open'); };
+
+  function onView(v) {
+    view = v;
+    var cur = v.cur;
+    // 다른 학생 연결 정리
+    links.closeWhere(function (L) { return L.kind === 'ms' && (!cur || L.peer !== cur.id); }, true);
+    if (cur) {
+      var st = (v.students || []).find(function (s) { return s.id === cur.id; });
+      var peerN = st && st.info && st.info.n || '';
+      var L = links.get('ms', cur.id);
+      if (L && peerN && L.peerNonce && L.peerNonce !== peerN) { links.close('ms', cur.id, true); L = null; } // 학생이 새로고침함
+      if (L && !L.peerNonce && peerN) L.peerNonce = peerN;
+      if (!L && cur.live && Date.now() - lastOffer > 2500) { lastOffer = Date.now(); links.offer('ms', cur.id, peerN); }
+    }
+    var ms = cur && links.get('ms', cur.id);
+    var vt = local.getVideoTracks()[0], at = local.getAudioTracks()[0];
+    sess.info = { n: M.NONCE, ms: ms ? ms.state : '', relay: ms ? ms.relay : null, cam: !!(vt && vt.enabled), mic: !!(at && at.enabled) };
+    if (cur && curKey !== cur.id + cur.at) { curKey = cur.id + cur.at; try { new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=').play().catch(function () {}); } catch (e) {} }
+    paint();
+    queue(v);
+  }
+
+  function paint() {
+    if (!view) return;
+    var cur = view.cur;
+    var L = cur && links.get('ms', cur.id);
+    var ok = L && L.state === 'connected' && L.stream.getVideoTracks().length;
+    UI.show('#o-idle', !cur);
+    UI.show('#o-conn', cur && !ok);
+    UI.show('#v-label', !!cur);
+    UI.show('#t-timer', !!cur); UI.show('#t-phase', !!cur);
+    if (!cur) {
+      $('#t-who').textContent = '학생을 기다리는 중';
+      UI.attach($('#v-remote'), null);
+      var nx = (view.students || []).filter(function (s) { return !s.done; })[0];
+      $('#o-next').textContent = nx ? '다음 순서: ' + PREFIX + nx.name + (nx.time ? ' (' + nx.time + ')' : '') + (nx.live ? ' · 대기 중' : ' · 아직 접속 전') : '운영진이 학생을 연결하면 바로 화면이 나타납니다.';
+      return;
+    }
+    $('#t-who').textContent = PREFIX + cur.name;
+    $('#v-label').textContent = PREFIX + cur.name;
+    $('#o-conn-t').textContent = cur.live ? PREFIX + cur.name + ' 학생과 연결하는 중' : PREFIX + cur.name + ' 학생이 아직 접속 전입니다';
+    $('#o-conn-s').textContent = L && (L.state === 'timeout' || L.state === 'failed') ? '다시 연결하고 있습니다…' : '잠시만 기다려 주세요';
+    if (L && ok) UI.attach($('#v-remote'), L.stream);
+  }
+
+  function tick() {
+    if (!view || !view.cur) return;
+    var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
+    var el = sess.now() - view.cur.at;
+    var tm = $('#t-timer'), ph = $('#t-phase');
+    tm.textContent = UI.mmss(slot - el);
+    tm.className = 'timer' + (el > slot ? ' over' : el > fb ? ' q' : '');
+    ph.textContent = el > slot ? '시간 초과' : el > fb ? '질의응답' : '피드백';
+  }
+
+  function queue(v) {
+    var cur = v.cur;
+    $('#q-list').innerHTML = (v.students || []).map(function (s, i) {
+      var cls = cur && cur.id === s.id ? 'cur' : s.done ? 'done' : '';
+      var st = cur && cur.id === s.id ? '<span class="chip on">진행</span>' : s.done ? '<span class="chip">완료</span>'
+        : s.zoom ? '<span class="chip warn">ZOOM</span>' : s.live ? '<span class="chip ok">대기</span>' : '<span class="chip">미접속</span>';
+      return '<li class="' + cls + '"><span class="no">' + (s.no || i + 1) + '</span><span class="nm">' + UI.esc(s.name) +
+        (s.time ? '<br><span class="tm">' + UI.esc(s.time) + '</span>' : '') + '</span>' + st + '</li>';
+    }).join('') || '<li class="muted">명단이 없습니다</li>';
+  }
+
+  function ctrls() {
+    var mic = $('#b-mic'), cam = $('#b-cam'), flip = $('#b-flip');
+    var p = function () {
+      var at = local.getAudioTracks()[0], vt = local.getVideoTracks()[0];
+      mic.innerHTML = at && at.enabled ? M.ICON.mic : M.ICON.micOff; mic.classList.toggle('off', !(at && at.enabled));
+      cam.innerHTML = vt && vt.enabled ? M.ICON.cam : M.ICON.camOff; cam.classList.toggle('off', !(vt && vt.enabled));
+    };
+    mic.onclick = function () { local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); p(); };
+    cam.onclick = function () { local.getVideoTracks().forEach(function (t) { t.enabled = !t.enabled; }); p(); };
+    flip.innerHTML = M.ICON.flip; UI.show(flip, dc.camCount > 1);
+    flip.onclick = async function () {
+      try { await dc.flip(); local = dc.stream; dc.stopMeterOnly(); links.replaceLocal(local); UI.attach($('#v-self'), local); p(); }
+      catch (e) { UI.toast('카메라를 바꾸지 못했습니다'); }
+    };
+    p();
+  }
+})();
+</script>
+</body>
+</html>

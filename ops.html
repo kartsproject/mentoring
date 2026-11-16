@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>운영 화면 | K예술영재 온라인 멘토링</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body.dark { background: #0b1012; }
+  .app { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
+  header.hd { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--dark2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header.hd .ttl { font-size: 18px; }
+  header.hd .sp { flex: 1; }
+  .switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; cursor: pointer; user-select: none; }
+  .switch input { display: none; }
+  .switch i { width: 42px; height: 24px; border-radius: 12px; background: var(--dark3); position: relative; transition: background .15s; }
+  .switch i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch input:checked + i { background: var(--coral); }
+  .switch input:checked + i::after { left: 21px; }
+  main.body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; padding: 14px; min-height: 0; }
+  .panel { background: var(--dark2); border: 1px solid var(--line); border-radius: 16px; }
+  .panel h3 { margin: 0; padding: 14px 16px 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .panel .pb { padding: 4px 16px 16px; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
+  .tile { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 9/8; }
+  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .tile .overlay { font-size: 14px; }
+  .tile .st { position: absolute; right: 10px; top: 10px; z-index: 2; }
+  .curbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .curbar .nm { font-size: 20px; font-weight: 800; }
+  .curbar .sp { flex: 1; }
+  .side { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  .slist { list-style: none; margin: 0; padding: 0 8px 10px; max-height: 52vh; overflow: auto; }
+  .slist li { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; padding: 10px 8px; border-radius: 12px; border-bottom: 1px solid var(--line); }
+  .slist li.cur { background: rgba(23,108,134,.32); border-color: transparent; }
+  .slist li.done { opacity: .55; }
+  .slist .no { width: 26px; height: 26px; border-radius: 50%; background: var(--dark3); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+  .slist .nm { font-weight: 700; font-size: 15px; }
+  .slist .nm small { font-weight: 500; opacity: .6; margin-left: 4px; }
+  .slist .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .slist .acts { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 150px; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .row input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 0; background: var(--dark3); color: #fff; font-size: 14px; }
+  .files { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .files li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .files li span { flex: 1; word-break: break-all; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
+  .kv dt { opacity: .6; } .kv dd { margin: 0; }
+  .warnbox { background: rgba(232,73,88,.14); border: 1px solid rgba(232,73,88,.4); color: #ffc2c8; border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin: 8px 16px 0; }
+  .guide { font-size: 13px; line-height: 1.7; opacity: .85; margin: 0; padding-left: 18px; }
+  @media (max-width: 1100px) { main.body { grid-template-columns: 1fr; } .slist { max-height: none; } }
+  @media (max-width: 560px) { .duo { grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; } .tile { aspect-ratio: 3/4; } header.hd { padding: 10px 12px; } main.body { padding: 8px; } }
+</style>
+</head>
+<body>
+
+<section id="s-gate" class="gate">
+  <form class="card" id="f-gate" autocomplete="off">
+    <div class="brand"><i></i>K예술영재 온라인 멘토링 · 운영</div>
+    <h1>운영 화면</h1>
+    <p class="lead">운영진은 카메라·마이크 없이 보기만 합니다.</p>
+    <label class="field"><span>회차</span><input id="g-room" placeholder="예: 3 (리허설은 test)" required></label>
+    <label class="field"><span>운영자 이름</span><input id="g-name" placeholder="홍길동" required></label>
+    <label class="field"><span>운영진 코드</span><input id="g-code" type="password" required></label>
+    <div class="err" id="g-err"></div>
+    <button class="btn full" id="g-btn">입장</button>
+  </form>
+</section>
+
+<div class="app hide" id="s-main">
+  <header class="hd">
+    <span class="ttl" id="h-title">운영 화면</span>
+    <span class="chip teal" id="h-me"></span>
+    <span class="sp"></span>
+    <span id="h-rec" class="chip hide"><span class="rec-dot"></span><span>녹화 중</span></span>
+    <label class="switch" title="이 PC가 녹화와 연결 점검을 맡습니다"><input type="checkbox" id="sw-host"><i></i><span>이 PC에서 녹화</span></label>
+    <button class="btn ghost sm" id="b-sound">소리 켜짐</button>
+  </header>
+
+  <main class="body">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <section class="panel">
+        <div class="duo">
+          <div class="tile"><video id="v-M" autoplay playsinline></video>
+            <div class="overlay" id="o-M"><div>멘토 접속 전</div></div>
+            <span class="label" id="l-M">멘토</span><span class="st" id="st-M"></span></div>
+          <div class="tile"><video id="v-S" autoplay playsinline></video>
+            <div class="overlay" id="o-S"><div>진행 중인 학생 없음</div></div>
+            <span class="label" id="l-S">학생</span><span class="st" id="st-S"></span></div>
+        </div>
+        <div class="curbar">
+          <span class="nm" id="c-name">대기</span>
+          <span class="timer hide" id="c-timer">10:00</span>
+          <span class="chip hide" id="c-ms"></span>
+          <span class="sp"></span>
+          <button class="btn coral sm hide" id="b-end">이 학생 종료</button>
+          <button class="btn sm" id="b-next">다음 학생 시작</button>
+        </div>
+      </section>
+
+      <section class="panel" id="p-rec">
+        <h3>녹화 <span class="chip" id="rec-type"></span></h3>
+        <div class="warnbox hide" id="rec-warn"></div>
+        <div class="pb">
+          <div class="row" style="align-items:center">
+            <label class="switch"><input type="checkbox" id="sw-auto" checked><i></i><span>학생 시작·종료에 맞춰 자동 녹화</span></label>
+            <span class="sp" style="flex:1"></span>
+            <button class="btn sm" id="b-rec-start">녹화 시작</button>
+            <button class="btn coral sm" id="b-rec-stop">녹화 중지·저장</button>
+          </div>
+          <ul class="files" id="rec-files"><li class="muted">녹화 파일은 학생별로 이 PC의 「다운로드」 폴더에 저장됩니다.</li></ul>
+        </div>
+      </section>
+    </div>
+
+    <div class="side">
+      <section class="panel">
+        <h3>학생 <span class="chip" id="s-count"></span></h3>
+        <ol class="slist" id="s-list"></ol>
+      </section>
+
+      <section class="panel">
+        <h3>학생 공지</h3>
+        <div class="pb">
+          <div class="row"><input id="n-text" placeholder="대기 중인 학생 전체에게 보일 안내"><button class="btn sm" id="b-notice">보내기</button></div>
+          <button class="btn ghost sm" id="b-notice-clear">공지 지우기</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>예비 ZOOM</h3>
+        <div class="pb">
+          <div class="row"><input id="z-url" placeholder="https://zoom.us/j/..."><button class="btn sm" id="b-zoom">저장</button></div>
+          <p class="guide" style="padding:0">연결이 안 되는 학생은 목록의 「ZOOM」을 누르면 그 학생 화면에 ZOOM 입장 버튼이 뜹니다.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>운영진</h3>
+        <div class="pb"><dl class="kv" id="ops-list"></dl></div>
+        <div class="pb" style="padding-top:0"><button class="btn ghost sm" id="b-reset">진행 기록 초기화(리허설 후)</button></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="meet.js"></script>
+<script src="recorder.js"></script>
+<script>
+(function () {
+  var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
+  var PREFIX = C.PREFIX || '';
+  var sess, links, rec = null, view = null, r = '';
+  var lastOffer = {}, testing = null, testTried = {}, recKey = '', manualStop = '', armed = {};
+  var soundOn = true;
+
+  $('#g-room').value = UI.param('r');
+  try { $('#g-name').value = localStorage.getItem('meet_ops') || ''; } catch (e) {}
+
+  $('#f-gate').onsubmit = async function (e) {
+    e.preventDefault();
+    $('#g-btn').disabled = true; $('#g-err').textContent = '';
+    r = $('#g-room').value.replace(/회차|\s/g, '');
+    sess = new M.Session({ r: r, role: 'ops', name: $('#g-name').value.trim(), code: $('#g-code').value.trim(), interval: 1800 });
+    try {
+      await sess.join();
+      try { localStorage.setItem('meet_ops', sess.name); } catch (e2) {}
+      start();
+    } catch (err) {
+      $('#g-err').textContent = err.code === 'code' ? '운영진 코드가 맞지 않습니다.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')';
+      $('#g-btn').disabled = false;
+    }
+  };
+
+  function roomLabel() { return r === 'test' ? '리허설' : r + '회차'; }
+
+  function start() {
+    UI.show('#s-gate', false); UI.show('#s-main', true);
+    document.body.classList.add('dark');
+    $('#h-title').textContent = (C.TITLE || '온라인 멘토링') + ' · ' + roomLabel();
+    $('#h-me').textContent = sess.name;
+    links = new M.Links(sess, {
+      onRemote: function () { paintStage(); },
+      onChange: onLinkChange,
+      onData: onData
+    });
+    sess.on('view', onView);
+    UI.netbar(sess); UI.wakeLock();
+    sess.start();
+    setInterval(tick, 500);
+    window.addEventListener('beforeunload', function (e) {
+      if (rec && rec.recording()) { e.preventDefault(); e.returnValue = '녹화 중입니다'; }
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden' && rec && rec.recording()) document.title = '● 녹화 중 — 창을 띄워 두세요';
+      else document.title = '운영 화면 | K예술영재 온라인 멘토링';
+    });
+  }
+
+  /* ───── 상태 반영 ───── */
+  function onView(v) {
+    view = v;
+    var isHost = v.host === sess.id;
+    $('#sw-host').checked = isHost;
+
+    // 1) 관람 연결: 멘토 + 현재 학생
+    var targets = {};
+    if (v.mentorLive) targets.M = (v.mentorInfo && v.mentorInfo.n) || '';
+    if (v.cur && v.cur.live) {
+      var st = v.students.find(function (s) { return s.id === v.cur.id; });
+      targets[v.cur.id] = (st && st.info && st.info.n) || '';
+    }
+    links.closeWhere(function (L) { return L.kind === 'view' && !(L.peer in targets); }, true);
+    Object.keys(targets).forEach(function (peer) {
+      var n = targets[peer], L = links.get('view', peer);
+      if (L && n && L.peerNonce && L.peerNonce !== n) { links.close('view', peer, true); L = null; }
+      if (L && !L.peerNonce && n) L.peerNonce = n;
+      if (!L && Date.now() - (lastOffer[peer] || 0) > 2500) { lastOffer[peer] = Date.now(); links.offer('view', peer, n); }
+    });
+
+    // 2) 연결 점검(녹화 담당 PC만)
+    if (isHost) runTests(v);
+    else links.closeWhere(function (L) { return L.kind === 'test'; }, true);
+
+    sess.info = { n: M.NONCE, host: isHost, rec: !!(rec && rec.recording()) };
+    paintStage();
+    paintList();
+    paintSide();
+    autoRecord();
+  }
+
+  function onLinkChange(L) {
+    if (L.kind === 'test') {
+      if ((L.state === 'timeout' || L.state === 'failed') && !L.reported) {
+        L.reported = true;
+        sess.op('test', { sid: L.peer, ok: false });
+        if (testing === L.peer) testing = null;
+      } else if (L.state === 'closed' && testing === L.peer && !L.reported) testing = null;
+      return;
+    }
+    paintStage();
+    autoRecord();
+  }
+
+  function onData(L, ev) {
+    if (L.kind !== 'test' || ev !== 'open' || L.reported) return;
+    L.reported = true;
+    links.checkRelay(L).then(function (relay) {
+      sess.op('test', { sid: L.peer, ok: true, relay: !!relay });
+      setTimeout(function () { links.close('test', L.peer, true); }, 1500);
+      if (testing === L.peer) testing = null;
+    });
+  }
+
+  function runTests(v) {
+    if (testing && links.get('test', testing)) return;
+    testing = null;
+    var c = v.students.find(function (s) {
+      return s.live && !s.test && !s.done && !(v.cur && v.cur.id === s.id) && s.info && s.info.page === 'wait' &&
+        (!testTried[s.id] || Date.now() - testTried[s.id] > 45000);
+    });
+    if (!c) return;
+    testing = c.id; testTried[c.id] = Date.now();
+    links.offer('test', c.id, c.info && c.info.n);
+  }
+
+  /* ───── 무대(두 영상) ───── */
+  function paintStage() {
+    if (!view) return;
+    var cur = view.cur;
+    var LM = links.get('view', 'M'), LS = cur ? links.get('view', cur.id) : null;
+    var okM = LM && LM.state === 'connected' && LM.stream.getVideoTracks().length;
+    var okS = LS && LS.state === 'connected' && LS.stream.getVideoTracks().length;
+    UI.attach($('#v-M'), okM ? LM.stream : null);
+    UI.attach($('#v-S'), okS ? LS.stream : null);
+    $('#v-M').muted = $('#v-S').muted = !soundOn;
+    UI.show('#o-M', !okM);
+    $('#o-M div').textContent = !view.mentorLive ? '멘토 접속 전' : '멘토 화면 연결 중…';
+    UI.show('#o-S', !okS);
+    $('#o-S div').textContent = !cur ? '진행 중인 학생 없음' : !cur.live ? PREFIX + cur.name + ' — 접속 전' : '학생 화면 연결 중…';
+    $('#l-M').textContent = '멘토 ' + (view.mentorName || '');
+    $('#l-S').textContent = cur ? PREFIX + cur.name : '학생';
+    $('#st-M').innerHTML = view.mentorInfo ? devChips(view.mentorInfo) : '';
+    var sInfo = cur && (view.students.find(function (s) { return s.id === cur.id; }) || {}).info;
+    $('#st-S').innerHTML = sInfo ? devChips(sInfo) : '';
+
+    // 녹화 타일
+    if (rec) {
+      rec.setTile('M', $('#v-M'), '멘토 ' + (view.mentorName || ''), okM ? LM.stream : null);
+      rec.setTile('S', $('#v-S'), cur ? PREFIX + cur.name : '학생', okS ? LS.stream : null);
+    }
+
+    // 현재 학생 줄
+    $('#c-name').textContent = cur ? (cur.no ? cur.no + '번 ' : '') + PREFIX + cur.name : '진행 중인 학생 없음';
+    UI.show('#c-timer', !!cur); UI.show('#b-end', !!cur);
+    var mi = view.mentorInfo || {};
+    var cm = $('#c-ms');
+    if (cur) {
+      var state = mi.ms || '';
+      cm.className = 'chip ' + (state === 'connected' ? 'ok' : state === 'failed' || state === 'timeout' ? 'bad' : 'warn');
+      cm.textContent = '멘토↔학생 ' + UI.stateText(state) + (state === 'connected' && mi.relay ? ' (중계)' : '');
+      UI.show(cm, true);
+    } else UI.show(cm, false);
+    var nx = nextStudent();
+    $('#b-next').textContent = nx ? '다음: ' + PREFIX + nx.name + (nx.live ? '' : ' (미접속)') + ' 시작' : '다음 학생 없음';
+    $('#b-next').disabled = !nx;
+  }
+
+  function devChips(info) {
+    var out = '';
+    if (info.cam === false) out += '<span class="chip bad">카메라 꺼짐</span> ';
+    if (info.mic === false) out += '<span class="chip bad">마이크 꺼짐</span>';
+    return out;
+  }
+
+  function nextStudent() {
+    if (!view) return null;
+    var cur = view.cur;
+    var list = view.students.filter(function (s) { return !s.done && !(cur && cur.id === s.id); });
+    return list.find(function (s) { return s.live && !s.zoom; }) || list[0] || null;
+  }
+
+  function tick() {
+    if (!view || !view.cur) return;
+    var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
+    var el = sess.now() - view.cur.at, tm = $('#c-timer');
+    tm.textContent = UI.mmss(slot - el);
+    tm.className = 'timer' + (el > slot ? ' over' : el > fb ? ' q' : '');
+  }
+
+  /* ───── 학생 목록 ───── */
+  function paintList() {
+    var v = view, cur = v.cur;
+    var live = v.students.filter(function (s) { return s.live; }).length;
+    $('#s-count').textContent = '접속 ' + live + ' / ' + v.students.length;
+    $('#s-list').innerHTML = v.students.map(function (s, i) {
+      var isCur = cur && cur.id === s.id;
+      var ch = [];
+      if (isCur) ch.push('<span class="chip on">진행 중</span>');
+      else if (s.done) ch.push('<span class="chip">완료 ' + hm(s.done) + '</span>');
+      ch.push(s.live ? '<span class="chip ok"><i class="dot"></i>접속</span>' : '<span class="chip">' + (s.joined ? '나감' : '미접속') + '</span>');
+      if (s.test) ch.push(s.test.ok ? '<span class="chip ' + (s.test.relay ? 'teal' : 'ok') + '">' + (s.test.relay ? '중계 연결' : '직접 연결') + '</span>' : '<span class="chip bad">연결 실패</span>');
+      else if (s.live && !isCur && !s.done) ch.push('<span class="chip">' + (testing === s.id ? '점검 중…' : '점검 대기') + '</span>');
+      if (s.live && s.info) {
+        if (s.info.cam === false) ch.push('<span class="chip bad">카메라 꺼짐</span>');
+        if (s.info.mic === false) ch.push('<span class="chip bad">마이크 꺼짐</span>');
+        if (s.info.mobile) ch.push('<span class="chip">휴대폰</span>');
+      }
+      if (s.zoom) ch.push('<span class="chip warn">ZOOM 안내 중</span>');
+      var acts = [];
+      if (!isCur) acts.push('<button class="btn sm" data-a="call" data-id="' + s.id + '">시작</button>');
+      acts.push('<button class="btn ghost sm" data-a="zoom" data-id="' + s.id + '">' + (s.zoom ? 'ZOOM 해제' : 'ZOOM') + '</button>');
+      if (s.test) acts.push('<button class="btn ghost sm" data-a="untest" data-id="' + s.id + '">재점검</button>');
+      if (s.done && !isCur) acts.push('<button class="btn ghost sm" data-a="undone" data-id="' + s.id + '">완료 취소</button>');
+      return '<li class="' + (isCur ? 'cur' : s.done ? 'done' : '') + '"><span class="no">' + (s.no || i + 1) + '</span>' +
+        '<div><div class="nm">' + UI.esc(s.name) + (s.time ? '<small>' + UI.esc(s.time) + '</small>' : '') + '</div><div class="chips">' + ch.join('') + '</div></div>' +
+        '<div class="acts">' + acts.join('') + '</div></li>';
+    }).join('') || '<li class="muted" style="display:block">접속한 학생이 없습니다. 명단을 시트 「명단」에 넣으면 미리 표시됩니다.</li>';
+  }
+
+  function hm(t) { var d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
+  // 두 번 눌러 확인(실수 방지)
+  function confirmClick(btn, label) {
+    var k = btn.dataset.a + btn.dataset.id;
+    if (armed[k] && Date.now() - armed[k] < 3000) { delete armed[k]; return true; }
+    armed[k] = Date.now();
+    btn.textContent = label || '한 번 더';
+    btn.classList.add('coral');
+    return false;
+  }
+
+  $('#s-list').addEventListener('click', async function (e) {
+    var b = e.target.closest('button[data-a]');
+    if (!b) return;
+    var a = b.dataset.a, id = b.dataset.id;
+    var s = view.students.find(function (x) { return x.id === id; });
+    if (a === 'call') {
+      if (view.cur && !confirmClick(b, '진행 중 학생 종료 후 시작')) return;
+      await callStudent(id);
+    } else if (a === 'zoom') {
+      if (!s.zoom && !view.zoomUrl) { UI.toast('먼저 오른쪽 「예비 ZOOM」에 링크를 저장해 주세요'); return; }
+      await sess.op('zoom', { sid: id, on: !s.zoom });
+    } else if (a === 'untest') {
+      delete testTried[id];
+      await sess.op('untest', { sid: id });
+    } else if (a === 'undone') {
+      await sess.op('undone', { sid: id });
+    }
+  });
+
+  async function callStudent(id) {
+    var j = await sess.op('call', { sid: id });
+    if (!j.ok) UI.toast('시작하지 못했습니다: ' + (j.error || ''));
+  }
+
+  $('#b-next').onclick = async function () {
+    var nx = nextStudent();
+    if (!nx) return;
+    await callStudent(nx.id);
+  };
+  $('#b-end').onclick = async function () {
+    if (!confirmClick(this, '종료 확인')) return;
+    await sess.op('end');
+    this.textContent = '이 학생 종료'; this.classList.add('coral');
+  };
+
+  /* ───── 오른쪽 패널 ───── */
+  function paintSide() {
+    var v = view;
+    $('#ops-list').innerHTML = (v.opsList || []).map(function (o) {
+      return '<dt>' + UI.esc(o.name) + '</dt><dd>' + (o.id === v.host ? '<span class="chip on">녹화 담당</span>' : '관람') + (o.id === sess.id ? ' (나)' : '') + '</dd>';
+    }).join('');
+    if (document.activeElement !== $('#z-url') && !$('#z-url').dataset.dirty) $('#z-url').value = v.zoomUrl || '';
+    var host = v.host && v.host !== sess.id ? v.hostName : '';
+    var w = $('#rec-warn');
+    if (!rec || v.host !== sess.id) {
+      w.innerHTML = host ? '녹화는 <b>' + UI.esc(host) + '</b> 님 PC에서 하고 있습니다.' : '<b>녹화 담당 PC가 없습니다.</b> 녹화할 PC에서 위쪽 「이 PC에서 녹화」를 켜 주세요.';
+      UI.show(w, true);
+    } else if (!rec.supported()) {
+      w.textContent = '이 브라우저는 녹화를 지원하지 않습니다. 크롬(Chrome)에서 열어 주세요.'; UI.show(w, true);
+    } else UI.show(w, false);
+    $('#p-rec').style.opacity = rec && v.host === sess.id ? 1 : .6;
+  }
+
+  $('#z-url').oninput = function () { this.dataset.dirty = '1'; };
+  $('#b-zoom').onclick = async function () {
+    var j = await sess.op('zoomurl', { url: $('#z-url').value.trim() });
+    delete $('#z-url').dataset.dirty;
+    UI.toast(j.ok ? 'ZOOM 링크를 저장했습니다' : '저장하지 못했습니다');
+  };
+  $('#b-notice').onclick = async function () {
+    var t = $('#n-text').value.trim(); if (!t) return;
+    var j = await sess.op('notice', { text: t });
+    UI.toast(j.ok ? '공지를 보냈습니다' : '보내지 못했습니다');
+  };
+  $('#b-notice-clear').onclick = async function () { await sess.op('notice', { text: '' }); $('#n-text').value = ''; UI.toast('공지를 지웠습니다'); };
+  $('#b-reset').onclick = async function () {
+    if (!confirmClick(this, '정말 초기화')) return;
+    await sess.op('reset'); testTried = {}; UI.toast('진행 기록을 초기화했습니다');
+    this.textContent = '진행 기록 초기화(리허설 후)'; this.classList.remove('coral');
+  };
+  $('#b-sound').onclick = function () {
+    soundOn = !soundOn;
+    this.textContent = soundOn ? '소리 켜짐' : '소리 꺼짐';
+    $('#v-M').muted = $('#v-S').muted = !soundOn;
+  };
+
+  /* ───── 녹화 ───── */
+  $('#sw-host').onchange = async function () {
+    var on = this.checked;
+    if (on && !rec) {
+      rec = new window.MeetRecorder({ onFile: fileAdded, onState: recState });
+      $('#rec-type').textContent = rec.supported() ? rec.ext().toUpperCase() : '미지원';
+    }
+    if (rec) rec.resume();
+    if (!on && rec && rec.recording()) rec.stop();
+    var j = await sess.op('host', { on: on });
+    if (!j.ok) { UI.toast('설정하지 못했습니다'); this.checked = !on; }
+  };
+
+  function recName() {
+    var cur = view && view.cur;
+    var d = new Date();
+    var hm2 = String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
+    var no = cur && cur.no ? String(cur.no).padStart(2, '0') : '00';
+    return (r === 'test' ? '리허설' : r + '회차') + '_' + no + '_' + (cur ? cur.name : '녹화') + '_' + hm2;
+  }
+  function recTitle() {
+    var cur = view && view.cur;
+    return 'K예술영재 ' + (C.TITLE || '') + ' · ' + roomLabel() + (cur ? ' · ' + PREFIX + cur.name : '');
+  }
+
+  function autoRecord() {
+    if (!rec || !view || view.host !== sess.id || !rec.supported()) return;
+    var cur = view.cur;
+    var key = cur ? cur.id + '@' + cur.at : '';
+    // 학생이 바뀌거나 끝나면 저장
+    if (rec.recording() && recKey && recKey !== key) { rec.stop(); recKey = ''; }
+    if (!$('#sw-auto').checked || !cur || manualStop === key) return;
+    var LS = links.get('view', cur.id);
+    if (!rec.recording() && LS && LS.state === 'connected') {
+      paintStage();
+      rec.start(recName(), recTitle());
+      recKey = key;
+    }
+  }
+
+  $('#b-rec-start').onclick = function () {
+    if (!rec || view.host !== sess.id) { UI.toast('먼저 「이 PC에서 녹화」를 켜 주세요'); return; }
+    if (rec.recording()) return;
+    manualStop = '';
+    paintStage();
+    rec.start(recName(), recTitle());
+    recKey = view.cur ? view.cur.id + '@' + view.cur.at : 'manual';
+  };
+  $('#b-rec-stop').onclick = function () {
+    if (!rec || !rec.recording()) return;
+    manualStop = view.cur ? view.cur.id + '@' + view.cur.at : '';
+    rec.stop(); recKey = '';
+  };
+
+  function recState(on) {
+    UI.show('#h-rec', on);
+    $('#h-rec').className = 'chip on' + (on ? '' : ' hide');
+    sess.info.rec = on;
+  }
+
+  function fileAdded() {
+    $('#rec-files').innerHTML = rec.files.map(function (f, i) {
+      var mb = (f.size / 1048576).toFixed(1);
+      return '<li><span>' + UI.esc(f.name) + ' <small class="muted">' + UI.mmss(f.sec * 1000) + ' · ' + mb + 'MB</small></span>' +
+        (f.blob ? '<button class="btn ghost sm" data-i="' + i + '">다시 받기</button>' : '<span class="chip ok" style="flex:none">저장됨</span>') + '</li>';
+    }).join('');
+    UI.toast('녹화 파일을 저장했습니다: ' + rec.files[0].name);
+  }
+  $('#rec-files').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-i]'); if (!b) return;
+    rec.save(rec.files[Number(b.dataset.i)]);
+  });
+})();
+</script>
+</body>
+</html>
