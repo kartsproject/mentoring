@@ -32,6 +32,9 @@
     this.fastUntil = 0;
     this.offset = 0;
     this.running = false;
+    this.birth = o.birth || '';
+    this.panel = !!o.panel;
+    this.chat = { gv: 0, last: 0, list: [], bc: [] };   // 대기실 채팅·공지
   }
   Session.prototype.on = function (ev, fn) { (this.ls[ev] = this.ls[ev] || []).push(fn); };
   Session.prototype.emit = function (ev) {
@@ -40,9 +43,11 @@
   };
   Session.prototype.join = function () {
     var self = this;
-    return api({ a: 'join', r: this.r, role: this.role, name: this.name, code: this.code }).then(function (j) {
+    return api({ a: 'join', r: this.r, role: this.role, name: this.name, code: this.code, birth: this.birth, panel: this.panel }).then(function (j) {
       if (!j.ok) { var e = new Error(j.error); e.code = j.error; throw e; }
       self.id = j.id; self.tok = j.tok; self.ice = j.ice; self.name = j.name;
+      if (j.r) self.r = j.r;
+      self.me = j.me || null;
       self.offset = j.now - Date.now();
       return j;
     });
@@ -113,7 +118,31 @@
     var body = Object.assign({ a: 'op', r: this.r, id: this.id, tok: this.tok, cmd: cmd }, args || {});
     var j = await api(body);
     if (!j.ok && j.error === 'auth') { await this.rejoin(); body.id = this.id; body.tok = this.tok; j = await api(body); }
+    if (j.chat) this.mergeChat(j.chat);
+    if (j.bc) this.mergeChat({ gv: this.chat.gv, last: this.chat.last, list: [], bc: j.bc });
     this.kick();
+    return j;
+  };
+  // 대기실 채팅: 바뀐 부분만 받아 합침
+  Session.prototype.mergeChat = function (c) {
+    var ch = this.chat, changed = false;
+    if (c.full || c.gv !== ch.gv) { ch.list = c.list.slice(); ch.gv = c.gv; changed = true; }
+    else if (c.list.length) {
+      var have = {}; ch.list.forEach(function (m) { have[m.i] = 1; });
+      c.list.forEach(function (m) { if (!have[m.i]) { ch.list.push(m); changed = true; } });
+      ch.list.sort(function (a, b) { return a.i - b.i; });
+      if (ch.list.length > 300) ch.list = ch.list.slice(-300);
+    }
+    ch.last = Math.max(ch.last, c.last || 0);
+    var bcSig = JSON.stringify(c.bc || []);
+    if (bcSig !== ch.bcSig) { ch.bc = c.bc || []; ch.bcSig = bcSig; changed = true; }
+    if (changed) this.emit('chat', ch);
+  };
+  Session.prototype.say = async function (text) {
+    var body = { a: 'chat', r: this.r, id: this.id, tok: this.tok, text: text, since: this.chat.last, gv: this.chat.gv };
+    var j = await api(body);
+    if (!j.ok && j.error === 'auth') { await this.rejoin(); body.id = this.id; body.tok = this.tok; j = await api(body); }
+    if (j.ok && j.chat) this.mergeChat(j.chat);
     return j;
   };
   Session.prototype.start = function () { if (!this.running) { this.running = true; this.loop(); } };
@@ -123,8 +152,9 @@
     while (this.running) {
       var t0 = Date.now();
       try {
-        var j = await api({ a: 'poll', r: this.r, id: this.id, tok: this.tok, info: this.info }, 15000);
+        var j = await api({ a: 'poll', r: this.r, id: this.id, tok: this.tok, info: this.info, since: this.chat.last, gv: this.chat.gv }, 15000);
         if (j.ok) {
+          if (j.chat) this.mergeChat(j.chat);
           fails = 0;
           this.offset = j.now - (t0 + Date.now()) / 2;
           if (j.msgs && j.msgs.length) this.boost(10000);

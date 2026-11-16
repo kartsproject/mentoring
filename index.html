@@ -2,55 +2,185 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex">
-<title>온라인 멘토링실 | K예술영재</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>무용분야 심화 멘토링 대기실</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .wait { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 26px 18px 40px; }
-  .wait .wrap { width: 100%; max-width: 520px; }
-  .who { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
-  .who b { font-size: 15px; }
-  .status { background: var(--dark2); border: 1px solid var(--line); border-radius: 20px; padding: 26px 22px; text-align: center; margin-bottom: 14px; }
-  .status h1 { margin: 0 0 8px; font-size: 24px; }
-  .status p { margin: 0; color: #b9c6cb; line-height: 1.65; font-size: 15px; }
-  .pulse { width: 64px; height: 64px; border-radius: 50%; margin: 2px auto 16px; background: rgba(23,108,134,.35); display: grid; place-items: center; position: relative; }
-  .pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid #5cb8d4; animation: ring 2s infinite; }
-  .pulse i { width: 18px; height: 18px; border-radius: 50%; background: #8fd0e3; }
-  @keyframes ring { from { transform: scale(.8); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
-  .rows { background: var(--dark2); border: 1px solid var(--line); border-radius: 16px; padding: 6px 16px; margin-bottom: 14px; }
-  .rows div { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; gap: 10px; }
-  .rows div:last-child { border-bottom: 0; }
-  .selfprev { position: relative; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 16/10; margin-bottom: 14px; }
-  .selfprev video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-  .notice { background: rgba(255,176,152,.14); border: 1px solid rgba(255,176,152,.35); color: #ffd9cc; border-radius: 14px; padding: 13px 15px; font-size: 15px; line-height: 1.55; margin-bottom: 14px; }
-  .notice b { color: var(--apricot); display: block; font-size: 12px; margin-bottom: 3px; }
-  .zoomcard { position: fixed; inset: 0; background: rgba(10,14,16,.92); display: grid; place-items: center; z-index: 40; padding: 20px; }
+  :root { --teal-ink: #0F4252; --teal-soft: #E6F0F3; --apricot-soft: #FFE9E0; --muted2: #5F6368; --line2: rgba(33,35,38,.12); --line3: rgba(33,35,38,.22); }
+  .scr { display: none; }
+  .scr.on { display: block; }
+
+  /* ① 본인 확인 */
+  .hero { background: var(--teal-d); color: #fff; position: relative; overflow: hidden; padding: 34px 0 28px; }
+  .hero svg { position: absolute; right: -140px; top: -60px; width: 460px; opacity: .9; pointer-events: none; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; position: relative; }
+  .eyebrow { font-family: "Paperlogy", sans-serif; font-weight: 700; font-size: 12.5px; letter-spacing: .12em; color: var(--apricot); }
+  .hero h1 { font-size: clamp(26px, 7vw, 36px); margin: 8px 0 6px; }
+  .hero p { margin: 0; color: rgba(255,255,255,.85); font-size: 15px; }
+  .lmain { padding: 18px 0 30px; }
+  .lcard { background: #fff; border: 1px solid var(--line2); border-radius: 16px; padding: 20px 18px; }
+  .lcard h2 { font-size: 19px; margin: 0 0 6px; }
+  .lcard .lead { margin: 0 0 16px; color: var(--muted2); font-size: 15px; }
+  .hint { font-size: 13px; color: var(--muted2); margin-top: 6px; }
+  footer.ft { text-align: center; font-size: 13px; color: var(--muted2); padding: 4px 0 30px; }
+  footer.ft a { color: var(--teal); }
+
+  /* ② 유의사항 카드뉴스 */
+  #rules { position: fixed; inset: 0; z-index: 50; background: var(--teal-d); color: #fff; display: none; flex-direction: column; height: 100dvh; }
+  #rules.on { display: flex; }
+  .rtop { display: flex; align-items: center; gap: 10px; padding: max(14px, env(safe-area-inset-top)) 18px 6px; max-width: 560px; width: 100%; margin: 0 auto; }
+  .rtop .eyebrow { flex: 1; }
+  .rclose { background: rgba(255,255,255,.15); border: 0; color: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .rbar { display: flex; gap: 5px; padding: 4px 18px 0; max-width: 560px; width: 100%; margin: 0 auto; }
+  .rbar i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.25); transition: background .3s; }
+  .rbar i.on { background: var(--apricot); }
+  .rview { flex: 1; min-height: 0; overflow: hidden; max-width: 560px; width: 100%; margin: 0 auto; touch-action: pan-y; }
+  .rtrack { display: flex; height: 100%; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .slide { flex: 0 0 100%; height: 100%; padding: 16px 18px; display: flex; }
+  .sc { flex: 1; background: #fff; color: var(--ink); border-radius: 22px; padding: clamp(22px,5vh,40px) 24px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.18); }
+  .sc .num { font-family: "Paperlogy", sans-serif; font-weight: 700; font-size: 15px; color: var(--teal); letter-spacing: .06em; }
+  .sc .ico { font-size: clamp(54px,11vh,84px); line-height: 1; margin: clamp(14px,4vh,34px) 0 clamp(12px,3vh,24px); }
+  .sc h2 { font-size: clamp(25px,6.4vw,31px); margin: 0; }
+  .sc p { font-size: clamp(16px,4.3vw,18px); color: #3E4246; margin: 14px 0 0; line-height: 1.65; }
+  .sc p b { color: var(--coral); }
+  .sc .box { margin-top: auto; background: var(--teal-soft); border-radius: 14px; padding: 14px 16px; font-size: 15.5px; color: var(--teal-ink); }
+  .sc .box b { font-family: "Paperlogy", sans-serif; font-size: 19px; }
+  .sc .deco { position: absolute; right: -50px; bottom: -60px; width: 220px; opacity: .5; pointer-events: none; }
+  .sc.cover { background: var(--apricot-soft); }
+  .rnav { display: flex; gap: 10px; padding: 6px 18px max(18px, env(safe-area-inset-bottom)); max-width: 560px; width: 100%; margin: 0 auto; }
+  .rnav button { border: 0; border-radius: 14px; padding: 16px; font-weight: 800; font-size: 17px; cursor: pointer; }
+  .rnav .prev { flex: 0 0 30%; background: rgba(255,255,255,.14); color: #fff; }
+  .rnav .prev:disabled { opacity: .35; }
+  .rnav .next { flex: 1; background: #fff; color: var(--teal-ink); }
+  .rnav .next.go { background: var(--coral); color: #fff; }
+
+  /* ③ 대기실: 한 화면 고정 */
+  #room { height: 100dvh; flex-direction: column; max-width: 640px; margin: 0 auto; padding: 0 12px max(10px, env(safe-area-inset-bottom)); gap: 8px; overflow: hidden; }
+  #room.on { display: flex; }
+  .rh { display: flex; align-items: center; gap: 8px; padding: max(10px, env(safe-area-inset-top)) 2px 0; }
+  .rh h1 { font-size: 17px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+  .rh h1 small { display: block; font-family: "Pretendard Variable", sans-serif; font-size: 11.5px; font-weight: 600; color: var(--muted2); }
+  .conn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--muted2); white-space: nowrap; }
+  .conn i { width: 8px; height: 8px; border-radius: 50%; background: #2DB36B; }
+  .conn.off i { background: #F08A4B; }
+  .pill { border: 1.5px solid var(--teal); background: #fff; color: var(--teal); border-radius: 999px; padding: 5px 11px; font-weight: 800; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
+  .pill.ghost { border-color: var(--line3); color: var(--muted2); font-weight: 700; }
+
+  .status { flex: none; border-radius: 16px; border: 2px solid var(--teal); background: #fff; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: center; }
+  .status .ic { grid-row: 1/3; font-size: 34px; line-height: 1; }
+  .status h2 { font-size: clamp(17px,4.6vw,20px); margin: 0; }
+  .status p { margin: 0; color: var(--muted2); font-size: 13.5px; line-height: 1.45; }
+  .status .chips { grid-column: 1/3; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .status .chip { background: var(--teal-soft); color: var(--teal-ink); }
+  .status .chip.hot { background: var(--apricot-soft); color: #A3303B; }
+  .status.next { background: var(--teal); border-color: var(--teal); color: #fff; animation: glow 1.6s ease-in-out infinite; }
+  .status.next p { color: rgba(255,255,255,.92); }
+  .status.next .chip { background: rgba(255,255,255,.2); color: #fff; }
+  @keyframes glow { 50% { box-shadow: 0 0 0 7px rgba(23,108,134,.2); } }
+  .status.done { border-color: var(--line2); }
+  .dots::after { content: ''; animation: dots 1.5s steps(4) infinite; }
+  @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+
+  .info { flex: none; display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; background: #fff; border: 1px solid var(--line2); border-radius: 14px; padding: 9px 10px 9px 12px; font-size: 13.5px; align-items: center; }
+  .info .when { font-weight: 700; color: var(--ink); line-height: 1.5; }
+  .info .when span { color: var(--muted2); font-weight: 600; }
+  .info .chk { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .info .chk .chip { font-size: 11.5px; }
+  .mini { position: relative; width: 104px; aspect-ratio: 4/3; border-radius: 10px; overflow: hidden; background: #000; grid-row: 1/3; grid-column: 2; }
+  .mini video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .mini .meter { position: absolute; left: 6px; right: 6px; bottom: 5px; height: 4px; margin: 0; background: rgba(255,255,255,.3); }
+
+  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line2); border-radius: 16px; padding: 10px; }
+  .chat .ch { display: flex; align-items: baseline; gap: 8px; padding: 0 4px; }
+  .chat .ch h2 { font-size: 16px; margin: 0; }
+  .chat .ch small { font-size: 12.5px; color: var(--muted2); }
+  .bc { flex: none; background: var(--apricot-soft); border-radius: 10px; padding: 7px 10px; margin-top: 7px; font-size: 13.5px; max-height: 4.6em; overflow-y: auto; }
+  .bc b { color: #A3303B; }
+  .bc div + div { margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(163,48,59,.25); }
+  .msgs { flex: 1; min-height: 60px; overflow-y: auto; background: var(--ivory); border-radius: 12px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 7px; overscroll-behavior: contain; }
+  .msgs .empty { margin: auto; color: var(--muted2); font-size: 13.5px; text-align: center; }
+  .m { max-width: 82%; padding: 8px 11px; border-radius: 14px; font-size: 14.5px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+  .m small { display: block; font-size: 11px; opacity: .7; margin-top: 2px; }
+  .m.s { align-self: flex-end; background: var(--teal); color: #fff; border-bottom-right-radius: 4px; }
+  .m.pend { opacity: .6; }
+  .m.o, .m.p { align-self: flex-start; border: 1px solid var(--line2); border-bottom-left-radius: 4px; }
+  .m.o .who, .m.p .who { display: block; font-size: 12px; font-weight: 800; margin-bottom: 1px; }
+  .m.o { background: #FFF4F0; border-color: #F6C9BC; }
+  .m.o .who { color: var(--coral); }
+  .m.p { background: #fff; }
+  .m.p .who { color: var(--teal); }
+  .m.sys { align-self: center; background: var(--coral); color: #fff; font-weight: 700; font-size: 13.5px; border-radius: 999px; padding: 5px 13px; }
+  #s-check.on { display: grid; }
+  .send { flex: none; display: flex; gap: 8px; margin-top: 8px; }
+  .send input { flex: 1; font-size: 16px; padding: 11px 12px; border: 1.5px solid var(--line3); border-radius: 11px; outline: none; min-width: 0; }
+  .send input:focus { border-color: var(--teal); }
+  .send button { flex: none; border: 0; border-radius: 11px; background: var(--teal); color: #fff; font-weight: 800; padding: 0 16px; cursor: pointer; }
+  @media (max-width: 420px) { .conn span { display: none; } .pill { padding: 5px 9px; font-size: 13px; } }
+  @media (max-width: 600px) {
+    #room { padding: 0 8px max(8px, env(safe-area-inset-bottom)); gap: 6px; }
+    .status:not(.next) { padding: 8px 12px; gap: 0 10px; border-width: 1.5px; }
+    .status:not(.next) .ic { font-size: 24px; }
+    .status:not(.next) h2 { font-size: 15.5px; }
+    .status:not(.next) p { display: none; }
+    .status:not(.next) .chips { grid-column: 2; margin-top: 3px; }
+    .info { padding: 6px 8px 6px 10px; font-size: 12.5px; }
+    .mini { width: 84px; }
+    .m { font-size: 16px; max-width: 86%; padding: 9px 12px; }
+  }
+  body.typing .status:not(.next), body.typing .info { display: none; }
+  @media (max-height: 600px) { .info { display: none; } }
+
+  /* ZOOM 전환 */
+  .zoomcard { position: fixed; inset: 0; background: rgba(10,14,16,.92); display: grid; place-items: center; z-index: 60; padding: 20px; }
   .zoomcard .card { text-align: center; }
   .ready-banner { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: var(--teal); color: #fff; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 4; white-space: nowrap; }
+  html, body { touch-action: pan-x pan-y; }
+  button, a, input { touch-action: manipulation; }
 </style>
 </head>
 <body>
 
-<!-- 1. 입장 -->
-<section id="s-gate" class="gate">
-  <form class="card" id="f-gate" autocomplete="off">
-    <div class="brand"><i></i>K예술영재 프로젝트</div>
-    <h1 id="g-title">온라인 멘토링실</h1>
-    <p class="lead" id="g-lead">이름을 입력하고 입장해 주세요.</p>
-    <label class="field"><span>이름</span>
-      <div class="prefix"><b id="g-prefix">발레_</b><input id="g-name" placeholder="홍길동" maxlength="20" required></div>
-    </label>
-    <label class="check"><input type="checkbox" id="g-agree" required>
-      <span>멘토링 장면(학생·멘토 영상과 음성)은 <b>기록·피드백 자료로 쓰기 위해 녹화</b>되며, 사업 목적 외에는 쓰지 않습니다. 이에 동의합니다.</span></label>
-    <div class="err" id="g-err"></div>
-    <button class="btn full" id="g-btn">다음 — 카메라 확인</button>
-    <p class="note">문의: <span id="g-contact"></span></p>
-  </form>
-</section>
+<!-- ① 본인 확인 -->
+<div class="scr on" id="s-gate">
+  <header class="hero">
+    <svg viewBox="0 0 520 420" fill="none" aria-hidden="true">
+      <path d="M40 360C140 250 210 330 300 220S430 40 510 70" stroke="#FFB098" stroke-width="2" opacity=".75"/>
+      <path d="M10 330C130 230 200 300 290 190S420 10 520 40" stroke="#FFB098" stroke-width="1" opacity=".45"/>
+      <circle cx="300" cy="220" r="5" fill="#E84958"/>
+    </svg>
+    <div class="wrap">
+      <div class="eyebrow">2026 K예술영재 프로젝트 · 심화과정</div>
+      <h1>무용분야 심화 멘토링</h1>
+      <p>본인 확인 후 유의사항을 확인하고 온라인 멘토링 대기실에 입장해 주세요.</p>
+    </div>
+  </header>
+  <main class="wrap lmain">
+    <form class="lcard" id="f-gate" autocomplete="off">
+      <h2>본인 확인</h2>
+      <p class="lead">멘토링 대상 학생의 이름과 생년월일을 입력해 주세요.</p>
+      <label class="field"><span>학생 이름</span><input id="g-name" maxlength="10" placeholder="띄어쓰기 없이 실명 입력"></label>
+      <label class="field"><span>생년월일 8자리</span><input id="g-birth" inputmode="numeric" maxlength="8" placeholder="예: 20150901">
+        <div class="hint">입력한 정보는 본인 확인에만 사용됩니다.</div></label>
+      <label class="check"><input type="checkbox" id="g-agree">
+        <span>멘토링 장면(학생·멘토 영상과 음성)은 <b>기록·피드백 자료로 쓰기 위해 녹화</b>되며, 사업 목적 외에는 쓰지 않습니다. 이에 동의합니다.</span></label>
+      <div class="err" id="g-err" aria-live="polite"></div>
+      <button class="btn full" id="g-btn">다음</button>
+    </form>
+  </main>
+  <footer class="ft">한국예술영재교육연구원 · 2026 K예술영재 프로젝트<br>문의 <a id="g-mail" href="#"></a></footer>
+</div>
 
-<!-- 2. 카메라·마이크 확인 -->
-<section id="s-check" class="gate hide">
+<!-- ② 유의사항 카드뉴스 -->
+<div id="rules" role="dialog" aria-modal="true" aria-label="멘토링 참여 유의사항">
+  <div class="rtop"><div class="eyebrow">멘토링 참여 유의사항</div><button class="rclose" type="button" id="rClose" hidden>닫기 ✕</button></div>
+  <div class="rbar" id="rBar"></div>
+  <div class="rview" id="rView"><div class="rtrack" id="rTrack"></div></div>
+  <div class="rnav"><button class="prev" type="button" id="rPrev">이전</button><button class="next" type="button" id="rNext">다음</button></div>
+</div>
+
+<!-- ③ 카메라·마이크 확인 -->
+<section class="scr gate" id="s-check">
   <form class="card" id="f-check">
     <div class="brand"><i></i>카메라·마이크 확인</div>
     <div class="preview"><video id="c-video" autoplay playsinline muted></video></div>
@@ -67,33 +197,34 @@
   </form>
 </section>
 
-<!-- 3. 대기실 -->
-<section id="s-wait" class="wait hide">
-  <div class="wrap">
-    <div class="who"><b id="w-me"></b><span class="chip teal" id="w-room"></span></div>
-    <div class="notice hide" id="w-notice"><b>운영진 안내</b><span></span></div>
-    <div class="status">
-      <div class="pulse"><i></i></div>
-      <h1 id="w-title">대기 중입니다</h1>
-      <p id="w-sub">차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀝니다.<br>이 화면을 켜 둔 채로 기다려 주세요.</p>
-    </div>
-    <div class="rows">
-      <div><span>내 순서</span><span id="w-turn" class="chip teal">-</span></div>
-      <div><span>연결 점검</span><span id="w-test" class="chip">점검 대기</span></div>
-      <div><span>멘토 연결 준비</span><span id="w-warm" class="chip">차례 전 자동 준비</span></div>
-      <div><span>멘토</span><span id="w-mentor" class="chip">접속 전</span></div>
-      <div><span>서버 연결</span><span id="w-net" class="chip ok"><i class="dot"></i>정상</span></div>
-    </div>
-    <div class="selfprev"><video id="w-self" autoplay playsinline muted></video><span class="label">내 화면</span></div>
-    <div class="rows" style="padding:12px 16px">
-      <div style="border:0;padding:0 0 8px"><span>마이크 — 말해 보세요</span><span class="small muted">막대가 움직이면 정상</span></div>
-      <div class="meter" style="margin:0"><i id="w-meter"></i></div>
-    </div>
-    <p class="note" style="text-align:center">멘토링 <b>10분 전</b>에 들어와 카메라·마이크를 확인해 주세요.<br>화면이 꺼지거나 다른 앱으로 넘어가면 연결이 끊길 수 있어요.</p>
+<!-- ④ 대기실 -->
+<div class="scr" id="room">
+  <div class="rh">
+    <h1><small id="rm-sub">무용 심화 멘토링</small>대기실</h1>
+    <span class="conn" id="conn"><i></i><span>실시간 연결됨</span></span>
+    <button class="pill" type="button" id="rulesBtn">📌 유의사항</button>
+    <button class="pill ghost" type="button" id="b-out">나가기</button>
   </div>
-</section>
+  <section class="status" id="status" aria-live="assertive"></section>
+  <section class="info">
+    <div>
+      <div class="when" id="sched"></div>
+      <div class="chk"><span class="chip" id="w-test">연결 점검 대기</span><span class="chip" id="w-warm">멘토 연결 준비 전</span></div>
+    </div>
+    <div class="mini"><video id="w-self" autoplay playsinline muted></video><div class="meter"><i id="w-meter"></i></div></div>
+  </section>
+  <section class="chat">
+    <div class="ch"><h2>대기실 채팅</h2><small id="onlineCnt"></small></div>
+    <div class="bc" id="bc" hidden></div>
+    <div class="msgs" id="msgs"><div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요 👋</div></div>
+    <form class="send" id="sendForm" autocomplete="off">
+      <input type="text" id="text" maxlength="300" placeholder="운영진에게 묻거나 인사를 나눠 보세요">
+      <button type="submit" id="sendBtn">보내기</button>
+    </form>
+  </section>
+</div>
 
-<!-- 4. 멘토링 -->
+<!-- ⑤ 멘토링 -->
 <section id="s-live" class="stage hide">
   <div class="topbar">
     <span class="ttl" id="l-title">멘토링 중</span>
@@ -103,7 +234,7 @@
   </div>
   <div class="vbox">
     <video class="main" id="l-remote" autoplay playsinline></video>
-    <div class="overlay" id="l-wait"><div><div class="spinner"></div><h2>멘토와 연결하는 중</h2><p>잠시만 기다려 주세요 (몇 초 걸려요)</p></div></div>
+    <div class="overlay" id="l-wait"><div><div class="spinner"></div><h2>멘토와 연결하는 중</h2><p>잠시만 기다려 주세요</p></div></div>
     <span class="label" id="l-rlabel">멘토</span>
     <div class="ready-banner hide" id="l-banner">멘토링이 시작되었습니다</div>
     <div class="pip"><video id="l-self" autoplay playsinline muted></video></div>
@@ -112,15 +243,6 @@
       <button class="cbtn" id="b-cam" title="카메라"></button>
       <button class="cbtn hide" id="b-flip" title="카메라 전환"></button>
     </div>
-  </div>
-</section>
-
-<!-- 5. 종료 -->
-<section id="s-done" class="gate hide">
-  <div class="card" style="text-align:center">
-    <div class="brand" style="justify-content:center"><i></i>멘토링 완료</div>
-    <h1>수고했어요!</h1>
-    <p class="lead">오늘 멘토링이 끝났습니다.<br>이제 창을 닫아도 됩니다.</p>
   </div>
 </section>
 
@@ -140,169 +262,294 @@
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
-  var r = UI.param('r');
   var PREFIX = C.PREFIX || '';
+  var R0 = UI.param('r');                 // 리허설 등 회차를 주소로 지정할 때만(평소에는 명단에서 자동)
+  var TITLE = '무용분야 심화 멘토링 대기실';
+  var sess = null, links = null, dc = null, local = null, ac = null;
+  var screen = '', lastCurAt = 0, zoomGone = false, stopWaitMeter = null, lastV = null, PENDING = [], pid = 0, RULES_SEEN = false, ME = null;
 
   // 카카오톡 안 브라우저는 카메라가 안 되는 경우가 많아 기본 브라우저로 다시 엽니다
-  if (/KAKAOTALK/i.test(navigator.userAgent)) {
-    location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
-  }
-  if (!navigator.mediaDevices || !window.RTCPeerConnection) {
-    setTimeout(function () {
-      $('#g-err').textContent = '이 브라우저에서는 화상 멘토링을 쓸 수 없습니다. 크롬(안드로이드·PC) 또는 사파리(아이폰)로 열어 주세요.';
-    }, 0);
-  }
-  var sess = null, links = null, dc = null, local = null;
-  var screen = '', lastCurAt = 0, zoomGone = false, stopWaitMeter = null;
-
-  $('#g-prefix').textContent = PREFIX || '이름';
-  if (!PREFIX) $('#g-prefix').classList.add('hide');
-  $('#g-contact').textContent = C.CONTACT || '';
-  if (!r) {
-    $('#g-lead').textContent = '접속 주소가 올바르지 않습니다. 안내받은 주소로 다시 들어와 주세요.';
-    $('#g-btn').disabled = true;
-  } else {
-    var label = r === 'test' ? '리허설' : r + '회차';
-    $('#g-title').textContent = (C.TITLE || '온라인 멘토링') + ' · ' + label;
-    $('#w-room').textContent = label;
-  }
-  try { $('#g-name').value = localStorage.getItem('meet_name') || ''; } catch (e) {}
+  if (/KAKAOTALK/i.test(navigator.userAgent)) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+  if (!navigator.mediaDevices || !window.RTCPeerConnection) setTimeout(function () { $('#g-err').textContent = '이 브라우저에서는 화상 멘토링을 쓸 수 없습니다. 크롬(안드로이드·PC) 또는 사파리(아이폰)로 열어 주세요.'; }, 0);
+  $('#g-mail').textContent = C.CONTACT || ''; $('#g-mail').href = 'mailto:' + (C.CONTACT || '');
 
   function go(id) {
-    ['s-gate', 's-check', 's-wait', 's-live', 's-done'].forEach(function (s) { UI.show('#' + s, s === id); });
-    document.body.classList.toggle('dark', id === 's-wait' || id === 's-live');
+    ['s-gate', 's-check', 'room'].forEach(function (s) { $('#' + s).classList.toggle('on', s === id); });
+    UI.show('#s-live', id === 's-live');
+    document.body.classList.toggle('dark', id === 's-live');
     screen = id;
+    if (id === 'room') { fitRoom(); var b = $('#msgs'); b.scrollTop = b.scrollHeight; }
   }
+  function save() { try { sessionStorage.setItem('meet_stu', JSON.stringify({ name: sess.name, birth: sess.birth, r: sess.r, rules: RULES_SEEN })); } catch (e) {} }
+  function audioReady() { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch (e) {} }
 
-  /* 1. 입장 */
+  /* ① 본인 확인 */
+  $('#g-birth').addEventListener('input', function (e) { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 8); });
   $('#f-gate').onsubmit = async function (e) {
     e.preventDefault();
-    var name = $('#g-name').value.replace(/\s+/g, '');
+    var name = $('#g-name').value.replace(/\s+/g, ''), birth = $('#g-birth').value;
+    if (name.length < 2) { $('#g-err').textContent = '이름을 정확히 입력해 주세요.'; return; }
+    if (birth && birth.length < 6) { $('#g-err').textContent = '생년월일 8자리(예: 20150901)를 정확히 입력해 주세요.'; return; }
     if (!$('#g-agree').checked) { $('#g-err').textContent = '녹화 안내에 동의해 주세요.'; return; }
-    $('#g-btn').disabled = true; $('#g-err').textContent = '';
-    sess = new M.Session({ r: r, role: 'student', name: name, interval: 2500 });
+    audioReady();
+    $('#g-btn').disabled = true; $('#g-btn').textContent = '확인 중…'; $('#g-err').textContent = '';
     try {
-      await sess.join();
-      try { localStorage.setItem('meet_name', name); } catch (e2) {}
-      go('s-check');
-      startCheck();
+      await login(name, birth, R0);
+      RULES_SEEN = false; save();
+      openRules(true);
     } catch (err) {
-      $('#g-err').textContent = err.code === 'not_in_roster'
-        ? '이번 회차 명단에 없는 이름입니다. 이름을 다시 확인해 주세요.'
-        : '입장하지 못했습니다. 잠시 후 다시 시도해 주세요. (' + (err.code || err.message) + ')';
-      $('#g-btn').disabled = false;
-    }
+      $('#g-err').textContent = err.code === 'not_in_roster' ? '멘토링 명단에서 찾을 수 없습니다. 이름을 다시 확인해 주세요.'
+        : err.code === 'birth' ? (birth ? '생년월일이 맞지 않습니다. 8자리(예: 20150901)로 다시 입력해 주세요.' : '생년월일 8자리를 입력해 주세요.')
+        : '연결에 문제가 있습니다. 잠시 후 다시 시도해 주세요.';
+    } finally { $('#g-btn').disabled = false; $('#g-btn').textContent = '다음'; }
   };
+  async function login(name, birth, r) {
+    sess = new M.Session({ r: r || 'auto', role: 'student', name: name, birth: birth, interval: 2500 });
+    await sess.join();
+    ME = sess.me || {};
+    sess.on('chat', renderChat);
+    sess.on('view', render);
+    sess.on('net', function (ok, fails) {
+      $('#conn').classList.toggle('off', !ok);
+      $('#conn').querySelector('span').textContent = ok ? '실시간 연결됨' : '연결 확인 중…';
+    });
+    sess.on('ev', function (m) { if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev }); else sess.kick(); });
+    renderSched();
+    sess.start();   // 유의사항을 보는 동안에도 '접속 중'으로 표시
+  }
 
-  /* 2. 장치 확인 */
+  /* ② 유의사항 카드뉴스 */
+  var DECO = '<svg class="deco" viewBox="0 0 220 220" fill="none" aria-hidden="true"><path d="M10 200C70 140 110 180 150 120S200 30 230 40" stroke="#FFB098" stroke-width="2"/><path d="M0 180C60 125 100 160 140 105S190 15 220 25" stroke="#176C86" stroke-width="1" opacity=".5"/><circle cx="150" cy="120" r="4" fill="#E84958"/></svg>';
+  function sessLine() {
+    if (!ME || ME.test || !ME.no) return '리허설·테스트 계정';
+    return (sess.r + '회차') + (ME.date ? ' · ' + dateKo(ME.date) : '') + (ME.mentor ? ' · ' + UI.esc(ME.mentor) + ' 선생님' : '') +
+      '<br>대기실 접속 <b>' + UI.esc(ME.wait) + '</b> · 멘토링 <b>' + UI.esc(ME.time) + (ME.end ? ' – ' + UI.esc(ME.end) : '') + '</b>';
+  }
+  function dateKo(d) { var t = new Date(d + 'T00:00:00+09:00'); if (isNaN(t)) return d; return (t.getMonth() + 1) + '월 ' + t.getDate() + '일(' + '일월화수목금토'[t.getDay()] + ')'; }
+  function slides(first) {
+    var n = UI.esc(sess.name);
+    var R = [
+      ['🎥', '카메라·마이크 ON', '이 화면에서 <b>바로 멘토링</b>이 진행됩니다. 카메라와 마이크는 <b>켠 상태</b>로 기다려 주세요.', '차례가 되면 꺼 두었더라도 자동으로 켜집니다.'],
+      ['📐', '화면 배치', '휴대폰은 <b>가로로</b> 세워 두고, 동작이 잘 보이도록 <b>2~3m</b> 떨어져 주세요.', '조용한 곳에서, 충전기를 연결해 두면 좋아요.'],
+      ['⏰', '입장 시간 준수', '사전에 안내된 스케줄을 확인하고, <b>본인 멘토링 시작 10분 전까지</b> 이 대기실에 접속해 주세요.',
+        ME && ME.no ? '내 대기실 접속 시간 &nbsp;<b>' + UI.esc(ME.wait) + '</b> · 멘토링 ' + UI.esc(ME.time) : '테스트 계정은 시간 제한이 없습니다.'],
+      ['🚪', '대기실 안내', '이 화면이 대기실입니다. 차례가 되면 <b>버튼을 누르지 않아도 자동으로 멘토링 화면</b>으로 바뀝니다. 다음 차례가 되면 멘토와 미리 연결해 두었다가 앞 학생이 끝나자마자 바로 시작해요.', '차례가 오면 알림음과 진동으로 알려 드려요. 화면을 켜 두세요.'],
+      ['🙋', '참관 제한', '멘토링은 <b>참가자 본인만</b> 참여할 수 있으며, 참가자 외 인원의 입장 및 참관은 불가합니다.', ''],
+      ['⏳', '시간 관련 안내', '정해진 입장 시간을 지키지 않으면 멘토링 참여가 어려울 수 있습니다. 당일 진행 상황에 따라 시작·종료 시간이 <b>다소 달라질 수 있으니</b> 배정 시간 전후로 여유 있게 준비해 주세요.', '멘토링은 1인 10분 (피드백 8분 · 질의응답 2분)<br>궁금한 점은 대기실 채팅으로 운영진에게 물어보세요.'],
+      ['🎬', '녹화 안내', '멘토링 장면(학생·멘토 영상과 음성)은 <b>기록·피드백 자료</b>로 쓰기 위해 녹화되며, 사업 목적 외에는 쓰지 않습니다.', '']
+    ];
+    var out = R.map(function (x, i) {
+      return '<div class="sc"><div class="num">유의사항 ' + (i + 1) + ' / ' + R.length + '</div><div class="ico">' + x[0] + '</div><h2>' + x[1] + '</h2><p>' + x[2] + '</p>' + (x[3] ? '<div class="box">' + x[3] + '</div>' : '') + DECO + '</div>';
+    });
+    if (first) out.unshift('<div class="sc cover"><div class="num">WELCOME</div><div class="ico">👋</div><h2>' + n + ' 학생,<br>반가워요!</h2>' +
+      '<p>대기실에 들어가기 전에 꼭 알아야 할 <b>유의사항 ' + R.length + '가지</b>를 한 장씩 넘기며 확인해 주세요.</p><div class="box">' + sessLine() + '</div>' + DECO + '</div>');
+    return out;
+  }
+  var RI = 0, RN = 0, RFIRST = false;
+  function openRules(first) {
+    RFIRST = first; RI = 0;
+    var S = slides(first); RN = S.length;
+    $('#rTrack').innerHTML = S.map(function (h) { return '<div class="slide">' + h + '</div>'; }).join('');
+    $('#rBar').innerHTML = S.map(function () { return '<i></i>'; }).join('');
+    $('#rClose').hidden = first;
+    $('#rules').classList.add('on'); goRule(0);
+  }
+  function goRule(i) {
+    RI = Math.max(0, Math.min(RN - 1, i));
+    $('#rTrack').style.transform = 'translateX(-' + (RI * 100) + '%)';
+    Array.from($('#rBar').children).forEach(function (b, k) { b.classList.toggle('on', k <= RI); });
+    $('#rPrev').disabled = RI === 0;
+    var last = RI === RN - 1;
+    $('#rNext').textContent = last ? (RFIRST ? '카메라 확인하고 입장 →' : '확인했어요') : '다음';
+    $('#rNext').classList.toggle('go', last && RFIRST);
+  }
+  function closeRules() {
+    $('#rules').classList.remove('on');
+    if (RFIRST) { RULES_SEEN = true; save(); RFIRST = false; if (!local) { go('s-check'); startCheck(); } }
+  }
+  $('#rNext').onclick = function () { if (RI === RN - 1) closeRules(); else goRule(RI + 1); };
+  $('#rPrev').onclick = function () { goRule(RI - 1); };
+  $('#rClose').onclick = closeRules;
+  $('#rulesBtn').onclick = function () { openRules(false); };
+  document.addEventListener('keydown', function (e) {
+    if (!$('#rules').classList.contains('on')) return;
+    if (e.key === 'ArrowRight') $('#rNext').click(); else if (e.key === 'ArrowLeft') goRule(RI - 1); else if (e.key === 'Escape' && !RFIRST) closeRules();
+  });
+  (function () { var x0 = null, y0 = 0;
+    $('#rView').addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    $('#rView').addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { if (dx < 0 && RI < RN - 1) goRule(RI + 1); else if (dx > 0) goRule(RI - 1); } }, { passive: true });
+  })();
+
+  /* ③ 카메라·마이크 확인 */
   function startCheck() {
+    $('#c-btn').disabled = true;
     dc = new M.DeviceCheck({ video: $('#c-video'), meter: $('#c-meter'), selCam: $('#c-cam'), selMic: $('#c-mic'), err: $('#c-err') });
     dc.start().then(function () { $('#c-btn').disabled = false; })
       .catch(function (e) { $('#c-err').textContent = M.Media.errText(e); });
   }
   $('#f-check').onsubmit = function (e) {
     e.preventDefault();
+    audioReady();
     local = dc.stream;
     dc.stopMeterOnly();
     enterRoom();
   };
 
-  /* 3. 대기실 ~ 멘토링 */
+  /* ④ 대기실 */
+  function renderSched() {
+    $('#rm-sub').textContent = (sess.r === 'test' ? '리허설' : sess.r + '회차') + ' · 무용 심화 멘토링';
+    $('#sched').innerHTML = !ME || !ME.no ? '테스트 계정 <span>· ' + UI.esc(PREFIX + sess.name) + '</span>'
+      : ME.no + '번 ' + UI.esc(PREFIX + sess.name) + '<br><span>대기실 ' + UI.esc(ME.wait) + ' · 멘토링 ' + UI.esc(ME.time) + (ME.end ? '–' + UI.esc(ME.end) : '') +
+        (ME.date ? ' · ' + dateKo(ME.date) : '') + (ME.mentor ? ' · ' + UI.esc(ME.mentor) + ' 선생님' : '') + '</span>';
+  }
   function enterRoom() {
-    $('#w-me').textContent = PREFIX + sess.name;
     UI.attach($('#w-self'), local);
     UI.attach($('#l-self'), local);
     links = new M.Links(sess, {
       getLocal: function () { return local; },
       onRemote: function () { renderLive(); },
-      onChange: function () { renderLive(); },
+      onChange: function () { renderLive(); if (lastV) renderStatus(lastV); },
       // 다음 차례로 미리 연결돼 있어도, 내 차례 전에는 멘토에게 영상·음성을 보내지 않음
       sendPolicy: function (L) { return L.kind !== 'ms' || !!(sess.view && sess.view.called); }
     });
-    sess.on('view', render);
-    sess.on('ev', function (m) { if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev }); else sess.kick(); });
-    sess.on('net', function (ok, fails) {
-      var el = $('#w-net');
-      el.className = 'chip ' + (ok ? 'ok' : fails > 2 ? 'bad' : 'warn');
-      el.innerHTML = '<i class="dot"></i>' + (ok ? '정상' : '재연결 중');
-    });
+    if (stopWaitMeter) stopWaitMeter();
+    stopWaitMeter = M.Media.meter(local, $('#w-meter'));
     UI.netbar(sess);
     UI.wakeLock();
-    stopWaitMeter = M.Media.meter(local, $('#w-meter'));
     setupCtrls();
-    go('s-wait');
-    sess.start();
+    go('room');
     setInterval(tick, 500);
+    if (sess.view) render(sess.view);
   }
 
   function render(v) {
-    // 정보 보고(운영 화면 표시용)
+    lastV = v;
+    if (!links) return;   // 아직 카메라 확인 전
     var ms = links.get('ms', 'M');
     var vt = local && local.getVideoTracks()[0], at = local && local.getAudioTracks()[0];
-    sess.info = { n: M.NONCE, page: screen.replace('s-', ''), ms: ms ? ms.state : '', relay: ms ? ms.relay : null,
+    sess.info = { n: M.NONCE, page: screen === 's-live' ? 'live' : 'wait', ms: ms ? ms.state : '', relay: ms ? ms.relay : null,
                   cam: !!(vt && vt.enabled && vt.readyState === 'live'), mic: !!(at && at.enabled && at.readyState === 'live'),
                   mobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) };
-
-    // ZOOM 전환
-    if (v.zoomUrl) {
-      $('#z-name').textContent = PREFIX + sess.name;
-      $('#z-link').href = v.zoomUrl;
-      UI.show('#z-card', true);
-    } else UI.show('#z-card', false);
-
-    // 공지
-    if (v.notice && v.notice.text) { $('#w-notice span').textContent = v.notice.text; UI.show('#w-notice', true); }
-    else UI.show('#w-notice', false);
-
-    // 내 순서
-    var turn = $('#w-turn');
-    var when = v.myTime ? ' · ' + v.myTime + ' 예정' : '';
-    if (v.called) turn.textContent = '진행 중';
-    else if (v.isNext) turn.textContent = '다음 차례' + when;
-    else if (v.done) turn.textContent = '완료';
-    else turn.textContent = (v.ahead ? '앞에 ' + v.ahead + '명' : '대기') + when;
-    if (screen === 's-wait') {
-      if (v.isNext) {
-        $('#w-title').textContent = v.busy ? '다음 차례입니다' : '곧 시작합니다';
-        $('#w-sub').innerHTML = v.busy ? '앞 학생 멘토링이 끝나면 <b>바로 시작</b>됩니다.<br>카메라 앞에서 기다려 주세요.' : '운영진이 곧 멘토링을 시작합니다.<br>카메라 앞에서 기다려 주세요.';
-      } else {
-        $('#w-title').textContent = '대기 중입니다';
-        $('#w-sub').innerHTML = '차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀝니다.<br>이 화면을 켜 둔 채로 기다려 주세요.';
-      }
-    }
-    var wl = $('#w-warm');
-    if (v.isNext && ms && ms.state === 'connected') { wl.className = 'chip ok'; wl.innerHTML = '<i class="dot"></i>준비 완료'; }
-    else if (v.isNext) { wl.className = 'chip warn'; wl.textContent = '준비 중…'; }
-    else { wl.className = 'chip'; wl.textContent = '차례 전 자동 준비'; }
     sess.interval = v.isNext || v.called ? 1200 : 2500;
     links.applyPolicy();
 
-    // 점검·멘토 상태
-    var t = $('#w-test');
-    if (!v.test) { t.className = 'chip'; t.textContent = v.host ? '점검 대기' : '운영진 접속 전'; }
-    else if (v.test.ok) { t.className = 'chip ok'; t.innerHTML = '<i class="dot"></i>연결 확인 완료'; }
-    else { t.className = 'chip warn'; t.textContent = '연결 불안정 — 운영진이 안내 예정'; }
-    var mt = $('#w-mentor');
-    mt.className = 'chip ' + (v.mentorLive ? 'ok' : '');
-    mt.innerHTML = v.mentorLive ? '<i class="dot"></i>접속 중' : '접속 전';
+    if (v.zoomUrl) { $('#z-name').textContent = PREFIX + sess.name; $('#z-link').href = v.zoomUrl; UI.show('#z-card', true); }
+    else UI.show('#z-card', false);
 
+    $('#onlineCnt').textContent = (v.online ? '지금 ' + v.online + '명 접속 중' : '');
     if (v.called) {
       if (screen !== 's-live') {
         go('s-live');
         ensureLive();
+        alertCalled();
         UI.show('#l-banner', true);
         setTimeout(function () { UI.show('#l-banner', false); }, 3500);
-        try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {}
       }
       lastCurAt = v.cur ? v.cur.at : lastCurAt;
-    } else {
-      // 미리 연결(다음 차례)은 멘토 쪽에서 관리 — 여기서는 끊지 않음
-      if (v.done && !v.isNext) { if (screen !== 's-done') go('s-done'); }
-      else if (screen !== 's-wait') go('s-wait');
+    } else if (screen === 's-live') {
+      go('room');
+      document.title = TITLE;
     }
+    if (v.isNext && !render.wasNext) nudge();
+    render.wasNext = v.isNext;
+    renderStatus(v);
     renderLive();
   }
 
+  function renderStatus(v) {
+    var el = $('#status'), ms = links && links.get('ms', 'M');
+    var chips = [];
+    if (v.done) {
+      el.className = 'status done';
+      el.innerHTML = '<div class="ic">🌷</div><h2>멘토링이 끝났습니다</h2><p>참여해 주셔서 감사합니다. 수고하셨어요! 이제 창을 닫아도 됩니다.</p>';
+    } else if (v.isNext) {
+      el.className = 'status next';
+      if (ms && ms.state === 'connected') chips.push('<span class="chip">✓ 멘토 연결 준비 완료</span>');
+      else chips.push('<span class="chip">멘토 연결 준비 중…</span>');
+      el.innerHTML = '<div class="ic">🎯</div><h2>' + (v.busy ? '다음 차례입니다!' : '곧 시작합니다!') + '</h2>' +
+        '<p>' + (v.busy ? '앞 학생 멘토링이 끝나면 <b>바로 시작</b>돼요.' : '운영진이 곧 멘토링을 시작합니다.') + ' 카메라 앞에서 기다려 주세요.</p>' +
+        '<div class="chips">' + chips.join('') + '</div>';
+    } else {
+      el.className = 'status';
+      if (v.busy && v.curNo) chips.push('<span class="chip">현재 ' + v.curNo + '번 멘토링 중</span>');
+      if (v.myNo) chips.push('<span class="chip hot">' + (v.ahead ? '내 앞 대기 ' + v.ahead + '명' : '다음 순서입니다') + '</span>');
+      el.innerHTML = '<div class="ic">⏳</div><h2 class="dots">대기실에서 기다리는 중</h2>' +
+        '<p>차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀌어요. 화면을 켜 두세요.</p>' +
+        (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '');
+    }
+    var t = $('#w-test');
+    if (!v.test) { t.className = 'chip'; t.textContent = v.host ? '연결 점검 대기' : '연결 점검 전'; }
+    else if (v.test.ok) { t.className = 'chip ok'; t.textContent = '✓ 연결 점검 완료'; }
+    else { t.className = 'chip warn'; t.textContent = '연결 불안정 — 운영진 안내 예정'; }
+    var w = $('#w-warm');
+    if (v.isNext && ms && ms.state === 'connected') { w.className = 'chip ok'; w.textContent = '✓ 멘토 연결 준비 완료'; }
+    else if (v.isNext) { w.className = 'chip warn'; w.textContent = '멘토 연결 준비 중'; }
+    else { w.className = 'chip'; w.textContent = v.mentorLive ? '멘토 접속 중' : '멘토 접속 전'; }
+  }
+
+  function beep(seq) {
+    if (!ac) return;
+    try { ac.resume();
+      seq.forEach(function (d) { var o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ac.destination);
+        g.gain.setValueAtTime(.0001, ac.currentTime + d); g.gain.exponentialRampToValueAtTime(.3, ac.currentTime + d + .02); g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + d + .3);
+        o.start(ac.currentTime + d); o.stop(ac.currentTime + d + .32); });
+    } catch (e) {}
+  }
+  function alertCalled() {
+    try { navigator.vibrate && navigator.vibrate([300, 150, 300, 150, 600]); } catch (e) {}
+    beep([0, .35, .7]);
+    var n = 0;
+    clearInterval(alertCalled.t);
+    alertCalled.t = setInterval(function () { document.title = (n++ % 2) ? TITLE : '🔔 멘토링이 시작되었어요!'; if (n > 20) { clearInterval(alertCalled.t); document.title = TITLE; } }, 800);
+    if ($('#rules').classList.contains('on')) closeRules();
+  }
+  function nudge() { try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {} beep([0]); }
+
+  /* 대기실 채팅 */
+  function hhmm(t) { return new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Seoul' }); }
+  function renderChat() {
+    var ch = sess.chat;
+    var bc = ch.bc || [];
+    $('#bc').hidden = !bc.length;
+    $('#bc').innerHTML = bc.slice(-3).map(function (b) { return '<div><b>📢 운영진 공지</b> ' + UI.esc(b.x) + ' <small style="color:var(--muted2)">' + hhmm(b.t) + '</small></div>'; }).join('');
+    var box = $('#msgs'), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    var html = ch.list.map(function (m) {
+      if (m.f === 'sys') return '<div class="m sys">' + UI.esc(m.x) + '</div>';
+      if (m.f === 'o') return '<div class="m o"><span class="who">운영진</span>' + UI.esc(m.x) + '<small>' + hhmm(m.t) + '</small></div>';
+      if (m.n === sess.name) return '<div class="m s">' + UI.esc(m.x) + '<small>' + hhmm(m.t) + '</small></div>';
+      return '<div class="m p"><span class="who">' + UI.esc(m.n) + '</span>' + UI.esc(m.x) + '<small>' + hhmm(m.t) + '</small></div>';
+    }).join('') + PENDING.map(function (p) { return '<div class="m s pend">' + UI.esc(p.x) + '<small>보내는 중…</small></div>'; }).join('');
+    box.innerHTML = html || '<div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요 👋</div>';
+    if (atBottom || PENDING.length || renderChat.last !== ch.last) box.scrollTop = box.scrollHeight;
+    renderChat.last = ch.last;
+  }
+  $('#sendForm').onsubmit = async function (e) {
+    e.preventDefault();
+    var text = $('#text').value.trim(); if (!text || !sess) return;
+    var p = { id: ++pid, x: text }; PENDING.push(p);
+    $('#text').value = ''; $('#text').focus(); renderChat();
+    var j = null;
+    try { j = await sess.say(text); } catch (er) {}
+    PENDING = PENDING.filter(function (q) { return q !== p; });
+    renderChat();
+    if (!j || !j.ok) { $('#text').value = text; UI.toast('보내지 못했습니다. 다시 보내 주세요.'); }
+  };
+
+  /* 스마트폰 키보드: 보이는 높이에 맞추고, 입력 중에는 채팅을 크게 */
+  function fitRoom() {
+    var vv = window.visualViewport, h = vv ? vv.height : innerHeight;
+    $('#room').style.height = Math.round(h) + 'px';
+    if (vv && vv.offsetTop > 0) window.scrollTo(0, 0);
+    if (document.body.classList.contains('typing')) { var b = $('#msgs'); b.scrollTop = b.scrollHeight; }
+  }
+  if (window.visualViewport) { visualViewport.addEventListener('resize', fitRoom); visualViewport.addEventListener('scroll', fitRoom); }
+  window.addEventListener('resize', fitRoom);
+  $('#text').addEventListener('focus', function () { document.body.classList.add('typing'); setTimeout(fitRoom, 60); setTimeout(fitRoom, 350); });
+  $('#text').addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== $('#text')) { document.body.classList.remove('typing'); fitRoom(); } }, 150); });
+  ['pointerdown', 'mousedown'].forEach(function (t) { $('#sendBtn').addEventListener(t, function (e) { if (document.activeElement === $('#text')) e.preventDefault(); }, { passive: false }); });
+
+  /* ⑤ 멘토링 화면 */
   function renderLive() {
     if (screen !== 's-live') return;
     var L = links.get('ms', 'M');
@@ -310,7 +557,6 @@
     UI.show('#l-wait', !ok);
     if (L) UI.attach($('#l-remote'), L.stream);
   }
-
   function tick() {
     if (screen !== 's-live' || !lastCurAt) return;
     var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
@@ -321,7 +567,7 @@
     $('#l-title').textContent = el > fb && el <= slot ? '질의응답 시간' : '멘토링 중';
   }
 
-  /* 멘토링이 시작되면 카메라·마이크를 자동으로 켬(대기 중 꺼 두었거나, 휴대폰이 잠깐 꺼져 카메라가 멈춘 경우 포함) */
+  /* 멘토링이 시작되면 카메라·마이크를 자동으로 켬 */
   var paintCtrls = function () {};
   async function ensureLive() {
     var dead = !local || local.getTracks().some(function (t) { return t.readyState === 'ended'; }) ||
@@ -336,8 +582,6 @@
     if (local) local.getTracks().forEach(function (t) { t.enabled = true; });
     paintCtrls();
   }
-
-  /* 마이크·카메라 */
   function setupCtrls() {
     var mic = $('#b-mic'), cam = $('#b-cam'), flip = $('#b-flip');
     var paint = function () {
@@ -365,6 +609,42 @@
   $('#z-link').onclick = function () {
     if (!zoomGone) { zoomGone = true; M.Media.stop(local); if (links) links.closeWhere(function () { return true; }, true); }
   };
+  $('#b-out').onclick = function () {
+    if (!confirmOut()) return;
+    try { sessionStorage.removeItem('meet_stu'); } catch (e) {}
+    location.href = location.pathname + (R0 ? '?r=' + encodeURIComponent(R0) : '');
+  };
+  function confirmOut() {
+    var b = $('#b-out');
+    if (b.dataset.armed && Date.now() - Number(b.dataset.armed) < 3000) return true;
+    b.dataset.armed = Date.now(); b.textContent = '정말 나가기';
+    setTimeout(function () { b.textContent = '나가기'; delete b.dataset.armed; }, 3000);
+    return false;
+  }
+
+  /* 같은 탭에서는 다시 입력하지 않게(새로고침해도 유지) — 카메라 확인부터 다시 */
+  (async function () {
+    var s = null;
+    try { s = JSON.parse(sessionStorage.getItem('meet_stu') || 'null'); } catch (e) {}
+    if (!s || !s.name) return;
+    try {
+      await login(s.name, s.birth, s.r);
+      RULES_SEEN = !!s.rules;
+      if (RULES_SEEN) { go('s-check'); startCheck(); } else openRules(true);
+    } catch (e) { try { sessionStorage.removeItem('meet_stu'); } catch (e2) {} }
+  })();
+})();
+</script>
+<script>
+/* 확대·축소 막기: 핀치·두 번 탭(모바일), Ctrl+휠·Ctrl +/-/0(PC) */
+(function () {
+  var stop = function (e) { e.preventDefault(); };
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) { document.addEventListener(t, stop, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+  var lastTap = 0;
+  document.addEventListener('touchend', function (e) { var now = Date.now(); if (now - lastTap < 320 && !e.target.closest('input,textarea,a,button,select')) e.preventDefault(); lastTap = now; }, { passive: false });
+  window.addEventListener('wheel', function (e) { if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false });
+  window.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0', '_'].indexOf(e.key) >= 0) e.preventDefault(); });
 })();
 </script>
 </body>
