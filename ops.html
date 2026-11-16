@@ -940,12 +940,14 @@
   }
   $('#rs-go').onclick = function () { recSetupGo(false); };
   $('#rs-other').onclick = function () { recSetupGo(true); };
+  // 파일 이름: 녹화 시작 시각(YYMMDD_HHMM, 한국 시각)을 맨 앞에 — 예) 261121_1000_2회차_03_이름 / 261121_0940_2회차_대기
   function recName() {
-    var cur = view && view.cur, d = new Date();
-    var hm2 = String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0');
+    var cur = view && view.cur, k = new Date(Date.now() + 9 * 3600e3).toISOString();   // KST
+    var stamp = k.slice(2, 4) + k.slice(5, 7) + k.slice(8, 10) + '_' + k.slice(11, 13) + k.slice(14, 16);
+    var room = r === 'test' ? '리허설' : r + '회차';
+    if (!cur && IS_REC) return stamp + '_' + room + '_대기';
     var no = cur && cur.no ? String(cur.no).padStart(2, '0') : '00';
-    if (!cur && IS_REC) return (r === 'test' ? '리허설' : r + '회차') + '_대기_' + hm2;
-    return (r === 'test' ? '리허설' : r + '회차') + '_' + no + '_' + (cur ? cur.name : '녹화') + '_' + hm2;
+    return stamp + '_' + room + '_' + no + '_' + (cur ? cur.name : '녹화');
   }
   function recTitle() { var cur = view && view.cur; return 'K예술영재 ' + (C.TITLE || '') + ' · ' + roomLabel() + (cur ? ' · ' + PREFIX + cur.name : ' · 대기 시간'); }
   // 녹화 구간: 학생마다 한 파일. 녹화 담당은 멘토링이 아닌 시간도 「대기」 파일로 이어서 녹화

@@ -147,7 +147,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording resumes after end');
   const names = await ops.evaluate(() => [...document.querySelectorAll('#rec-files li span:first-child')].map(x => x.textContent));
   log('auto-saved:', names.join(' | '));
-  if (!names.some(n => /_대기_/.test(n))) throw new Error('no gap file');
+  if (!names.some(n => /^\d{6}_\d{4}_리허설_대기/.test(n))) throw new Error('no gap file');
+  if (!names.every(n => /^\d{6}_\d{4}_/.test(n))) throw new Error('file name must start with YYMMDD_HHMM');
   log('student files + 대기 file saved, recording continues after last student');
   const vinfo = await ops.evaluate(async () => {
     const dir = await navigator.storage.getDirectory(); const out = [];
