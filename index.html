@@ -5,136 +5,161 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
+<meta name="theme-color" content="#202226">
 <link rel="stylesheet" href="style.css">
 <style>
-  :root { --teal-ink: #0F4252; --teal-soft: #E6F0F3; --apricot-soft: #FFE9E0; --muted2: #5F6368; --line2: rgba(33,35,38,.12); --line3: rgba(33,35,38,.22); }
   .scr { display: none; }
   .scr.on { display: block; }
+  #s-gate.on { min-height: 100%; display: flex; flex-direction: column; }
 
   /* ① 본인 확인 */
-  .hero { background: var(--teal-d); color: #fff; position: relative; overflow: hidden; padding: 34px 0 28px; }
-  .hero svg { position: absolute; right: -140px; top: -60px; width: 460px; opacity: .9; pointer-events: none; }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; position: relative; }
-  .eyebrow { font-family: "Paperlogy", sans-serif; font-weight: 700; font-size: 12.5px; letter-spacing: .12em; color: var(--apricot); }
-  .hero h1 { font-size: clamp(26px, 7vw, 36px); margin: 8px 0 6px; }
-  .hero p { margin: 0; color: rgba(255,255,255,.85); font-size: 15px; }
-  .lmain { padding: 18px 0 30px; }
-  .lcard { background: #fff; border: 1px solid var(--line2); border-radius: 16px; padding: 20px 18px; }
-  .lcard h2 { font-size: 19px; margin: 0 0 6px; }
-  .lcard .lead { margin: 0 0 16px; color: var(--muted2); font-size: 15px; }
-  .hint { font-size: 13px; color: var(--muted2); margin-top: 6px; }
-  footer.ft { text-align: center; font-size: 13px; color: var(--muted2); padding: 4px 0 30px; }
-  footer.ft a { color: var(--teal); }
+  .hero { background: var(--band); color: var(--band-tx); position: relative; overflow: hidden; padding: 30px 0 92px; }
+  .hero svg.path { position: absolute; right: -60px; bottom: 6px; width: 360px; pointer-events: none; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 18px; position: relative; }
+  .hbrand { display: flex; align-items: center; gap: 11px; margin-bottom: 30px; }
+  .hbrand small { display: block; font-size: 12px; font-weight: 600; color: var(--band-soft); line-height: 1.3; }
+  .hbrand b { display: block; font-size: 14.5px; font-weight: 800; letter-spacing: -.01em; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; color: var(--band-soft); }
+  .hero h1 { font-size: clamp(28px, 7.4vw, 38px); margin: 10px 0 10px; font-weight: 800; letter-spacing: -.035em; line-height: 1.2; }
+  .hero h1 em { font-style: normal; color: var(--yel); }
+  .hero p { margin: 0; color: var(--band-soft); font-size: 15px; line-height: 1.6; }
+  .lmain { flex: 1; margin-top: -64px; padding-bottom: 26px; }
+  .lcard { background: var(--paper); border-radius: 18px; padding: 26px 22px 22px; box-shadow: 0 1px 0 var(--line), 0 24px 60px -30px rgba(32,34,38,.4); }
+  .lcard h2 { font-size: 20px; margin: 0 0 4px; }
+  .lcard .lead { margin: 0 0 20px; color: var(--gray); font-size: 14.5px; }
+  .hint { font-size: 12.5px; color: var(--faint); margin-top: 6px; }
+  footer.ft { text-align: center; font-size: 12.5px; color: var(--gray); padding: 4px 18px 30px; line-height: 1.7; }
+  footer.ft a { color: var(--ink); font-weight: 700; text-decoration: none; border-bottom: 1px solid var(--dash); }
 
   /* ② 유의사항 카드뉴스 */
-  #rules { position: fixed; inset: 0; z-index: 50; background: var(--teal-d); color: #fff; display: none; flex-direction: column; height: 100dvh; }
+  #rules { position: fixed; inset: 0; z-index: 50; background: var(--band); color: var(--band-tx); display: none; flex-direction: column; height: 100dvh; }
   #rules.on { display: flex; }
-  .rtop { display: flex; align-items: center; gap: 10px; padding: max(14px, env(safe-area-inset-top)) 18px 6px; max-width: 560px; width: 100%; margin: 0 auto; }
-  .rtop .eyebrow { flex: 1; }
-  .rclose { background: rgba(255,255,255,.15); border: 0; color: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
-  .rbar { display: flex; gap: 5px; padding: 4px 18px 0; max-width: 560px; width: 100%; margin: 0 auto; }
-  .rbar i { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.25); transition: background .3s; }
-  .rbar i.on { background: var(--apricot); }
+  .rtop { display: flex; align-items: center; gap: 10px; padding: max(14px, env(safe-area-inset-top)) 18px 8px; max-width: 560px; width: 100%; margin: 0 auto; }
+  .rtop .eyebrow { flex: 1; color: var(--band-tx); }
+  .rclose { display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,.1); border: 0; color: #fff; border-radius: 8px; padding: 6px 11px; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+  .rclose[hidden] { display: none; }
+  .rbar { display: flex; gap: 4px; padding: 2px 18px 0; max-width: 560px; width: 100%; margin: 0 auto; }
+  .rbar i { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.18); transition: background .3s; }
+  .rbar i.on { background: var(--yel); }
   .rview { flex: 1; min-height: 0; overflow: hidden; max-width: 560px; width: 100%; margin: 0 auto; touch-action: pan-y; }
   .rtrack { display: flex; height: 100%; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
   .slide { flex: 0 0 100%; height: 100%; padding: 16px 18px; display: flex; }
-  .sc { flex: 1; background: #fff; color: var(--ink); border-radius: 22px; padding: clamp(22px,5vh,40px) 24px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.18); }
-  .sc .num { font-family: "Paperlogy", sans-serif; font-weight: 700; font-size: 15px; color: var(--teal); letter-spacing: .06em; }
-  .sc .ico { font-size: clamp(54px,11vh,84px); line-height: 1; margin: clamp(14px,4vh,34px) 0 clamp(12px,3vh,24px); }
-  .sc h2 { font-size: clamp(25px,6.4vw,31px); margin: 0; }
-  .sc p { font-size: clamp(16px,4.3vw,18px); color: #3E4246; margin: 14px 0 0; line-height: 1.65; }
-  .sc p b { color: var(--coral); }
-  .sc .box { margin-top: auto; background: var(--teal-soft); border-radius: 14px; padding: 14px 16px; font-size: 15.5px; color: var(--teal-ink); }
-  .sc .box b { font-family: "Paperlogy", sans-serif; font-size: 19px; }
-  .sc .deco { position: absolute; right: -50px; bottom: -60px; width: 220px; opacity: .5; pointer-events: none; }
-  .sc.cover { background: var(--apricot-soft); }
+  .sc { flex: 1; background: var(--paper); color: var(--ink); border-radius: 20px; padding: clamp(22px,5vh,38px) 24px; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 24px 60px -24px rgba(0,0,0,.6); }
+  .sc .num { display: flex; align-items: baseline; gap: 6px; font-weight: 700; font-size: 13px; color: var(--faint); letter-spacing: .02em; }
+  .sc .num b { font-size: 22px; font-weight: 900; color: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .sc .ico { width: clamp(60px,10vh,76px); height: clamp(60px,10vh,76px); border-radius: 20px; background: var(--yel-lt); color: var(--ink); display: grid; place-items: center; margin: clamp(16px,4.5vh,36px) 0 clamp(14px,3vh,24px); }
+  .sc .ico .i { width: 46%; height: 46%; stroke-width: 1.8; }
+  .sc h2 { font-size: clamp(24px,6.4vw,30px); margin: 0; letter-spacing: -.035em; }
+  .sc p { font-size: clamp(16px,4.3vw,17.5px); color: var(--ink-2); margin: 14px 0 0; line-height: 1.7; }
+  .sc p b { color: var(--ink); background: linear-gradient(transparent 60%, rgba(242,194,48,.5) 60%); }
+  .sc .box { margin-top: auto; position: relative; z-index: 1; background: var(--desk); border-left: 4px solid var(--yel); border-radius: 4px 12px 12px 4px; padding: 13px 16px; font-size: 15px; color: var(--ink-2); line-height: 1.6; }
+  .sc .box b { font-size: 17px; color: var(--ink); }
+  .sc .deco { position: absolute; right: -36px; bottom: 70px; width: 210px; pointer-events: none; }
+  .sc.cover { background: var(--yel-lt); }
+  .sc.cover .ico { background: var(--yel); }
+  .sc.cover .box { background: var(--paper); }
   .rnav { display: flex; gap: 10px; padding: 6px 18px max(18px, env(safe-area-inset-bottom)); max-width: 560px; width: 100%; margin: 0 auto; }
-  .rnav button { border: 0; border-radius: 14px; padding: 16px; font-weight: 800; font-size: 17px; cursor: pointer; }
-  .rnav .prev { flex: 0 0 30%; background: rgba(255,255,255,.14); color: #fff; }
-  .rnav .prev:disabled { opacity: .35; }
-  .rnav .next { flex: 1; background: #fff; color: var(--teal-ink); }
-  .rnav .next.go { background: var(--coral); color: #fff; }
+  .rnav button { border: 0; border-radius: 12px; padding: 16px; font-weight: 800; font-size: 16.5px; cursor: pointer; transition: background .15s; }
+  .rnav .prev { flex: 0 0 30%; background: rgba(255,255,255,.1); color: #fff; }
+  .rnav .prev:disabled { opacity: .3; }
+  .rnav .next { flex: 1; background: #fff; color: var(--ink); }
+  .rnav .next.go { background: var(--yel); color: var(--ink); }
 
-  /* ③ 대기실: 한 화면 고정 */
+  /* ③ 카메라·마이크 확인 */
+  #s-check.on { display: grid; }
+  .cbrand { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .cbrand div small { display: block; font-size: 12px; color: var(--gray); font-weight: 600; }
+  .cbrand div b { display: block; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+
+  /* ④ 대기실: 한 화면 고정 */
   #room { height: 100dvh; flex-direction: column; max-width: 640px; margin: 0 auto; padding: 0 12px max(10px, env(safe-area-inset-bottom)); gap: 8px; overflow: hidden; }
   #room.on { display: flex; }
-  .rh { display: flex; align-items: center; gap: 8px; padding: max(10px, env(safe-area-inset-top)) 2px 0; }
+  .rh { display: flex; align-items: center; gap: 9px; padding: max(10px, env(safe-area-inset-top)) 2px 2px; }
   .rh h1 { font-size: 17px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
-  .rh h1 small { display: block; font-family: "Pretendard Variable", sans-serif; font-size: 11.5px; font-weight: 600; color: var(--muted2); }
-  .conn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--muted2); white-space: nowrap; }
-  .conn i { width: 8px; height: 8px; border-radius: 50%; background: #2DB36B; }
-  .conn.off i { background: #F08A4B; }
-  .pill { border: 1.5px solid var(--teal); background: #fff; color: var(--teal); border-radius: 999px; padding: 5px 11px; font-weight: 800; font-size: 13.5px; white-space: nowrap; cursor: pointer; }
-  .pill.ghost { border-color: var(--line3); color: var(--muted2); font-weight: 700; }
+  .rh h1 small { display: block; font-size: 11.5px; font-weight: 600; color: var(--gray); letter-spacing: 0; }
+  .conn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--gray); white-space: nowrap; }
+  .conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(47,138,87,.18); }
+  .conn.off i { background: var(--warn); box-shadow: 0 0 0 3px rgba(183,121,31,.18); }
+  .pill { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 13px; white-space: nowrap; cursor: pointer; }
+  .pill:hover { border-color: var(--ink); }
+  .pill.ghost { color: var(--gray); }
 
-  .status { flex: none; border-radius: 16px; border: 2px solid var(--teal); background: #fff; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: center; }
-  .status .ic { grid-row: 1/3; font-size: 34px; line-height: 1; }
-  .status h2 { font-size: clamp(17px,4.6vw,20px); margin: 0; }
-  .status p { margin: 0; color: var(--muted2); font-size: 13.5px; line-height: 1.45; }
-  .status .chips { grid-column: 1/3; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .status .chip { background: var(--teal-soft); color: var(--teal-ink); }
-  .status .chip.hot { background: var(--apricot-soft); color: #A3303B; }
-  .status.next { background: var(--teal); border-color: var(--teal); color: #fff; animation: glow 1.6s ease-in-out infinite; }
-  .status.next p { color: rgba(255,255,255,.92); }
-  .status.next .chip { background: rgba(255,255,255,.2); color: #fff; }
-  @keyframes glow { 50% { box-shadow: 0 0 0 7px rgba(23,108,134,.2); } }
-  .status.done { border-color: var(--line2); }
+  .status { flex: none; border-radius: 16px; background: var(--paper); box-shadow: 0 1px 0 var(--line); border: 1px solid var(--line); padding: 13px 14px; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; align-items: center; position: relative; overflow: hidden; }
+  .status .ic { grid-row: 1/3; width: 44px; height: 44px; border-radius: 12px; background: var(--desk); display: grid; place-items: center; }
+  .status .ic .i { width: 23px; height: 23px; }
+  .status h2 { font-size: clamp(17px,4.6vw,19.5px); margin: 0; }
+  .status p { margin: 0; color: var(--gray); font-size: 13.5px; line-height: 1.45; }
+  .status p b { color: var(--ink); }
+  .status .chips { grid-column: 1/3; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .status .chip.hot { background: var(--ink); color: #fff; }
+  .status.next { background: var(--yel); border-color: var(--yel); animation: glow 1.6s ease-in-out infinite; }
+  .status.next .ic { background: var(--ink); color: var(--yel); }
+  .status.next p { color: var(--ink-2); }
+  .status.next .chip { background: rgba(32,34,38,.1); color: var(--ink); }
+  @keyframes glow { 50% { box-shadow: 0 0 0 7px rgba(242,194,48,.32); } }
+  .status.done { background: var(--ok-lt); border-color: transparent; }
+  .status.done .ic { background: var(--ok); color: #fff; }
   .dots::after { content: ''; animation: dots 1.5s steps(4) infinite; }
   @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
 
-  .info { flex: none; display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; background: #fff; border: 1px solid var(--line2); border-radius: 14px; padding: 9px 10px 9px 12px; font-size: 13.5px; align-items: center; }
-  .info .when { font-weight: 700; color: var(--ink); line-height: 1.5; }
-  .info .when span { color: var(--muted2); font-weight: 600; }
-  .info .chk { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
-  .info .chk .chip { font-size: 11.5px; }
-  .mini { position: relative; width: 104px; aspect-ratio: 4/3; border-radius: 10px; overflow: hidden; background: #000; grid-row: 1/3; grid-column: 2; }
+  .info { flex: none; display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 14px; font-size: 13.5px; align-items: center; }
+  .info .when { font-weight: 800; color: var(--ink); line-height: 1.5; }
+  .info .when span { color: var(--gray); font-weight: 600; }
+  .info .chk { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .info .chk .chip { font-size: 11.5px; height: 22px; }
+  .mini { position: relative; width: 104px; aspect-ratio: 4/3; border-radius: 10px; overflow: hidden; background: var(--k0); grid-row: 1/3; grid-column: 2; }
   .mini video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-  .mini .meter { position: absolute; left: 6px; right: 6px; bottom: 5px; height: 4px; margin: 0; background: rgba(255,255,255,.3); }
+  .mini .meter { position: absolute; left: 6px; right: 6px; bottom: 5px; height: 3px; margin: 0; background: rgba(255,255,255,.25); }
+  .mini .meter i { background: #7FD3A3; }
 
-  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line2); border-radius: 16px; padding: 10px; }
-  .chat .ch { display: flex; align-items: baseline; gap: 8px; padding: 0 4px; }
-  .chat .ch h2 { font-size: 16px; margin: 0; }
-  .chat .ch small { font-size: 12.5px; color: var(--muted2); }
-  .bc { flex: none; background: var(--apricot-soft); border-radius: 10px; padding: 7px 10px; margin-top: 7px; font-size: 13.5px; max-height: 4.6em; overflow-y: auto; }
-  .bc b { color: #A3303B; }
-  .bc div + div { margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(163,48,59,.25); }
-  .msgs { flex: 1; min-height: 60px; overflow-y: auto; background: var(--ivory); border-radius: 12px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 7px; overscroll-behavior: contain; }
-  .msgs .empty { margin: auto; color: var(--muted2); font-size: 13.5px; text-align: center; }
-  .m { max-width: 82%; padding: 8px 11px; border-radius: 14px; font-size: 14.5px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
-  .m small { display: block; font-size: 11px; opacity: .7; margin-top: 2px; }
-  .m.s { align-self: flex-end; background: var(--teal); color: #fff; border-bottom-right-radius: 4px; }
-  .m.pend { opacity: .6; }
-  .m.o, .m.p { align-self: flex-start; border: 1px solid var(--line2); border-bottom-left-radius: 4px; }
+  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
+  .chat .ch { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
+  .chat .ch h2 { font-size: 16px; margin: 0; display: inline-flex; align-items: center; gap: 6px; }
+  .chat .ch small { margin-left: auto; font-size: 12px; color: var(--gray); font-weight: 600; }
+  .bc { flex: none; background: var(--yel-lt); border-radius: 10px; padding: 8px 11px; margin-top: 8px; font-size: 13.5px; max-height: 4.8em; overflow-y: auto; color: var(--ink-2); }
+  .bc b { color: var(--yel-ink); display: inline-flex; align-items: center; gap: 4px; margin-right: 4px; }
+  .bc small { color: var(--yel-ink); opacity: .7; }
+  .bc div + div { margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(110,82,0,.22); }
+  .msgs { flex: 1; min-height: 60px; overflow-y: auto; background: var(--desk); border-radius: 12px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 7px; overscroll-behavior: contain; }
+  .msgs .empty { margin: auto; color: var(--gray); font-size: 13.5px; text-align: center; line-height: 1.6; }
+  .m { max-width: 82%; padding: 8px 12px; border-radius: 14px; font-size: 14.5px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
+  .m small { display: block; font-size: 11px; opacity: .6; margin-top: 2px; }
+  .m.s { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+  .m.pend { opacity: .55; }
+  .m.o, .m.p { align-self: flex-start; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
   .m.o .who, .m.p .who { display: block; font-size: 12px; font-weight: 800; margin-bottom: 1px; }
-  .m.o { background: #FFF4F0; border-color: #F6C9BC; }
-  .m.o .who { color: var(--coral); }
-  .m.p { background: #fff; }
-  .m.p .who { color: var(--teal); }
-  .m.sys { align-self: center; background: var(--coral); color: #fff; font-weight: 700; font-size: 13.5px; border-radius: 999px; padding: 5px 13px; }
-  #s-check.on { display: grid; }
+  .m.o { background: var(--yel-lt); border-color: #F1DFA0; }
+  .m.o .who { color: var(--yel-ink); }
+  .m.p { background: var(--paper); }
+  .m.p .who { color: var(--gray); }
+  .m.sys { align-self: center; background: var(--ink); color: #fff; font-weight: 700; font-size: 13px; border-radius: 999px; padding: 5px 13px; }
   .send { flex: none; display: flex; gap: 8px; margin-top: 8px; }
-  .send input { flex: 1; font-size: 16px; padding: 11px 12px; border: 1.5px solid var(--line3); border-radius: 11px; outline: none; min-width: 0; }
-  .send input:focus { border-color: var(--teal); }
-  .send button { flex: none; border: 0; border-radius: 11px; background: var(--teal); color: #fff; font-weight: 800; padding: 0 16px; cursor: pointer; }
-  @media (max-width: 420px) { .conn span { display: none; } .pill { padding: 5px 9px; font-size: 13px; } }
+  .send input { flex: 1; font-size: 16px; height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 10px; outline: none; min-width: 0; background: #fff; }
+  .send input:focus { border-color: var(--ink); box-shadow: 0 0 0 4px rgba(242,194,48,.3); }
+  .send button { flex: none; border: 0; border-radius: 10px; background: var(--ink); color: #fff; font-weight: 800; padding: 0 17px; cursor: pointer; }
+  @media (max-width: 420px) { .conn span { display: none; } .pill { padding: 6px 8px; font-size: 12.5px; } .pill .i { display: none; } }
   @media (max-width: 600px) {
     #room { padding: 0 8px max(8px, env(safe-area-inset-bottom)); gap: 6px; }
-    .status:not(.next) { padding: 8px 12px; gap: 0 10px; border-width: 1.5px; }
-    .status:not(.next) .ic { font-size: 24px; }
+    .status:not(.next) { padding: 9px 12px; gap: 0 10px; }
+    .status:not(.next) .ic { width: 34px; height: 34px; border-radius: 10px; }
+    .status:not(.next) .ic .i { width: 19px; height: 19px; }
     .status:not(.next) h2 { font-size: 15.5px; }
     .status:not(.next) p { display: none; }
-    .status:not(.next) .chips { grid-column: 2; margin-top: 3px; }
-    .info { padding: 6px 8px 6px 10px; font-size: 12.5px; }
+    .status:not(.next) .chips { grid-column: 2; margin-top: 4px; }
+    .info { padding: 7px 8px 7px 11px; font-size: 12.5px; }
     .mini { width: 84px; }
     .m { font-size: 16px; max-width: 86%; padding: 9px 12px; }
   }
   body.typing .status:not(.next), body.typing .info { display: none; }
   @media (max-height: 600px) { .info { display: none; } }
 
+  /* ⑤ 멘토링 화면 */
+  .topbar .kmark { margin-right: 2px; }
+  .ready-banner { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); background: var(--yel); color: var(--ink); padding: 9px 18px; border-radius: 999px; font-weight: 800; font-size: 14px; z-index: 4; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+
   /* ZOOM 전환 */
-  .zoomcard { position: fixed; inset: 0; background: rgba(10,14,16,.92); display: grid; place-items: center; z-index: 60; padding: 20px; }
+  .zoomcard { position: fixed; inset: 0; background: rgba(18,19,21,.9); display: grid; place-items: center; z-index: 60; padding: 20px; backdrop-filter: blur(4px); }
   .zoomcard .card { text-align: center; }
-  .ready-banner { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: var(--teal); color: #fff; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 4; white-space: nowrap; }
   html, body { touch-action: pan-x pan-y; }
   button, a, input { touch-action: manipulation; }
 </style>
@@ -143,16 +168,18 @@
 
 <!-- ① 본인 확인 -->
 <div class="scr on" id="s-gate">
+  <div class="kstrip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <header class="hero">
-    <svg viewBox="0 0 520 420" fill="none" aria-hidden="true">
-      <path d="M40 360C140 250 210 330 300 220S430 40 510 70" stroke="#FFB098" stroke-width="2" opacity=".75"/>
-      <path d="M10 330C130 230 200 300 290 190S420 10 520 40" stroke="#FFB098" stroke-width="1" opacity=".45"/>
-      <circle cx="300" cy="220" r="5" fill="#E84958"/>
+    <svg class="path" viewBox="0 0 360 200" fill="none" aria-hidden="true">
+      <path d="M8 182c40-6 62-40 104-46s58 26 96 14 40-66 82-86 58-8 66-18" stroke="#4A4D53" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <circle cx="356" cy="46" r="6" fill="#F2C230"/><circle cx="8" cy="182" r="4" fill="#4A4D53"/>
     </svg>
     <div class="wrap">
-      <div class="eyebrow">2026 K예술영재 프로젝트 · 심화과정</div>
-      <h1>무용분야 심화 멘토링</h1>
-      <p>본인 확인 후 유의사항을 확인하고 온라인 멘토링 대기실에 입장해 주세요.</p>
+      <div class="hbrand"><span class="kmark" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>
+        <div><small>2026 K예술영재 프로젝트</small><b>심화과정 · 무용</b></div></div>
+      <div class="eyebrow"><i class="fdot"></i>무용분야 심화 멘토링</div>
+      <h1>온라인 멘토링 <em>대기실</em></h1>
+      <p>본인 확인 후 유의사항을 읽고<br>대기실에 입장해 주세요.</p>
     </div>
   </header>
   <main class="wrap lmain">
@@ -173,7 +200,7 @@
 
 <!-- ② 유의사항 카드뉴스 -->
 <div id="rules" role="dialog" aria-modal="true" aria-label="멘토링 참여 유의사항">
-  <div class="rtop"><div class="eyebrow">멘토링 참여 유의사항</div><button class="rclose" type="button" id="rClose" hidden>닫기 ✕</button></div>
+  <div class="rtop"><div class="eyebrow"><i class="fdot"></i>멘토링 참여 유의사항</div><button class="rclose" type="button" id="rClose" hidden>닫기</button></div>
   <div class="rbar" id="rBar"></div>
   <div class="rview" id="rView"><div class="rtrack" id="rTrack"></div></div>
   <div class="rnav"><button class="prev" type="button" id="rPrev">이전</button><button class="next" type="button" id="rNext">다음</button></div>
@@ -182,7 +209,7 @@
 <!-- ③ 카메라·마이크 확인 -->
 <section class="scr gate" id="s-check">
   <form class="card" id="f-check">
-    <div class="brand"><i></i>카메라·마이크 확인</div>
+    <div class="cbrand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span><div><small>입장 전 마지막 단계</small><b>카메라·마이크 확인</b></div></div>
     <div class="preview"><video id="c-video" autoplay playsinline muted></video></div>
     <label class="field"><span>카메라</span><select id="c-cam"></select></label>
     <label class="field"><span>마이크 — 말해 보세요. 막대가 움직이면 정상입니다</span><select id="c-mic"></select></label>
@@ -200,9 +227,10 @@
 <!-- ④ 대기실 -->
 <div class="scr" id="room">
   <div class="rh">
+    <span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>
     <h1><small id="rm-sub">무용 심화 멘토링</small>대기실</h1>
     <span class="conn" id="conn"><i></i><span>실시간 연결됨</span></span>
-    <button class="pill" type="button" id="rulesBtn">📌 유의사항</button>
+    <button class="pill" type="button" id="rulesBtn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 5 4 4H6l4-4z"/><path d="M12 12v9"/></svg>유의사항</button>
     <button class="pill ghost" type="button" id="b-out">나가기</button>
   </div>
   <section class="status" id="status" aria-live="assertive"></section>
@@ -216,7 +244,7 @@
   <section class="chat">
     <div class="ch"><h2>대기실 채팅</h2><small id="onlineCnt"></small></div>
     <div class="bc" id="bc" hidden></div>
-    <div class="msgs" id="msgs"><div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요 👋</div></div>
+    <div class="msgs" id="msgs"><div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요.</div></div>
     <form class="send" id="sendForm" autocomplete="off">
       <input type="text" id="text" maxlength="300" placeholder="운영진에게 묻거나 인사를 나눠 보세요">
       <button type="submit" id="sendBtn">보내기</button>
@@ -227,6 +255,7 @@
 <!-- ⑤ 멘토링 -->
 <section id="s-live" class="stage hide">
   <div class="topbar">
+    <span class="kmark sm" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>
     <span class="ttl" id="l-title">멘토링 중</span>
     <span class="chip on"><span class="rec-dot" style="background:#fff"></span>녹화</span>
     <span class="sp"></span>
@@ -252,7 +281,7 @@
     <div class="brand" style="justify-content:center"><i></i>운영진 안내</div>
     <h1>ZOOM으로 이동해 주세요</h1>
     <p class="lead">연결이 원활하지 않아 ZOOM으로 멘토링을 진행합니다.<br>ZOOM 이름은 <b id="z-name"></b> 으로 바꿔 주세요.</p>
-    <a class="btn full coral" id="z-link" target="_blank" rel="noopener">ZOOM 입장</a>
+    <a class="btn full yel" id="z-link" target="_blank" rel="noopener">ZOOM 입장</a>
     <p class="note">ZOOM으로 들어가면 이 화면의 카메라는 자동으로 꺼집니다.</p>
   </div>
 </div>
@@ -319,7 +348,7 @@
   }
 
   /* ② 유의사항 카드뉴스 */
-  var DECO = '<svg class="deco" viewBox="0 0 220 220" fill="none" aria-hidden="true"><path d="M10 200C70 140 110 180 150 120S200 30 230 40" stroke="#FFB098" stroke-width="2"/><path d="M0 180C60 125 100 160 140 105S190 15 220 25" stroke="#176C86" stroke-width="1" opacity=".5"/><circle cx="150" cy="120" r="4" fill="#E84958"/></svg>';
+  var DECO = '<svg class="deco" viewBox="0 0 210 120" fill="none" aria-hidden="true"><path d="M4 112c30-4 46-30 78-34s44 18 72 8 28-48 52-62" stroke="#D8D5CC" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/><circle cx="206" cy="24" r="5" fill="#F2C230"/></svg>';
   function sessLine() {
     if (!ME || ME.test || !ME.no) return '리허설·테스트 계정';
     return (sess.r + '회차') + (ME.date ? ' · ' + dateKo(ME.date) : '') + (ME.mentor ? ' · ' + UI.esc(ME.mentor) + ' 선생님' : '') +
@@ -329,19 +358,19 @@
   function slides(first) {
     var n = UI.esc(sess.name);
     var R = [
-      ['🎥', '카메라·마이크 ON', '이 화면에서 <b>바로 멘토링</b>이 진행됩니다. 카메라와 마이크는 <b>켠 상태</b>로 기다려 주세요.', '차례가 되면 꺼 두었더라도 자동으로 켜집니다.'],
-      ['📐', '화면 배치', '휴대폰은 <b>가로로</b> 세워 두고, 동작이 잘 보이도록 <b>2~3m</b> 떨어져 주세요.', '조용한 곳에서, 충전기를 연결해 두면 좋아요.'],
-      ['⏰', '입장 시간 준수', '사전에 안내된 스케줄을 확인하고, <b>본인 멘토링 시작 10분 전까지</b> 이 대기실에 접속해 주세요.',
+      ['video', '카메라·마이크 ON', '이 화면에서 <b>바로 멘토링</b>이 진행됩니다. 카메라와 마이크는 <b>켠 상태</b>로 기다려 주세요.', '차례가 되면 꺼 두었더라도 자동으로 켜집니다.'],
+      ['layout', '화면 배치', '휴대폰은 <b>가로로</b> 세워 두고, 동작이 잘 보이도록 <b>2~3m</b> 떨어져 주세요.', '조용한 곳에서, 충전기를 연결해 두면 좋아요.'],
+      ['clock', '입장 시간 준수', '사전에 안내된 스케줄을 확인하고, <b>본인 멘토링 시작 10분 전까지</b> 이 대기실에 접속해 주세요.',
         ME && ME.no ? '내 대기실 접속 시간 &nbsp;<b>' + UI.esc(ME.wait) + '</b> · 멘토링 ' + UI.esc(ME.time) : '테스트 계정은 시간 제한이 없습니다.'],
-      ['🚪', '대기실 안내', '이 화면이 대기실입니다. 차례가 되면 <b>버튼을 누르지 않아도 자동으로 멘토링 화면</b>으로 바뀝니다. 다음 차례가 되면 멘토와 미리 연결해 두었다가 앞 학생이 끝나자마자 바로 시작해요.', '차례가 오면 알림음과 진동으로 알려 드려요. 화면을 켜 두세요.'],
-      ['🙋', '참관 제한', '멘토링은 <b>참가자 본인만</b> 참여할 수 있으며, 참가자 외 인원의 입장 및 참관은 불가합니다.', ''],
-      ['⏳', '시간 관련 안내', '정해진 입장 시간을 지키지 않으면 멘토링 참여가 어려울 수 있습니다. 당일 진행 상황에 따라 시작·종료 시간이 <b>다소 달라질 수 있으니</b> 배정 시간 전후로 여유 있게 준비해 주세요.', '멘토링은 1인 10분 (피드백 8분 · 질의응답 2분)<br>궁금한 점은 대기실 채팅으로 운영진에게 물어보세요.'],
-      ['🎬', '녹화 안내', '멘토링 장면(학생·멘토 영상과 음성)은 <b>기록·피드백 자료</b>로 쓰기 위해 녹화되며, 사업 목적 외에는 쓰지 않습니다.', '']
+      ['door', '대기실 안내', '이 화면이 대기실입니다. 차례가 되면 <b>버튼을 누르지 않아도 자동으로 멘토링 화면</b>으로 바뀝니다. 다음 차례가 되면 멘토와 미리 연결해 두었다가 앞 학생이 끝나자마자 바로 시작해요.', '차례가 오면 알림음과 진동으로 알려 드려요. 화면을 켜 두세요.'],
+      ['hand', '참관 제한', '멘토링은 <b>참가자 본인만</b> 참여할 수 있으며, 참가자 외 인원의 입장 및 참관은 불가합니다.', ''],
+      ['hourglass', '시간 관련 안내', '정해진 입장 시간을 지키지 않으면 멘토링 참여가 어려울 수 있습니다. 당일 진행 상황에 따라 시작·종료 시간이 <b>다소 달라질 수 있으니</b> 배정 시간 전후로 여유 있게 준비해 주세요.', '멘토링은 1인 10분 (피드백 8분 · 질의응답 2분)<br>궁금한 점은 대기실 채팅으로 운영진에게 물어보세요.'],
+      ['film', '녹화 안내', '멘토링 장면(학생·멘토 영상과 음성)은 <b>기록·피드백 자료</b>로 쓰기 위해 녹화되며, 사업 목적 외에는 쓰지 않습니다.', '']
     ];
     var out = R.map(function (x, i) {
-      return '<div class="sc"><div class="num">유의사항 ' + (i + 1) + ' / ' + R.length + '</div><div class="ico">' + x[0] + '</div><h2>' + x[1] + '</h2><p>' + x[2] + '</p>' + (x[3] ? '<div class="box">' + x[3] + '</div>' : '') + DECO + '</div>';
+      return '<div class="sc"><div class="num"><b>' + String(i + 1).padStart(2, '0') + '</b>/ ' + String(R.length).padStart(2, '0') + ' · 유의사항</div><div class="ico">' + UI.ico(x[0]) + '</div><h2>' + x[1] + '</h2><p>' + x[2] + '</p>' + (x[3] ? '<div class="box">' + x[3] + '</div>' : '') + DECO + '</div>';
     });
-    if (first) out.unshift('<div class="sc cover"><div class="num">WELCOME</div><div class="ico">👋</div><h2>' + n + ' 학생,<br>반가워요!</h2>' +
+    if (first) out.unshift('<div class="sc cover"><div class="num"><b>WELCOME</b></div><div class="ico">' + UI.ico('smile') + '</div><h2>' + n + ' 학생,<br>반가워요!</h2>' +
       '<p>대기실에 들어가기 전에 꼭 알아야 할 <b>유의사항 ' + R.length + '가지</b>를 한 장씩 넘기며 확인해 주세요.</p><div class="box">' + sessLine() + '</div>' + DECO + '</div>');
     return out;
   }
@@ -360,7 +389,7 @@
     Array.from($('#rBar').children).forEach(function (b, k) { b.classList.toggle('on', k <= RI); });
     $('#rPrev').disabled = RI === 0;
     var last = RI === RN - 1;
-    $('#rNext').textContent = last ? (RFIRST ? '카메라 확인하고 입장 →' : '확인했어요') : '다음';
+    $('#rNext').textContent = last ? (RFIRST ? '카메라 확인하고 입장' : '확인했어요') : '다음';
     $('#rNext').classList.toggle('go', last && RFIRST);
   }
   function closeRules() {
@@ -462,28 +491,28 @@
     var chips = [];
     if (v.done) {
       el.className = 'status done';
-      el.innerHTML = '<div class="ic">🌷</div><h2>멘토링이 끝났습니다</h2><p>참여해 주셔서 감사합니다. 수고하셨어요! 이제 창을 닫아도 됩니다.</p>';
+      el.innerHTML = '<div class="ic">' + UI.ico('check') + '</div><h2>멘토링이 끝났습니다</h2><p>참여해 주셔서 감사합니다. 수고하셨어요! 이제 창을 닫아도 됩니다.</p>';
     } else if (v.isNext) {
       el.className = 'status next';
-      if (ms && ms.state === 'connected') chips.push('<span class="chip">✓ 멘토 연결 준비 완료</span>');
+      if (ms && ms.state === 'connected') chips.push('<span class="chip">' + UI.ico('check') + '멘토 연결 준비 완료</span>');
       else chips.push('<span class="chip">멘토 연결 준비 중…</span>');
-      el.innerHTML = '<div class="ic">🎯</div><h2>' + (v.busy ? '다음 차례입니다!' : '곧 시작합니다!') + '</h2>' +
+      el.innerHTML = '<div class="ic">' + UI.ico('target') + '</div><h2>' + (v.busy ? '다음 차례입니다!' : '곧 시작합니다!') + '</h2>' +
         '<p>' + (v.busy ? '앞 학생 멘토링이 끝나면 <b>바로 시작</b>돼요.' : '운영진이 곧 멘토링을 시작합니다.') + ' 카메라 앞에서 기다려 주세요.</p>' +
         '<div class="chips">' + chips.join('') + '</div>';
     } else {
       el.className = 'status';
       if (v.busy && v.curNo) chips.push('<span class="chip">현재 ' + v.curNo + '번 멘토링 중</span>');
       if (v.myNo) chips.push('<span class="chip hot">' + (v.ahead ? '내 앞 대기 ' + v.ahead + '명' : '다음 순서입니다') + '</span>');
-      el.innerHTML = '<div class="ic">⏳</div><h2 class="dots">대기실에서 기다리는 중</h2>' +
+      el.innerHTML = '<div class="ic">' + UI.ico('hourglass') + '</div><h2 class="dots">대기실에서 기다리는 중</h2>' +
         '<p>차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀌어요. 화면을 켜 두세요.</p>' +
         (chips.length ? '<div class="chips">' + chips.join('') + '</div>' : '');
     }
     var t = $('#w-test');
     if (!v.test) { t.className = 'chip'; t.textContent = v.host ? '연결 점검 대기' : '연결 점검 전'; }
-    else if (v.test.ok) { t.className = 'chip ok'; t.textContent = '✓ 연결 점검 완료'; }
+    else if (v.test.ok) { t.className = 'chip ok'; t.innerHTML = UI.ico('check') + '연결 점검 완료'; }
     else { t.className = 'chip warn'; t.textContent = '연결 불안정 — 운영진 안내 예정'; }
     var w = $('#w-warm');
-    if (v.isNext && ms && ms.state === 'connected') { w.className = 'chip ok'; w.textContent = '✓ 멘토 연결 준비 완료'; }
+    if (v.isNext && ms && ms.state === 'connected') { w.className = 'chip ok'; w.innerHTML = UI.ico('check') + '멘토 연결 준비 완료'; }
     else if (v.isNext) { w.className = 'chip warn'; w.textContent = '멘토 연결 준비 중'; }
     else { w.className = 'chip'; w.textContent = v.mentorLive ? '멘토 접속 중' : '멘토 접속 전'; }
   }
@@ -512,7 +541,7 @@
     var ch = sess.chat;
     var bc = ch.bc || [];
     $('#bc').hidden = !bc.length;
-    $('#bc').innerHTML = bc.slice(-3).map(function (b) { return '<div><b>📢 운영진 공지</b> ' + UI.esc(b.x) + ' <small style="color:var(--muted2)">' + hhmm(b.t) + '</small></div>'; }).join('');
+    $('#bc').innerHTML = bc.slice(-3).map(function (b) { return '<div><b>' + UI.ico('pin') + '공지</b>' + UI.esc(b.x) + ' <small>' + hhmm(b.t) + '</small></div>'; }).join('');
     var box = $('#msgs'), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
     var html = ch.list.map(function (m) {
       if (m.f === 'sys') return '<div class="m sys">' + UI.esc(m.x) + '</div>';
@@ -520,7 +549,7 @@
       if (m.n === sess.name) return '<div class="m s">' + UI.esc(m.x) + '<small>' + hhmm(m.t) + '</small></div>';
       return '<div class="m p"><span class="who">' + UI.esc(m.n) + '</span>' + UI.esc(m.x) + '<small>' + hhmm(m.t) + '</small></div>';
     }).join('') + PENDING.map(function (p) { return '<div class="m s pend">' + UI.esc(p.x) + '<small>보내는 중…</small></div>'; }).join('');
-    box.innerHTML = html || '<div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요 👋</div>';
+    box.innerHTML = html || '<div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요.</div>';
     if (atBottom || PENDING.length || renderChat.last !== ch.last) box.scrollTop = box.scrollHeight;
     renderChat.last = ch.last;
   }

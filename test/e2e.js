@@ -16,6 +16,7 @@ async function waitFor(page, fn, arg, ms = 30000, label = '') {
   throw new Error('timeout: ' + label);
 }
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+const SHOT = async (p, name) => { if (process.env.SHOTS) await p.screenshot({ path: path.join(OUT, 's_' + name + '.png') }); };
 const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textContent || '', sel);
 
 (async () => {
@@ -34,6 +35,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
 
   // 운영진(녹화 창)
   await ops.goto(BASE + '/ops.html?r=test');
+  await SHOT(ops, 'ops_gate');
   await ops.fill('#g-name', '운영A'); await ops.fill('#g-code', 'o1234'); await ops.click('#g-btn');
   await ops.waitForSelector('#s-main:not(.hide)');
   await ops.click('label.switch:has(#sw-host)');
@@ -56,6 +58,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
 
   // 멘토
   await mentor.goto(BASE + '/mentor.html?r=test');
+  await SHOT(mentor, 'mentor_gate');
   await mentor.fill('#g-name', '정은영'); await mentor.fill('#g-code', 'm1234'); await mentor.click('#g-btn');
   await mentor.waitForSelector('#c-btn:not([disabled])', { timeout: 15000 });
   await mentor.click('#c-btn');
@@ -70,11 +73,13 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res.click('#b-stage');
   await waitFor(mentor, () => { const v = document.querySelector('#g-stage video'); return v && v.videoWidth > 0; }, null, 30000, 'mentor sees researcher');
   log('mentor sees researcher on stage');
+  await sleep(1500); await SHOT(mentor, 'mentor_stage'); await SHOT(res, 'research');
   await res.click('#b-stage'); await sleep(1500); await res.close();
 
   // 학생 A: 이름+생년월일 → 유의사항 → 카메라 → 대기실
   async function studentIn(p, name, birth, wrongFirst) {
     await p.goto(BASE + '/');
+    if (wrongFirst) await SHOT(p, 'stu_gate');
     if (wrongFirst) {
       await p.fill('#g-name', name); await p.fill('#g-birth', '20000101'); await p.check('#g-agree'); await p.click('#g-btn');
       await p.waitForFunction(() => document.querySelector('#g-err').textContent.includes('생년월일'));
@@ -82,8 +87,10 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
     }
     await p.fill('#g-name', name); await p.fill('#g-birth', birth); await p.check('#g-agree'); await p.click('#g-btn');
     await p.waitForSelector('#rules.on', { timeout: 15000 });
+    if (wrongFirst) { await sleep(500); await SHOT(p, 'stu_rules0'); await p.click('#rNext'); await sleep(500); await SHOT(p, 'stu_rules1'); }
     for (let i = 0; i < 10 && await p.isVisible('#rules.on'); i++) await p.click('#rNext');
     await p.waitForSelector('#c-btn:not([disabled])', { timeout: 15000 });
+    if (wrongFirst) { await sleep(800); await SHOT(p, 'stu_check'); }
     await p.click('#c-btn');
     await p.waitForSelector('#room.on');
   }
@@ -119,6 +126,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('started from panel window → student A live after', Date.now() - t0, 'ms');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
   log('recording started on host window');
+  if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
   await sleep(4000);
 
   // 다음 학생
@@ -129,10 +137,25 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('student B live after', Date.now() - tB, 'ms');
   await waitFor(sA, () => document.querySelector('#room').classList.contains('on') && document.querySelector('#status').classList.contains('done'), null, 15000, 'A done');
   log('student A back in room with done status (chat still available)');
+  await SHOT(sA, 'stu_done');
   await sleep(3000);
   await ops.click('#b-end'); await ops.click('#b-end');
   await waitFor(ops, () => [...document.querySelectorAll('#rec-files li')].filter(li => li.textContent.includes('자동 저장')).length >= 2, null, 30000, 'auto-saved');
   log('2 recordings auto-saved');
+  const vinfo = await ops.evaluate(async () => {
+    const dir = await navigator.storage.getDirectory(); const out = [];
+    for await (const [name, h] of dir.entries()) {
+      if (!/\.(webm|mp4)$/.test(name)) continue;
+      const f = await h.getFile(); const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(f);
+      await new Promise(r => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 5000); });
+      v.currentTime = 2; await new Promise(r => { v.onseeked = r; setTimeout(r, 3000); });
+      const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0);
+      out.push({ name, w: v.videoWidth, h: v.videoHeight, mb: +(f.size / 1e6).toFixed(1), png: c.toDataURL('image/png') });
+    }
+    return out;
+  });
+  vinfo.forEach(x => { log('recording file:', x.name, x.w + 'x' + x.h, x.mb + 'MB'); if (x.w < 1920 || x.h < 1080) throw new Error('recording below FHD'); });
+  if (vinfo[0]) fs.writeFileSync(path.join(OUT, 's_rec_frame.png'), Buffer.from(vinfo[0].png.split(',')[1], 'base64'));
 
   // 채팅 메시지 지우기·전체 지우기
   await ops.click('#clearChat'); await ops.click('#clearChat');

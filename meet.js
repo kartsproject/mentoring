@@ -621,6 +621,48 @@
     camOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 16v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1M10 6h4a2 2 0 0 1 2 2v3l5-3v9M3 3l18 18"/></svg>',
     flip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h11l-3-3M20 17H9l3 3"/></svg>'
   };
+  // 작은 선 아이콘(운영 Hub·홈페이지와 같은 굵기·둥근 끝) — UI.ico('bell')
+  var IC = {
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    bellOff: '<path d="M8.5 5.2A6 6 0 0 1 18 11v4M6 11v5l-1.5 2H17"/><path d="M10 20.5a2 2 0 0 0 4 0M3 3l18 18"/>',
+    list: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    win: '<rect x="3" y="5" width="15" height="14" rx="2"/><path d="M3 9h15M14 3h7v7M21 3l-7 7"/>',
+    video: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.7 3.3-5.5 6.5-5.5s5.8 1.8 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.5 5.2"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+    pin: '<path d="M9 3h6l-1 5 4 4H6l4-4z"/><path d="M12 12v9"/>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+    home: '<path d="M4 11 12 4l8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-5h4v5"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    alert: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+    check: '<path d="m5 12 5 5 9-10"/>',
+    door: '<path d="M5 21V4a1 1 0 0 1 1-1h9v18"/><path d="M15 5h4v16M3 21h18M12 12v1"/>',
+    hand: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4a1.5 1.5 0 0 1 3 0v7M14 10.5V6a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7c-2.5 0-4-1-5.5-3L3 15.5a1.5 1.5 0 0 1 2.3-1.9L8 16"/>',
+    layout: '<rect x="2" y="7" width="20" height="11" rx="2"/><path d="M18 12.5h.01M6 21h12"/>',
+    film: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>',
+    hourglass: '<path d="M6 3h12M6 21h12M7 3c0 5 10 6 10 9s-10 4-10 9M17 3c0 5-10 6-10 9"/>',
+    smile: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5v.5M15 9.5v.5"/>',
+    spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4.2-6.5 8-6.5s7 2 8 6.5"/>',
+    mega: '<path d="M3 10v4h4l8 5V5L7 10z"/><path d="M18.5 9a4 4 0 0 1 0 6"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    out: '<path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M10 8l-4 4 4 4M6 12h10"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    rec: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+    vol: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
+    volOff: '<path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6"/>'
+  };
+  UI.ico = function (k, cls) {
+    return '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (IC[k] || '') + '</svg>';
+  };
+  // 아이콘 + 글자 버튼 내용
+  UI.label = function (el, k, text) { if (typeof el === 'string') el = document.querySelector(el); if (el) el.innerHTML = UI.ico(k) + '<span>' + UI.esc(text) + '</span>'; };
+  // K 표지
+  UI.kmark = function (cls) { return '<span class="kmark' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>'; };
 
   window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck };
 })();

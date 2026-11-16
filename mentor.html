@@ -4,34 +4,40 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#202226">
 <title>멘토 화면 | K예술영재 온라인 멘토링</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .mwrap { position: fixed; inset: 0; display: flex; background: var(--dark); }
+  .mwrap { position: fixed; inset: 0; display: flex; background: var(--k0); color: var(--k-tx); }
   .mwrap .stage { position: relative; flex: 1; inset: auto; }
-  aside.queue { width: 290px; background: var(--dark2); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
-  aside.queue h3 { margin: 0; padding: 16px 18px 10px; font-size: 16px; }
-  aside.queue ol { list-style: none; margin: 0; padding: 0 10px 16px; overflow: auto; flex: 1; }
-  aside.queue li { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 12px; font-size: 14px; }
-  aside.queue li.cur { background: rgba(23,108,134,.35); }
-  aside.queue li.done { opacity: .45; }
-  aside.queue li .no { width: 24px; height: 24px; border-radius: 50%; background: var(--dark3); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
-  aside.queue li .nm { flex: 1; font-weight: 600; }
-  aside.queue li .tm { font-size: 12px; opacity: .6; }
-  .phase { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.08); }
+  .topbar .kmark { margin-right: 2px; }
+  aside.queue { width: 300px; background: var(--k1); border-left: 1px solid var(--k-line); display: flex; flex-direction: column; }
+  aside.queue h3 { margin: 0; padding: 18px 18px 12px; font-size: 15px; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed rgba(255,255,255,.14); }
+  aside.queue ol { list-style: none; margin: 0; padding: 10px 10px 16px; overflow: auto; flex: 1; }
+  aside.queue li { position: relative; display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+  aside.queue li + li { margin-top: 2px; }
+  aside.queue li.cur { background: rgba(242,194,48,.12); }
+  aside.queue li.cur::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--yel); }
+  aside.queue li.cur .no { background: var(--yel); color: var(--ink); }
+  aside.queue li.done { opacity: .4; }
+  aside.queue li .no { width: 26px; height: 26px; border-radius: 8px; background: var(--k2); display: grid; place-items: center; font-size: 12.5px; font-weight: 800; flex: none; font-variant-numeric: tabular-nums; }
+  aside.queue li .nm { flex: 1; font-weight: 700; }
+  aside.queue li .tm { font-size: 12px; color: var(--k-soft); font-variant-numeric: tabular-nums; }
+  .phase { font-size: 12.5px; font-weight: 800; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,.08); }
   .qtoggle { display: none; }
   /* 큰 카운트다운 */
-  .bigtimer { position: absolute; top: 14px; right: 14px; z-index: 4; text-align: center; transform-origin: top right;
-    background: rgba(0,0,0,.55); backdrop-filter: blur(6px); border-radius: 22px; padding: 8px 28px 10px; pointer-events: none; }
-  .bigtimer b { display: block; font-size: clamp(48px, 7.5vw, 104px); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-  .bigtimer small { display: block; font-size: 15px; font-weight: 700; margin-top: 4px; opacity: .85; }
-  .bigtimer.q b { color: var(--apricot); }
-  .bigtimer.last { background: rgba(232,73,88,.92); animation: pulse 1s infinite; }
-  .bigtimer.over { background: var(--coral); }
-  @keyframes pulse { 50% { transform: scale(1.06); } }
-  .edge { position: absolute; inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0 0 6px var(--coral), inset 0 0 60px rgba(232,73,88,.6); animation: blink 1s infinite; }
-  .alert1 { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; background: var(--coral); color: #fff;
-    font-size: clamp(32px, 5vw, 64px); font-weight: 800; padding: 22px 44px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,.5); pointer-events: none; }
+  .bigtimer { position: absolute; top: 16px; right: 16px; z-index: 4; text-align: center; transform-origin: top right;
+    background: rgba(18,19,21,.7); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 10px 30px 12px; pointer-events: none; }
+  .bigtimer b { display: block; font-size: clamp(48px, 7.5vw, 104px); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+  .bigtimer small { display: block; font-size: 14px; font-weight: 700; margin-top: 6px; color: var(--k-soft); letter-spacing: .02em; }
+  .bigtimer.q b { color: var(--yel); }
+  .bigtimer.last { background: rgba(217,68,58,.94); border-color: transparent; animation: pulse 1s infinite; }
+  .bigtimer.last small, .bigtimer.over small { color: rgba(255,255,255,.85); }
+  .bigtimer.over { background: var(--red); border-color: transparent; }
+  @keyframes pulse { 50% { transform: scale(1.05); } }
+  .edge { position: absolute; inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0 0 6px var(--red), inset 0 0 70px rgba(217,68,58,.55); animation: blink 1s infinite; }
+  .alert1 { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; background: var(--red); color: #fff;
+    font-size: clamp(32px, 5vw, 64px); font-weight: 800; letter-spacing: -.03em; padding: 22px 46px; border-radius: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.5); pointer-events: none; }
   @media (max-width: 900px) {
     aside.queue { position: fixed; right: 0; top: 0; bottom: 0; z-index: 20; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px rgba(0,0,0,.4); }
     aside.queue.open { transform: none; }
@@ -41,10 +47,10 @@
 </head>
 <body>
 
-<section id="s-gate" class="gate">
+<section id="s-gate" class="gate band">
   <form class="card" id="f-gate" autocomplete="off">
-    <div class="brand"><i></i>K예술영재 온라인 멘토링 · 멘토</div>
-    <h1>멘토 입장</h1>
+    <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>2026 K예술영재 · 무용 온라인 멘토링</div>
+    <h1>멘토 <em>입장</em></h1>
     <p class="lead">안내받은 회차와 멘토 코드를 입력해 주세요.</p>
     <label class="field"><span>회차</span><input id="g-room" placeholder="예: 3" required></label>
     <label class="field"><span>성함</span><input id="g-name" placeholder="정은영" required></label>
@@ -54,9 +60,9 @@
   </form>
 </section>
 
-<section id="s-check" class="gate hide">
+<section id="s-check" class="gate band hide">
   <form class="card" id="f-check">
-    <div class="brand"><i></i>카메라·마이크 확인</div>
+    <div class="brand"><i></i>입장 전 · 카메라·마이크 확인</div>
     <div class="preview"><video id="c-video" autoplay playsinline muted></video></div>
     <label class="field"><span>카메라</span><select id="c-cam"></select></label>
     <label class="field"><span>마이크 — 말씀해 보세요. 막대가 움직이면 정상입니다</span><select id="c-mic"></select></label>
@@ -75,6 +81,7 @@
 <div class="mwrap hide" id="s-main">
   <section class="stage">
     <div class="topbar">
+      <span class="kmark sm" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>
       <span class="ttl" id="t-who">학생을 기다리는 중</span>
       <span class="phase hide" id="t-phase">피드백</span>
       <span class="sp"></span>
@@ -275,7 +282,7 @@
     var cur = v.cur;
     $('#q-list').innerHTML = (v.students || []).map(function (s, i) {
       var cls = cur && cur.id === s.id ? 'cur' : s.done ? 'done' : '';
-      var st = cur && cur.id === s.id ? '<span class="chip on">진행</span>' : s.done ? '<span class="chip">완료</span>'
+      var st = cur && cur.id === s.id ? '<span class="chip yel">진행 중</span>' : s.done ? '<span class="chip">완료</span>'
         : s.zoom ? '<span class="chip warn">ZOOM</span>' : s.live ? '<span class="chip ok">대기</span>' : '<span class="chip">미접속</span>';
       return '<li class="' + cls + '"><span class="no">' + (s.no || i + 1) + '</span><span class="nm">' + UI.esc(s.name) +
         (s.time ? '<br><span class="tm">' + UI.esc(s.time) + '</span>' : '') + '</span>' + st + '</li>';

@@ -31,7 +31,10 @@
 
   function Recorder(o) {
     o = o || {};
-    this.W = o.width || 1280; this.H = o.height || 720; this.fps = o.fps || 30;
+    // 녹화 파일 해상도: FHD(1920×1080) 기본 — 창 크기와 무관하게 이 크기로 그려 저장
+    this.W = o.width || 1920; this.H = o.height || 1080; this.fps = o.fps || 30;
+    this.k = this.W / 1280;   // 글자·여백 배율
+    this.vbps = o.videoBitsPerSecond || Math.round(6000000 * (this.W * this.H) / (1920 * 1080));
     this.canvas = document.createElement('canvas');
     this.canvas.width = this.W; this.canvas.height = this.H;
     this.ctx = this.canvas.getContext('2d');
@@ -73,23 +76,24 @@
 
   Recorder.prototype.draw = function () {
     var c = this.ctx, W = this.W, H = this.H;
-    c.fillStyle = '#0E1315'; c.fillRect(0, 0, W, H);
-    var top = 44, gap = 8, tw = (W - gap) / 2, th = H - top;
+    c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
+    var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
     this.drawTile(this.tiles.M, 0, top, tw, th, '멘토');
     this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생');
     // 상단 표시줄
-    c.fillStyle = '#172024'; c.fillRect(0, 0, W, top);
-    c.fillStyle = '#E84958'; c.beginPath(); c.arc(22, top / 2, 6, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#eef2f3'; c.font = '600 18px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
-    c.fillText(this.title, 38, top / 2);
+    c.fillStyle = '#1A1C1F'; c.fillRect(0, 0, W, top);
+    ['#4F8AC9', '#D0628A', '#D46C3C', '#4E9B55'].forEach(function (col, i) { c.fillStyle = col; c.fillRect(i * W / 4, top - Math.round(3 * k), W / 4, Math.round(3 * k)); });   // 분야 색 띠
+    c.fillStyle = '#E84958'; c.beginPath(); c.arc(22 * k, top / 2, 6 * k, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#F3F1EC'; c.font = '600 ' + Math.round(18 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
+    c.fillText(this.title, 38 * k, top / 2);
     var d = new Date();
     var ts = d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0') + ' ' +
       String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
-    c.textAlign = 'right'; c.fillStyle = '#93a2a8'; c.fillText(ts, W - 16, top / 2); c.textAlign = 'left';
+    c.textAlign = 'right'; c.fillStyle = '#A8ABB0'; c.fillText(ts, W - 16 * k, top / 2); c.textAlign = 'left';
   };
 
   Recorder.prototype.drawTile = function (t, x, y, w, h, fallback) {
-    var c = this.ctx, v = t.video;
+    var c = this.ctx, v = t.video, k = this.k;
     c.fillStyle = '#000'; c.fillRect(x, y, w, h);
     var ok = v && v.readyState >= 2 && v.videoWidth > 0;
     if (ok) {
@@ -97,15 +101,15 @@
       var dw = v.videoWidth * s, dh = v.videoHeight * s;
       try { c.drawImage(v, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); } catch (e) {}
     } else {
-      c.fillStyle = '#5b6a70'; c.font = '600 20px "Pretendard Variable", Pretendard, sans-serif';
+      c.fillStyle = '#686C72'; c.font = '600 ' + Math.round(20 * k) + 'px "Pretendard Variable", Pretendard, sans-serif';
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText('영상 없음', x + w / 2, y + h / 2); c.textAlign = 'left';
     }
     var label = t.label || fallback;
-    c.font = '700 17px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
-    var lw = c.measureText(label).width + 22;
-    c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(x + 12, y + h - 44, lw, 32);
-    c.fillStyle = '#fff'; c.fillText(label, x + 23, y + h - 28);
+    c.font = '700 ' + Math.round(17 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
+    var lw = c.measureText(label).width + 22 * k;
+    c.fillStyle = 'rgba(18,19,21,.72)'; c.fillRect(x + 12 * k, y + h - 44 * k, lw, 32 * k);
+    c.fillStyle = '#fff'; c.fillText(label, x + 23 * k, y + h - 28 * k);
   };
 
   Recorder.prototype.recording = function () { return !!(this.rec && this.rec.state === 'recording'); };
@@ -122,7 +126,7 @@
     var vs = this.canvas.captureStream(this.fps);
     var tracks = vs.getVideoTracks().concat(this.dest.stream.getAudioTracks());
     var stream = new MediaStream(tracks);
-    var rec = new MediaRecorder(stream, { mimeType: this.type, videoBitsPerSecond: 3000000, audioBitsPerSecond: 128000 });
+    var rec = new MediaRecorder(stream, { mimeType: this.type, videoBitsPerSecond: this.vbps, audioBitsPerSecond: 128000 });
     var chunks = [], self = this, started = Date.now();
     var fname = filename + '.' + this.ext();
 
