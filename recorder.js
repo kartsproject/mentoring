@@ -50,6 +50,9 @@
     var AC = window.AudioContext || window.webkitAudioContext;
     this.ac = new AC();
     this.dest = this.ac.createMediaStreamDestination();
+    // 아무도 접속하지 않아도 소리 줄에 늘 (무음) 데이터가 흐르게 — 소리가 끊기면 MP4가 재생되지 않는 파일이 될 수 있음
+    try { var cs = this.ac.createConstantSource(); cs.offset.value = 0; cs.connect(this.dest); cs.start(); } catch (e) {}
+    this.idle = { M: '', S: '' };
     this.srcNodes = {};
     var self = this;
     this.stopTimer = workerTimer(this.fps, function () { self.draw(); });
@@ -101,11 +104,11 @@
     var c = this.ctx, W = this.W, H = this.H;
     c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
     var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
-    this.drawTile(this.tiles.M, 0, top, tw, th, '멘토');
+    this.drawTile(this.tiles.M, 0, top, tw, th, '멘토', this.idle.M);
     if (this.group.length) {
       var n = this.group.length, gh = (th - gap * (n - 1)) / n, self = this;
       this.group.forEach(function (g, i) { self.drawTile(g, tw + gap, top + i * (gh + gap), tw, gh, ''); });
-    } else this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText);
+    } else this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
     // 상단 표시줄
     c.fillStyle = '#1A1C1F'; c.fillRect(0, 0, W, top);
     ['#4F8AC9', '#D0628A', '#D46C3C', '#4E9B55'].forEach(function (col, i) { c.fillStyle = col; c.fillRect(i * W / 4, top - Math.round(3 * k), W / 4, Math.round(3 * k)); });   // 분야 색 띠
@@ -130,7 +133,6 @@
       c.fillStyle = '#686C72'; c.font = '600 ' + Math.round(20 * k) + 'px "Pretendard Variable", Pretendard, sans-serif';
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(idle || '영상 없음', x + w / 2, y + h / 2); c.textAlign = 'left';
-      if (idle) return;
     }
     var label = t.label || fallback;
     if (!label) return;
@@ -151,18 +153,31 @@
     if (!this.type) throw new Error('이 브라우저는 녹화를 지원하지 않습니다(크롬 사용)');
     this.resume();
     this.title = title || '';
+    this.draw();   // 첫 장면을 바로 그려 둠
     var vs = this.canvas.captureStream(this.fps);
-    var tracks = vs.getVideoTracks().concat(this.dest.stream.getAudioTracks());
+    var withAudio = this.ac.state === 'running';   // 소리가 막힌 상태(브라우저 자동재생 제한)면 영상만 녹화
+    var tracks = vs.getVideoTracks().concat(withAudio ? this.dest.stream.getAudioTracks() : []);
     var stream = new MediaStream(tracks);
-    var rec = new MediaRecorder(stream, { mimeType: this.type, videoBitsPerSecond: this.vbps, audioBitsPerSecond: 128000 });
-    var chunks = [], self = this, started = Date.now();
+    var type = this.type;
+    if (!withAudio) { var vt = type.replace(/,\s*(mp4a[^;]*|opus)$/, ''); if (vt !== type && MediaRecorder.isTypeSupported(vt)) type = vt; }
+    var opts = { mimeType: type, videoBitsPerSecond: this.vbps, videoKeyFrameIntervalDuration: 2000 };
+    if (withAudio) opts.audioBitsPerSecond = 128000;
+    var rec = new MediaRecorder(stream, opts);
+    this.recAudio = withAudio;
+    var self = this, started = Date.now();
+    var chunks = this.dir ? null : [];   // 폴더 저장이면 메모리에 쌓지 않음(긴 녹화에도 창이 멈추지 않게) — 예비 사본이 대신함
     // 같은 이름이 이미 있으면(같은 분에 다시 시작·다시 접속) 뒤에 -2, -3… 을 붙여 덮어쓰지 않음
     this.used = this.used || {};
     var ext = this.ext(), fname = filename + '.' + ext;
     for (var i = 2; this.used[fname]; i++) fname = filename + '-' + i + '.' + ext;
     this.used[fname] = 1;
+    var st = this.stat = { name: fname, at: started, bytes: 0, lastData: started, sinkFailed: false, backupOk: false, error: '' };
 
-    // 폴더가 정해져 있으면 녹화하는 동안 파일에 바로 이어 씀(창·알림 없이 저장, 중간에 꺼져도 앞부분 보존)
+    // ① 예비 사본: 브라우저 안 저장소(OPFS)에 쓰는 즉시 디스크에 반영 → 창이 갑자기 닫혀도 다음 접속 때 복구
+    var bk = Backup.open(fname, this.type);
+    st.backupOk = !!bk;
+
+    // ② 정한 폴더에 바로 이어 씀(창·알림 없이 저장)
     var sink = null;
     if (this.dir) {
       sink = { q: [], w: null, busy: false, failed: false, idle: null };
@@ -170,20 +185,20 @@
       (async function () {
         for (var j = 2; j < 100; j++) {
           try { await dir.getFileHandle(fname); } catch (e) { break; }   // 폴더에 없으면 그 이름 사용
-          fname = filename + '-' + j + '.' + ext; self.used[fname] = 1;
+          fname = filename + '-' + j + '.' + ext; self.used[fname] = 1; st.name = fname;
         }
         return dir.getFileHandle(fname, { create: true });
       })()
         .then(function (fh) { return fh.createWritable(); })
         .then(function (w) { sink.w = w; pump(); })
-        .catch(function (e) { console.warn('auto-save', e); sink.failed = true; if (sink.idle) sink.idle(); });
+        .catch(function (e) { console.warn('auto-save', e); sink.failed = st.sinkFailed = true; sink.q = []; if (sink.idle) sink.idle(); self.onState(true); });
     }
     function pump() {
       if (!sink || !sink.w || sink.busy) return;
       sink.busy = true;
       (async function () {
         try { while (sink.q.length) await sink.w.write(sink.q.shift()); }
-        catch (e) { console.warn('auto-save write', e); sink.failed = true; }
+        catch (e) { console.warn('auto-save write', e); sink.failed = st.sinkFailed = true; sink.q = []; self.onState(true); }
         sink.busy = false;
         if (sink.idle && !sink.q.length) sink.idle();
       })();
@@ -192,29 +207,38 @@
       return new Promise(function (res) {
         if (sink.failed || (sink.w && !sink.busy && !sink.q.length)) return res();
         sink.idle = function () { if (sink.failed || (sink.w && !sink.busy && !sink.q.length)) { sink.idle = null; res(); } };
-        setTimeout(res, 15000);
+        setTimeout(res, 20000);
       });
     }
 
     rec.ondataavailable = function (e) {
       if (!e.data || !e.data.size) return;
-      chunks.push(e.data);
+      st.bytes += e.data.size; st.lastData = Date.now();
+      if (chunks) chunks.push(e.data);
+      if (bk) bk.write(e.data);
       if (sink && !sink.failed) { sink.q.push(e.data); pump(); }
     };
+    rec.onerror = function (e) { st.error = String((e && e.error && e.error.name) || 'error'); console.warn('MediaRecorder error', e); };
     rec.onstop = async function () {
-      var f = { name: fname, size: 0, sec: Math.round((Date.now() - started) / 1000), at: started };
-      chunks.forEach(function (c) { f.size += c.size; });
+      var f = { name: fname, size: st.bytes, sec: Math.round((Date.now() - started) / 1000), at: started };
+      if (bk) await bk.close();
       if (sink) {
         await drained();
         if (!sink.failed && sink.w) {
-          try { await sink.w.close(); f.saved = true; f.auto = true; f.folder = self.dir.name; chunks = null; }
-          catch (e) { sink.failed = true; }
+          try { await sink.w.close(); f.saved = true; f.auto = true; f.folder = self.dir.name; }
+          catch (e) { sink.failed = st.sinkFailed = true; }
+        }
+        // 폴더 저장이 실패했으면 예비 사본을 폴더에 다시 써 봄 → 그래도 안 되면 내려받기
+        if (!f.auto && bk) {
+          try { var ok = await Backup.copyTo(fname, self.dir, fname.replace(/(\.\w+)$/, '_예비$1')); if (ok) { f.auto = true; f.saved = true; f.folder = self.dir.name; f.name = ok; f.fromBackup = true; } } catch (e) {}
+          if (!f.auto) { try { f.blob = await Backup.file(fname); if (f.blob) { self.save(f); f.fromBackup = true; } } catch (e) {} }
         }
       }
-      if (!f.auto) {   // 자동 저장이 안 됐으면 다운로드로
+      if (!f.auto && !f.blob && chunks) {   // 폴더 없이 녹화한 경우: 내려받기
         f.blob = new Blob(chunks, { type: self.type.split(';')[0] });
         self.save(f);
       }
+      if (bk && f.auto) Backup.remove(fname);   // 폴더에 잘 저장됐으면 예비 사본 지움(아니면 다음 접속 때 복구)
       self.files.unshift(f);
       // 메모리 보호: 최근 4개만 다시 받기 가능
       self.files.slice(4).forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); x.blob = null; x.url = null; });
@@ -227,11 +251,96 @@
     return true;
   };
 
+  // 지금 녹화 상태(화면 표시·이상 감지용)
+  Recorder.prototype.health = function () {
+    var s = this.stat;
+    if (!this.recording() || !s) return null;
+    return { name: s.name, sec: Math.round((Date.now() - s.at) / 1000), bytes: s.bytes, stall: Date.now() - s.lastData,
+             sinkFailed: s.sinkFailed, backupOk: s.backupOk && Backup.ok(s.name), error: s.error, audio: this.recAudio };
+  };
+
   Recorder.prototype.stop = function () {
     if (!this.recording()) return false;
+    try { this.rec.requestData(); } catch (e) {}
     this.rec.stop();
     return true;
   };
+
+  /* ───── 예비 사본(OPFS) — 창이 갑자기 닫혀도 녹화가 남도록 ───── */
+  var BK_DIR = 'karts-rec-backup';
+  var BK_SRC = [
+    'var h=null;',
+    'onmessage=async function(e){var m=e.data;try{',
+    ' if(m.t==="open"){var root=await navigator.storage.getDirectory();var d=await root.getDirectoryHandle("' + BK_DIR + '",{create:true});',
+    '  var fh=await d.getFileHandle(m.name,{create:true});h=await fh.createSyncAccessHandle();h.truncate(0);h.flush();postMessage({t:"opened"});}',
+    ' else if(m.t==="write"){if(!h)return;h.write(new Uint8Array(m.buf),{at:h.getSize()});h.flush();postMessage({t:"wrote",n:m.buf.byteLength});}',
+    ' else if(m.t==="close"){if(h){h.flush();h.close();h=null;}postMessage({t:"closed"});}',
+    '}catch(err){postMessage({t:"err",msg:String(err)});}};'
+  ].join('\n');
+  var BK_OK = {};
+  var Backup = {
+    ok: function (name) { return BK_OK[name] !== false; },
+    open: function (name, type) {
+      if (!(navigator.storage && navigator.storage.getDirectory && window.Worker)) return null;
+      var w;
+      try { w = new Worker(URL.createObjectURL(new Blob([BK_SRC], { type: 'text/javascript' }))); } catch (e) { return null; }
+      var chain = Promise.resolve(), closed = null, release = null;
+      BK_OK[name] = true;
+      // 녹화 중인 사본은 잠가 둠(다른 창의 복구가 건드리지 않게)
+      if (navigator.locks) navigator.locks.request('karts-rec:' + name, function () { return new Promise(function (r) { release = r; }); }).catch(function () {});
+      var waitMsg = function (t) { return new Promise(function (res) { var on = function (e) { if (e.data.t === t || e.data.t === 'err') { w.removeEventListener('message', on); if (e.data.t === 'err') BK_OK[name] = false; res(); } }; w.addEventListener('message', on); }); };
+      chain = chain.then(function () { var p = waitMsg('opened'); w.postMessage({ t: 'open', name: name }); return p; });
+      return {
+        write: function (blob) {
+          chain = chain.then(function () { return blob.arrayBuffer(); }).then(function (buf) { var p = waitMsg('wrote'); w.postMessage({ t: 'write', buf: buf }, [buf]); return p; }).catch(function () { BK_OK[name] = false; });
+        },
+        close: function () {
+          if (closed) return closed;
+          closed = chain.then(function () { var p = waitMsg('closed'); w.postMessage({ t: 'close' }); return p; }).then(function () { w.terminate(); if (release) release(); });
+          return Promise.race([closed, new Promise(function (r) { setTimeout(r, 20000); })]);
+        }
+      };
+    },
+    dir: async function () { var root = await navigator.storage.getDirectory(); return root.getDirectoryHandle(BK_DIR, { create: true }); },
+    file: async function (name) { var d = await Backup.dir(); return (await d.getFileHandle(name)).getFile(); },
+    remove: async function (name) { try { var d = await Backup.dir(); await d.removeEntry(name); } catch (e) {} },
+    // 예비 사본을 폴더에 복사(이름이 겹치면 -2…). 성공하면 저장한 이름을 돌려줌
+    copyTo: async function (name, dir, outName) {
+      if (!dir) return '';
+      var src = await Backup.file(name);
+      if (!src || !src.size) return '';
+      var base = outName.replace(/(\.\w+)$/, ''), ext = (outName.match(/\.\w+$/) || [''])[0], nm = outName;
+      for (var j = 2; j < 100; j++) { try { await dir.getFileHandle(nm); nm = base + '-' + j + ext; } catch (e) { break; } }
+      var w = await (await dir.getFileHandle(nm, { create: true })).createWritable();
+      await src.stream().pipeTo(w);   // pipeTo가 끝나면 파일이 닫히고 저장됨
+      return nm;
+    },
+    // 지난번에 끝나지 못한 녹화(창이 닫힘·멈춤)를 폴더로 복구. 돌려주는 값: 복구한 파일 이름 목록
+    recover: async function (dir) {
+      if (!(navigator.storage && navigator.storage.getDirectory)) return [];
+      var held = {};
+      try { if (navigator.locks) (await navigator.locks.query()).held.forEach(function (l) { held[l.name] = 1; }); } catch (e) {}
+      var d = await Backup.dir(), names = [], out = [];
+      for await (var ent of d.values()) if (ent.kind === 'file') names.push(ent.name);
+      for (var i = 0; i < names.length; i++) {
+        var n = names[i];
+        if (held['karts-rec:' + n]) continue;   // 다른 창에서 녹화 중
+        try {
+          var f = await (await d.getFileHandle(n)).getFile();
+          if (!f.size) { await d.removeEntry(n); continue; }
+          // 창이 갑자기 닫히면 폴더에는 같은 이름의 빈(0바이트) 파일이 남음 → 그 자리에 복구. 내용이 있으면 「_복구」로 따로
+          var target = n.replace(/(\.\w+)$/, '_복구$1');
+          if (dir) { try { var ex = await (await dir.getFileHandle(n)).getFile(); if (!ex.size) { await dir.removeEntry(n); target = n; } } catch (e) { target = n; } }
+          var saved = dir ? await Backup.copyTo(n, dir, target) : '';
+          if (!saved) continue;   // 폴더에 못 쓰면 지우지 않고 남겨 둠(다음에 다시 복구)
+          await d.removeEntry(n);
+          out.push(saved);
+        } catch (e) { console.warn('recover', n, e); }
+      }
+      return out;
+    }
+  };
+  Recorder.Backup = Backup;
 
   Recorder.prototype.save = function (f) {
     if (!f.blob) return false;

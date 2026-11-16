@@ -157,6 +157,11 @@
   .row input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(242,194,48,.3); }
   .folder { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 0 0 10px; flex-wrap: wrap; }
   .folder .muted { flex-basis: 100%; font-size: 12.5px; }
+  .reclive { margin: 6px 16px 0; padding: 9px 12px; border-radius: 10px; background: rgba(47,138,87,.16); color: #9FE0BC; font-size: 13px; line-height: 1.55; font-variant-numeric: tabular-nums; }
+  .reclive b { color: #fff; }
+  .reclive.bad { background: var(--red); color: #fff; animation: blink 1.2s infinite; }
+  .reclive.warn { background: rgba(242,194,48,.16); color: var(--yel); }
+  #h-rec.bad { background: var(--red) !important; animation: blink 1s infinite; }
   .warnbox { background: rgba(217,68,58,.14); border: 1px solid rgba(217,68,58,.4); color: #FFB3AC; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.5; margin: 6px 16px 0; }
   .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; margin: 0; }
   .kv dt { color: var(--gray); } .kv dd { margin: 0; font-weight: 600; }
@@ -385,6 +390,7 @@
       <section class="panel op-only" id="p-rec">
         <h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg>녹화 <span class="chip" id="rec-type"></span></h3>
         <div class="warnbox hide" id="rec-warn"></div>
+        <div class="reclive hide" id="rec-live"></div>
         <div class="pb">
           <div class="row">
             <label class="switch"><input type="checkbox" id="sw-auto" checked><i></i><span>학생 시작·종료에 맞춰 자동 녹화</span></label>
@@ -740,7 +746,9 @@
     if (rec) {
       rec.setTile('M', $('#v-M'), '멘토 ' + (view.mentorName || ''), okM ? LM.stream : null);
       rec.setTile('S', $('#v-S'), cur ? PREFIX + cur.name : '학생', okS ? LS.stream : null);
-      rec.idleText = cur ? '' : '멘토링 대기 중';
+      rec.idleText = '';
+      rec.idle.M = !view.mentorLive ? '멘토 접속 전' : '멘토 화면 연결 중';
+      rec.idle.S = !cur ? (view.next ? '다음 학생 대기 중 · ' + PREFIX + view.next.name : '다음 학생 대기 중') : !cur.live ? PREFIX + cur.name + ' 접속 전' : '학생 화면 연결 중';
       rec.setGroup(stage.map(function (m) {
         var cell = document.querySelector('#g-stage [data-k="' + m.id + '"] video');
         var GL = m.id === sess.id ? null : links.get('view', m.id, 'offer');
@@ -847,12 +855,16 @@
   function paintRecWarn() {
     var v = view, host = v.host && v.host !== sess.id ? v.hostName : '';
     var w = $('#rec-warn');
-    if (!rec || v.host !== sess.id) {
+    if (rec && recOn && rec.supported()) {
+      // 이 창이 녹화 중: 소리가 막혀 있으면(브라우저 자동재생 제한) 한 번 클릭하라고 안내
+      if (rec.ac.state !== 'running') { w.innerHTML = '<b>소리가 녹음되지 않고 있습니다.</b> 이 화면 아무 곳이나 한 번 클릭해 주세요(영상은 녹화 중).'; UI.show(w, true); }
+      else UI.show(w, false);
+    } else if (!rec || v.host !== sess.id) {
       w.innerHTML = host ? '녹화는 <b>' + UI.esc(host) + '</b> 님 PC에서 하고 있습니다.' : '<b>녹화 담당 PC가 없습니다.</b> 녹화할 PC에서 위쪽 「이 PC에서 녹화」를 켜 주세요.';
       UI.show(w, true);
     } else if (!rec.supported()) { w.textContent = '이 브라우저는 녹화를 지원하지 않습니다. 크롬(Chrome)에서 열어 주세요.'; UI.show(w, true); }
     else UI.show(w, false);
-    $('#p-rec').style.opacity = rec && v.host === sess.id ? 1 : .6;
+    $('#p-rec').style.opacity = rec && (recOn || v.host === sess.id) ? 1 : .6;
   }
   $('#z-url').oninput = function () { this.dataset.dirty = '1'; };
   $('#b-zoom').onclick = async function () {
@@ -1012,6 +1024,8 @@
     if (!rec) { UI.toast('먼저 「이 PC에서 녹화」를 켜 주세요'); return; }
     await pickDir(true);
   };
+  window.__rec = function () { return rec; };   // 시험용
+  window.addEventListener('pagehide', function () { if (rec && rec.recording()) try { rec.stop(); } catch (e) {} });   // 창을 닫을 때 최대한 저장
   window.__recFrame = function () { return rec ? rec.canvas.toDataURL('image/png') : ''; };   // 시험용: 지금 녹화 화면
   window.__setRecDir = function (h) { if (rec) { rec.setDir(h); paintDir(); } if (IS_REC && !recOn) recBegin(); };   // 시험용
 
@@ -1043,6 +1057,10 @@
   function recBegin() {
     UI.show('#recSetup', false);
     recOn = true;
+    // 지난번에 끝나지 못한 녹화(창이 갑자기 닫힘 등)가 있으면 폴더로 복구
+    if (rec.dir) window.MeetRecorder.Backup.recover(rec.dir).then(function (list) {
+      if (list.length) UI.toast('지난 녹화 ' + list.length + '개를 「' + rec.dir.name + '」 폴더에 복구했습니다: ' + list.join(', '), 8000);
+    }).catch(function () {});
     if (view && !view.host) { lastHostAsk = Date.now(); sess.op('host', { on: true }); }
     UI.toast('녹화를 시작합니다' + (rec.dir ? ' · 「' + rec.dir.name + '」 폴더에 자동 저장' : ''), 3500);
     autoRecord();
@@ -1072,10 +1090,53 @@
       rec.stop(); recKey = '';                         // 구간이 바뀌면 저장
     }
     if (rec.recording() && key === 'gap' && Date.now() - rec.recAt > (C.GAP_SPLIT_MIN || 30) * 60000) { rec.stop(); recKey = ''; }   // 긴 대기는 나눠 저장
+    if (rec.recording() && recKey === 'gap' && !rec.recAudio && rec.ac.state === 'running') { rec.stop(); recKey = ''; }   // 소리가 풀리면 소리 포함으로 새 파일
     if (!$('#sw-auto').checked || !key || manualStop === key) return;
-    if (!rec.recording() && ready) { paintStage(); rec.start(recName(), recTitle()); recKey = key; }
+    if (!rec.recording() && ready) {
+      paintStage();
+      try { rec.start(recName(), recTitle()); recKey = key; }
+      catch (e) { console.warn('rec start', e); recIssue = '녹화를 시작하지 못했습니다(' + (e.message || e) + ')'; }
+    }
   }
+  // 녹화 지킴이: 1초마다 상태를 보고, 멈췄으면 새 파일로 다시 시작 + 눈에 띄게 알림
+  var recIssue = '', recShouldSince = 0, lastRecAlarm = 0, restarts = [];
+  function recWatch() {
+    var box = $('#rec-live'); if (!rec || !recOn || !view) { UI.show(box, false); $('#h-rec').classList.remove('bad'); return; }
+    var cur = view.cur, key = cur ? cur.id : (IS_REC ? 'gap' : '');
+    var should = !leaving && $('#sw-auto').checked && !!key && manualStop !== key;
+    var h = rec.health(), bad = '', warn = '';
+    if (h) {
+      recShouldSince = 0; recIssue = '';
+      if (h.error || h.stall > 8000) {   // 데이터가 8초 넘게 안 들어오거나 오류 → 저장하고 새 파일로(2분에 3번까지)
+        restarts = restarts.filter(function (t) { return Date.now() - t < 120000; });
+        if (restarts.length < 3) {
+          restarts.push(Date.now());
+          console.warn('rec stalled', h); rec.stop(); recKey = ''; UI.toast('녹화가 멈춰서 새 파일로 다시 시작합니다', 4000);
+          setTimeout(autoRecord, 300); return;
+        }
+        bad = '<b>녹화 데이터가 들어오지 않습니다!</b> 이 창을 최소화하지 말고 앞에 띄워 두세요. 계속되면 페이지를 새로고침해 주세요(지금까지 녹화는 저장됩니다).';
+      }
+      if (h.sinkFailed) warn = '폴더에 바로 쓰기가 안 돼 <b>예비 사본</b>으로 계속 녹화 중입니다 — 이 파일이 끝나면 폴더에 「_예비」로 저장합니다.';
+      if (!h.backupOk && h.sinkFailed) bad = '폴더 저장과 예비 사본이 모두 실패했습니다. 다른 폴더를 고르거나 다른 PC에서 녹화해 주세요.';
+      if (!h.audio && !bad) warn = (warn ? warn + '<br>' : '') + '소리가 녹음되지 않고 있습니다 — 이 화면을 한 번 클릭해 주세요.';
+      box.innerHTML = (bad || warn || '<b>● 녹화 중</b>') + '<br>' + UI.esc(h.name) + ' · ' + UI.mmss(h.sec * 1000) + ' · ' + (h.bytes / 1048576).toFixed(1) + 'MB' +
+        (h.backupOk ? ' · 예비 사본 저장 중' : '') + (rec.dir && !h.sinkFailed ? ' · 「' + UI.esc(rec.dir.name) + '」 폴더에 저장 중' : '');
+    } else if (should) {
+      if (!recShouldSince) recShouldSince = Date.now();
+      if (Date.now() - recShouldSince > 5000) bad = '<b>녹화가 되고 있지 않습니다!</b> ' + (recIssue || '잠시 뒤 자동으로 다시 시작합니다. 계속되면 「녹화 시작」을 눌러 주세요.');
+      else { UI.show(box, false); return; }
+      box.innerHTML = bad;
+    } else if (!key || leaving) { recShouldSince = 0; UI.show(box, false); return; }
+    else { recShouldSince = 0; box.innerHTML = '녹화 멈춤(수동) — 「녹화 시작」을 누르면 다시 녹화합니다.'; warn = 'x'; }
+    box.className = 'reclive' + (bad ? ' bad' : warn ? ' warn' : '');
+    UI.show(box, true);
+    $('#h-rec').classList.toggle('bad', !!bad);
+    if (bad) { UI.show('#h-rec', true); $('#h-rec span:last-child').textContent = '녹화 안 됨!'; if (Date.now() - lastRecAlarm > 20000) { lastRecAlarm = Date.now(); if (room) room.alarm('due'); } }
+    else $('#h-rec span:last-child').textContent = '녹화 중';
+  }
+  setInterval(recWatch, 1000);
   setInterval(function () { if (recOn) autoRecord(); }, 1000);
+  ['pointerdown', 'keydown'].forEach(function (t) { document.addEventListener(t, function () { if (rec && rec.ac.state !== 'running') rec.resume().then(function () { if (view) paintRecWarn(); }); }, true); });
   $('#b-rec-start').onclick = function () {
     if (!rec || !recOn) { UI.toast('먼저 「이 PC에서 녹화」를 켜 주세요'); return; }
     if (rec.recording()) return;

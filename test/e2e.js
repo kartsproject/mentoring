@@ -171,6 +171,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   const vinfo = await ops.evaluate(async () => {
     const dir = await navigator.storage.getDirectory(); const out = [];
     for await (const [name, h] of dir.entries()) {
+      if (h.kind !== 'file') continue;
       if (!/\.(webm|mp4)$/.test(name)) continue;
       const f = await h.getFile(); if (!f.size) continue;   // 아직 녹화 중인 파일(닫히기 전 0바이트)
       const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(f);
@@ -207,6 +208,52 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   const autoR = new URL(m2.url()).searchParams.get('r');
   log('mentor without 회차 → auto room:', autoR);
   if (autoR !== '2') throw new Error('auto room wrong: ' + autoR);
+  // ── 녹화 안전장치 ──
+  // ① 소리가 막힌 상태(브라우저 자동재생 제한)여도 재생되는 파일: 영상만 녹화 → 클릭하면 소리 포함 새 파일
+  await ops.evaluate(async () => { const ac = window.__rec().ac; window.__acResume = ac.resume.bind(ac); ac.resume = () => Promise.resolve(); await ac.suspend(); window.__rec().stop(); });   // 자동재생 제한 흉내(클릭 전에는 소리가 안 풀림)
+  await sleep(3500);
+  const blocked = await ops.evaluate(() => ({ audio: window.__rec().recAudio, live: document.querySelector('#rec-live').textContent }));
+  log('audio blocked → recAudio:', blocked.audio, '| status:', blocked.live.slice(0, 40));
+  if (blocked.audio) throw new Error('should record video-only while audio is blocked');
+  await ops.evaluate(() => { window.__rec().ac.resume = window.__acResume; });
+  await ops.mouse.click(300, 900); await sleep(3500);
+  const unblocked = await ops.evaluate(() => window.__rec().recAudio);
+  log('after a click → recAudio:', unblocked);
+  if (!unblocked) throw new Error('should restart with audio after click');
+  // ② 창이 갑자기 닫혀도: 예비 사본(OPFS)에서 다음 접속 때 폴더로 복구
+  await sleep(3000);
+  const bkSize = await ops.evaluate(async () => { const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('karts-rec-backup'); let n = 0; for await (const [k, h] of d.entries()) n += (await h.getFile()).size; return n; });
+  log('backup copy size while recording:', bkSize);
+  if (!bkSize) throw new Error('no backup data');
+  const octx = ops.context();
+  await ops.close();   // 창을 그냥 닫음(저장 단계 없이)
+  const ops2 = await octx.newPage();
+  await ops2.goto(BASE + '/ops.html?r=test');
+  await ops2.fill('#g-name', '운영A'); await ops2.fill('#g-code', 'o1234'); await ops2.click('#g-btn');
+  await ops2.waitForSelector('#recSetup:not(.hide)', { timeout: 15000 });
+  await ops2.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));
+  const crashed = await ops2.evaluate(async () => { const r = await navigator.storage.getDirectory(); for await (const [k, h] of r.entries()) if (h.kind === 'file' && !/crswap/.test(k) && !(await h.getFile()).size) return k; return ''; }).catch(() => '');
+  await waitFor(ops2, async (n) => { const r = await navigator.storage.getDirectory(); for await (const [k, h] of r.entries()) if (h.kind === 'file' && k === n && (await h.getFile()).size) return true; return false; }, crashed, 20000, 'recovered in place');
+  log('crashed file (was 0 bytes):', crashed, '→ recovered in place');
+  const all = await ops2.evaluate(async () => {
+    const dir = await navigator.storage.getDirectory(), out = [];
+    for await (const [name, h] of dir.entries()) {
+      if (h.kind !== 'file') continue;
+      const f = await h.getFile(); if (!f.size) { out.push({ name, size: 0 }); continue; }
+      const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(f);
+      await new Promise(r => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 6000); });
+      out.push({ name, size: f.size, w: v.videoWidth, h: v.videoHeight, err: v.error ? v.error.code : 0 });
+    }
+    return out;
+  });
+  all.forEach(f => log('file:', f.name, (f.size / 1e6).toFixed(1) + 'MB', f.w + 'x' + f.h, f.err ? 'ERROR ' + f.err : 'plays'));
+  const broken = all.filter(f => f.size && (f.err || f.w !== 1920));
+  if (broken.length) throw new Error('unplayable recordings: ' + broken.map(f => f.name).join(', '));
+  const cur2 = await ops2.evaluate(() => window.__rec().health().name);
+  const empty = all.filter(f => !f.size && !/crswap/.test(f.name) && f.name !== cur2);
+  if (empty.length) throw new Error('empty files left: ' + empty.map(f => f.name).join(', '));
+  log('crash recovery OK — all saved recordings play at 1920x1080');
+
   console.log(JSON.stringify((await (await fetch(BASE + '/__stats')).json()).chat).slice(0, 600));
   await browser.close();
 })().catch(async e => { console.error('FAIL', e); try { for (const p of (global.__pages || [])) await p.screenshot({ path: path.join(OUT, 'fail_' + (global.__pages.indexOf(p)) + '.png') }); } catch (er) {} process.exit(1); });
