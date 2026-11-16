@@ -10,6 +10,7 @@
  * 비밀값은 코드에 넣지 않습니다. [프로젝트 설정 > 스크립트 속성]에 넣습니다.
  *  MENTOR_CODE        멘토 접속 코드
  *  OPS_CODE           운영진 접속 코드
+ *  RESEARCH_CODE      연구원 접속 코드
  *  CF_TURN_KEY_ID     (선택) Cloudflare TURN 키 ID
  *  CF_TURN_API_TOKEN  (선택) Cloudflare TURN API 토큰
  *
@@ -21,6 +22,7 @@
 var TTL = 21600;           // 캐시 보관 6시간(최대값)
 var SEEN_LIVE_MS = 12000;  // 이 시간 안에 신호가 있으면 '접속 중'
 var MB_MAX = 60;           // 메시지함 최대 개수
+var STAGE_MAX = 3;         // 멘토링 전 화면에 함께 등장할 수 있는 연구원·운영진 수
 
 /* ───────────── 진입점 ───────────── */
 function doPost(e) {
@@ -70,9 +72,10 @@ function cput_(k, v) { cache_().put(k, JSON.stringify(v), TTL); }
 function props_() { return PropertiesService.getScriptProperties(); }
 
 function blankState_() {
-  return { parts: {}, cur: null, host: null, notice: null, zoomUrl: '', zoom: {}, done: {}, test: {}, seq: 0 };
+  return { parts: {}, cur: null, host: null, notice: null, zoomUrl: '', zoom: {}, done: {}, test: {}, stage: {}, seq: 0 };
 }
-function getState_(r) { return cget_('st|' + r) || blankState_(); }
+function getState_(r) { var s = cget_('st|' + r) || blankState_(); s.stage = s.stage || {}; return s; }
+function isStaff_(role) { return role === 'ops' || role === 'research'; }
 function putState_(r, s) { s.seq = (s.seq || 0) + 1; cput_('st|' + r, s); }
 
 function withLock_(fn) {
@@ -141,6 +144,10 @@ function join_(r, req) {
     if (String(req.code || '') !== String(p.getProperty('OPS_CODE') || '__none__')) return { ok: false, error: 'code' };
     if (!name) return { ok: false, error: 'name' };
     id = 'O_' + normName_(name).slice(0, 12);
+  } else if (role === 'research') {
+    if (String(req.code || '') !== String(p.getProperty('RESEARCH_CODE') || '__none__')) return { ok: false, error: 'code' };
+    if (!name) return { ok: false, error: 'name' };
+    id = 'R_' + normName_(name).slice(0, 12);
   } else if (role === 'student') {
     var nm = normName_(name);
     if (!nm) return { ok: false, error: 'name' };
@@ -200,25 +207,14 @@ function seenMap_(r, s) {
 function view_(r, s, id, role, now) {
   var seen = seenMap_(r, s);
   var live = function (i) { return !!(seen[i] && now - seen[i].t < SEEN_LIVE_MS); };
-  var ops = Object.keys(s.parts).filter(function (i) { return s.parts[i].role === 'ops' && live(i); });
+  var ops = Object.keys(s.parts).filter(function (i) { return isStaff_(s.parts[i].role) && live(i); });
+  // 멘토링 전 화면 등장(연구원·운영진): 접속 중인 사람만
+  var stage = s.cur ? [] : Object.keys(s.stage).filter(function (i) { return s.parts[i] && live(i); })
+    .sort(function (a, b) { return s.stage[a] - s.stage[b]; })
+    .map(function (i) { return { id: i, name: s.parts[i].name, role: s.parts[i].role, info: seen[i] ? seen[i].info : null }; });
   var cur = s.cur ? { id: s.cur.id, name: s.cur.name, no: s.cur.no, at: s.cur.at, live: live(s.cur.id) } : null;
 
-  if (role === 'student') {
-    return {
-      seq: s.seq,
-      me: id,
-      called: !!(s.cur && s.cur.id === id),
-      cur: (s.cur && s.cur.id === id) ? cur : null,
-      mentorLive: live('M'),
-      ops: ops,                         // 운영진(수신 전용) 목록: 연결 대상
-      host: s.host && live(s.host) ? s.host : null,
-      done: !!s.done[id],
-      test: s.test[id] || null,
-      zoomUrl: s.zoom[id] ? s.zoomUrl : '',
-      notice: s.notice && (!s.notice.to || s.notice.to === id) ? s.notice : null
-    };
-  }
-
+  // 학생 목록(명단 순서 → 명단 밖 접속자)
   var students = [];
   var ro = roster_(r);
   var byName = {};
@@ -228,7 +224,7 @@ function view_(r, s, id, role, now) {
     students.push({ id: i, name: x.name, no: x.no, time: x.time, joined: !!byName[x.name] });
     delete byName[x.name];
   });
-  Object.keys(byName).forEach(function (nm) {           // 명단 밖(리허설 등)
+  Object.keys(byName).forEach(function (nm) {
     students.push({ id: byName[nm], name: nm, no: 0, time: '', joined: true });
   });
   students.forEach(function (st) {
@@ -239,16 +235,44 @@ function view_(r, s, id, role, now) {
     st.test = s.test[st.id] || null;
     st.zoom = !!s.zoom[st.id];
   });
+  // 다음 차례: 끝나지 않았고 진행 중이 아닌 학생 중 접속해 있는 첫 학생(미리 연결 대상)
+  var waiting = students.filter(function (st) { return !st.done && !(cur && cur.id === st.id) && !st.zoom; });
+  var nx = waiting.filter(function (st) { return st.live; })[0] || null;
+  var next = nx ? { id: nx.id, name: nx.name, no: nx.no, time: nx.time, info: nx.info } : null;
 
-  var base = { seq: s.seq, me: id, cur: cur, mentorLive: live('M'), mentorInfo: seen.M ? seen.M.info : null, ops: ops, students: students };
+  if (role === 'student') {
+    var me = null, ahead = 0;
+    for (var k = 0; k < waiting.length; k++) { if (waiting[k].id === id) { me = waiting[k]; break; } ahead++; }
+    var mine = students.filter(function (st) { return st.id === id; })[0] || {};
+    return {
+      seq: s.seq,
+      me: id,
+      called: !!(s.cur && s.cur.id === id),
+      cur: (s.cur && s.cur.id === id) ? cur : null,
+      busy: !!s.cur,                    // 다른 학생 멘토링 진행 중
+      isNext: !!(next && next.id === id),
+      ahead: me ? ahead : 0,            // 내 앞에 남은 학생 수(진행 중 제외)
+      myNo: mine.no || 0,
+      myTime: mine.time || '',
+      mentorLive: live('M'),
+      host: s.host && live(s.host) ? s.host : null,
+      done: !!s.done[id],
+      test: s.test[id] || null,
+      zoomUrl: s.zoom[id] ? s.zoomUrl : '',
+      notice: s.notice && (!s.notice.to || s.notice.to === id) ? s.notice : null
+    };
+  }
+
+  var base = { seq: s.seq, me: id, cur: cur, next: next, mentorLive: live('M'), mentorInfo: seen.M ? seen.M.info : null, ops: ops, students: students, stage: stage };
   if (role === 'mentor') return base;
 
-  // 운영진
+  // 운영진·연구원
   base.host = s.host && live(s.host) ? s.host : null;
   base.hostName = base.host && s.parts[base.host] ? s.parts[base.host].name : '';
   base.notice = s.notice;
   base.zoomUrl = s.zoomUrl;
-  base.opsList = ops.map(function (i) { return { id: i, name: s.parts[i].name, info: seen[i] ? seen[i].info : null }; });
+  base.opsList = ops.map(function (i) { return { id: i, name: s.parts[i].name, role: s.parts[i].role, info: seen[i] ? seen[i].info : null }; });
+  base.myRole = role;
   base.mentorName = s.parts.M ? s.parts.M.name : '';
   return base;
 }
@@ -282,10 +306,22 @@ function op_(r, req) {
   var result = withLock_(function () {
     var s = getState_(r);
     var me = s.parts[id];
-    if (!me || me.role !== 'ops') throw new Error('forbidden');
+    if (!me || !isStaff_(me.role)) throw new Error('forbidden');
+    if (me.role === 'research' && cmd !== 'stage') throw new Error('forbidden'); // 연구원은 화면 등장만
     name = me.name;
     var now = Date.now();
     switch (cmd) {
+      case 'stage':
+        if (req.on) {
+          if (s.cur) return { ok: false, error: 'busy' };
+          var seenNow = seenMap_(r, s);
+          Object.keys(s.stage).forEach(function (i) {   // 나간 사람 정리
+            if (i !== id && !(seenNow[i] && now - seenNow[i].t < SEEN_LIVE_MS)) delete s.stage[i];
+          });
+          if (!s.stage[id] && Object.keys(s.stage).length >= STAGE_MAX) return { ok: false, error: 'full' };
+          s.stage[id] = s.stage[id] || now;
+        } else delete s.stage[id];
+        break;
       case 'call': {
         var sid = String(req.sid || '');
         var p = s.parts[sid];
@@ -295,6 +331,7 @@ function op_(r, req) {
         var no = 0;
         ro.forEach(function (x) { if (x.name === nm) no = x.no; });
         s.cur = { id: sid, name: nm, no: no, at: now };
+        s.stage = {};   // 멘토링이 시작되면 연구원·운영진은 화면에서 내려감
         delete s.done[sid];
         delete s.zoom[sid];
         log_(r, '시작', nm, '');
@@ -395,8 +432,10 @@ function setup() {
   var p = props_();
   if (!p.getProperty('MENTOR_CODE')) p.setProperty('MENTOR_CODE', 'mentor' + Math.floor(1000 + Math.random() * 9000));
   if (!p.getProperty('OPS_CODE')) p.setProperty('OPS_CODE', 'ops' + Math.floor(1000 + Math.random() * 9000));
+  if (!p.getProperty('RESEARCH_CODE')) p.setProperty('RESEARCH_CODE', 'research' + Math.floor(1000 + Math.random() * 9000));
   Logger.log('멘토 코드: ' + p.getProperty('MENTOR_CODE'));
   Logger.log('운영진 코드: ' + p.getProperty('OPS_CODE'));
+  Logger.log('연구원 코드: ' + p.getProperty('RESEARCH_CODE'));
   Logger.log('TURN 설정: ' + (p.getProperty('CF_TURN_KEY_ID') ? '있음' : '없음(STUN만 사용)'));
   Logger.log('ICE 확인: ' + JSON.stringify(iceServers_()).slice(0, 300));
 }

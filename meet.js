@@ -133,12 +133,18 @@
     this.onRemote = o.onRemote || function () {};
     this.onChange = o.onChange || function () {};
     this.onData = o.onData || function () {};
+    // 미리 연결해 둔 연결에서 내 영상·음성을 보낼지(true) 멈출지(false)
+    this.policy = o.sendPolicy || null;
     var self = this;
     sess.on('msg', function (m) { self.onMsg(m).catch(function (e) { console.warn('msg', e); }); });
     this.watch = setInterval(function () { self.watchdog(); }, 2000);
   }
-  Links.prototype.key = function (kind, peer) { return kind + ':' + peer; };
-  Links.prototype.get = function (kind, peer) { return this.map.get(this.key(kind, peer)); };
+  // 내가 요청한 연결(>)과 상대가 요청한 연결(<)을 따로 보관 — 서로 동시에 요청해도 충돌하지 않음
+  Links.prototype.key = function (kind, peer, role) { return kind + (role === 'answer' ? '<' : '>') + peer; };
+  Links.prototype.get = function (kind, peer, role) {
+    if (role) return this.map.get(this.key(kind, peer, role));
+    return this.map.get(this.key(kind, peer, 'offer')) || this.map.get(this.key(kind, peer, 'answer'));
+  };
   Links.prototype.all = function () { return Array.from(this.map.values()); };
   Links.prototype.byCid = function (cid) { return this.all().find(function (L) { return L.cid === cid; }); };
 
@@ -165,7 +171,7 @@
     pc.onconnectionstatechange = upd;
     pc.oniceconnectionstatechange = upd;
     pc.ondatachannel = function (e) { L.dc = e.channel; self.wireDc(L); };
-    this.map.set(this.key(kind, peer), L);
+    this.map.set(this.key(kind, peer, role), L);
     return L;
   };
 
@@ -176,13 +182,15 @@
   };
 
   Links.prototype.offer = async function (kind, peer, peerNonce) {
-    this.close(kind, peer, true);
+    var prev = this.get(kind, peer, 'offer');
+    if (prev) this.closeLink(prev, true);
     var L = this.make(kind, peer, rid(), 'offer', peerNonce);
     var pc = L.pc;
     if (kind === 'ms') {
       var ls = this.getLocal();
       if (ls) ls.getTracks().forEach(function (t) { pc.addTrack(t, ls); });
       else { pc.addTransceiver('audio'); pc.addTransceiver('video'); }
+      this.applyOne(L);
     } else if (kind === 'view') {
       pc.addTransceiver('audio', { direction: 'recvonly' });
       pc.addTransceiver('video', { direction: 'recvonly' });
@@ -202,14 +210,16 @@
 
   Links.prototype.onMsg = async function (m) {
     if (m.t === 'offer') {
-      var old = this.get(m.kind, m.from);
-      if (old) this.close(m.kind, m.from, false);
+      var old = this.get(m.kind, m.from, 'answer');
+      if (old) this.closeLink(old, false);
       var L = this.make(m.kind, m.from, m.cid, 'answer');
       var pc = L.pc;
       await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
       if (m.kind === 'ms' || m.kind === 'view') {
         var ls = this.getLocal();
         if (ls) ls.getTracks().forEach(function (t) { pc.addTrack(t, ls); });
+        else { pc.getTransceivers().forEach(function (tr) { try { tr.direction = 'sendrecv'; } catch (e) {} }); }
+        this.applyOne(L);
       }
       var ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
@@ -225,23 +235,24 @@
       }
     } else if (m.t === 'bye') {
       var B = this.byCid(m.cid);
-      if (B) this.close(B.kind, B.peer, false);
+      if (B) this.closeLink(B, false);
     }
   };
 
-  Links.prototype.close = function (kind, peer, notify) {
-    var L = this.get(kind, peer);
-    if (!L) return;
+  Links.prototype.closeLink = function (L, notify) {
+    if (!L || L.closed) return;
     L.closed = true;
     try { L.pc.close(); } catch (e) {}
-    this.map.delete(this.key(kind, peer));
-    if (notify) this.s.send(peer, { t: 'bye', cid: L.cid });
+    var k = this.key(L.kind, L.peer, L.role);
+    if (this.map.get(k) === L) this.map.delete(k);
+    if (notify) this.s.send(L.peer, { t: 'bye', cid: L.cid });
     L.state = 'closed';
     this.onChange(L);
   };
+  Links.prototype.close = function (kind, peer, notify) { this.closeLink(this.get(kind, peer), notify); };
   Links.prototype.closeWhere = function (fn, notify) {
     var self = this;
-    this.all().filter(fn).forEach(function (L) { self.close(L.kind, L.peer, notify); });
+    this.all().filter(fn).forEach(function (L) { self.closeLink(L, notify); });
   };
 
   // 오래 안 붙거나 끊긴 연결은 정리 → 요청 쪽이 다음 확인 때 다시 연결
@@ -250,9 +261,9 @@
     this.all().forEach(function (L) {
       var neverTimeout = L.kind === 'test' ? 20000 : 25000;
       if (!L.connectedAt && now - L.created > neverTimeout) {
-        L.state = 'timeout'; self.onChange(L); self.close(L.kind, L.peer, true);
+        L.state = 'timeout'; self.onChange(L); self.closeLink(L, true);
       } else if (L.connectedAt && L.badSince && now - L.badSince > (L.state === 'failed' ? 1500 : 9000)) {
-        self.close(L.kind, L.peer, true);
+        self.closeLink(L, true);
       }
     });
   };
@@ -275,10 +286,26 @@
     return L.relay;
   };
 
+  // 보내기 정책 적용: 미리 연결(대기) 중에는 트랙을 비워 두었다가, 차례가 되면 즉시 채움(재연결 없음)
+  Links.prototype.applyOne = function (L) {
+    if (L.kind === 'test') return;
+    var on = this.policy ? !!this.policy(L) : true;
+    var stream = this.getLocal();
+    L.sending = on;
+    L.pc.getTransceivers().forEach(function (tr) {
+      if (!tr.sender || tr.stopped) return;
+      var kind = tr.receiver && tr.receiver.track ? tr.receiver.track.kind : null;
+      if (!kind) return;
+      var t = on && stream ? stream.getTracks().find(function (x) { return x.kind === kind; }) || null : null;
+      if (tr.sender.track !== t) tr.sender.replaceTrack(t).catch(function () {});
+    });
+  };
+  Links.prototype.applyPolicy = function () { var self = this; this.all().forEach(function (L) { self.applyOne(L); }); };
+
   // 카메라 전환 등 내 트랙이 바뀌면 모든 연결에 반영
   Links.prototype.replaceLocal = function (stream) {
     this.all().forEach(function (L) {
-      if (L.kind === 'test' || !stream) return;
+      if (L.kind === 'test' || !stream || L.sending === false) return;
       L.pc.getTransceivers().forEach(function (tr) {
         if (!tr.sender || !(tr.currentDirection === 'sendrecv' || tr.currentDirection === 'sendonly' || tr.sender.track)) return;
         var kind = tr.receiver && tr.receiver.track ? tr.receiver.track.kind : (tr.sender.track && tr.sender.track.kind);
@@ -421,6 +448,31 @@
       document.addEventListener('visibilitychange', req);
     },
     param: function (k) { return new URLSearchParams(location.search).get(k) || ''; },
+    // 여러 사람 영상 바둑판: items [{key, label, stream, mirror, muted}]
+    grid: function (box, items) {
+      box.className = 'sgrid n' + Math.min(items.length, 4);
+      var keep = {};
+      items.forEach(function (it, idx) {
+        keep[it.key] = 1;
+        var cell = box.querySelector('[data-k="' + it.key + '"]');
+        if (!cell) {
+          cell = document.createElement('div');
+          cell.className = 'gcell'; cell.dataset.k = it.key;
+          cell.innerHTML = '<video autoplay playsinline></video><div class="gwait">연결 중…</div><span class="label"></span>';
+          box.appendChild(cell);
+        }
+        cell.style.order = idx;
+        var v = cell.querySelector('video');
+        v.muted = !!it.muted;
+        v.classList.toggle('mirror', !!it.mirror);
+        UI.attach(v, it.stream || null);
+        var ok = it.stream && it.stream.getVideoTracks().length;
+        cell.querySelector('.gwait').style.display = ok ? 'none' : '';
+        cell.querySelector('.label').textContent = it.label || '';
+      });
+      Array.from(box.children).forEach(function (c) { if (!keep[c.dataset.k]) { var v = c.querySelector('video'); if (v) v.srcObject = null; c.remove(); } });
+    },
+    roleName: function (role) { return role === 'research' ? '연구원' : role === 'ops' ? '운영' : role === 'mentor' ? '멘토' : ''; },
     stateText: function (st) {
       return { 'new': '준비', connecting: '연결 중', connected: '연결됨', disconnected: '불안정', failed: '실패', timeout: '시간 초과', closed: '끊김', checking: '연결 중' }[st] || st || '-';
     }

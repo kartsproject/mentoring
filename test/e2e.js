@@ -29,7 +29,7 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
     p.on('pageerror', e => console.log(`[${name} pageerror]`, e.message));
     return p;
   };
-  const ops = await mk('ops'), mentor = await mk('mentor'), sA = await mk('stuA', { width: 420, height: 860 }), sB = await mk('stuB', { width: 420, height: 860 });
+  const ops = await mk('ops'), mentor = await mk('mentor'), res = await mk('research'), sA = await mk('stuA', { width: 420, height: 860 }), sB = await mk('stuB', { width: 420, height: 860 });
 
   // 운영진
   await ops.goto(BASE + '/ops.html?r=test');
@@ -44,6 +44,28 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
   await mentor.waitForSelector('#c-btn:not([disabled])', { timeout: 15000 });
   await mentor.click('#c-btn');
   log('mentor in');
+
+  // 연구원 입장 → 화면 등장 → 멘토가 연구원을 봄
+  await res.goto(BASE + '/ops.html?r=test');
+  await res.click('.seg label:nth-child(2)');
+  await res.fill('#g-name', '연구원A'); await res.fill('#g-code', 'r1234'); await res.click('#g-btn');
+  await res.waitForSelector('#s-main:not(.hide)');
+  if (await res.isVisible('#p-rec')) throw new Error('research should not see recording panel');
+  await res.click('#b-stage');
+  await waitFor(mentor, () => { const v = document.querySelector('#g-stage video'); return v && v.videoWidth > 0; }, null, 30000, 'mentor sees researcher');
+  log('mentor sees researcher on stage');
+  await waitFor(res, () => document.querySelector('#v-M').videoWidth > 0, null, 30000, 'research sees mentor');
+  // 운영진도 등장 → 멘토 화면 2명
+  await ops.click('#b-stage');
+  await waitFor(mentor, () => [...document.querySelectorAll('#g-stage video')].filter(v => v.videoWidth > 0).length === 2, null, 30000, 'mentor sees 2 on stage');
+  await waitFor(ops, () => [...document.querySelectorAll('#g-stage video')].filter(v => v.videoWidth > 0).length === 2, null, 30000, 'ops sees stage grid');
+  log('stage: mentor sees researcher + ops');
+  await mentor.screenshot({ path: path.join(OUT, '0_mentor_stage.png') });
+  await ops.screenshot({ path: path.join(OUT, '0_ops_stage.png') });
+  // 시험 PC(2코어) 부하를 줄이기 위해 연구원·운영 화면 등장 종료 후 연구원 창 닫기
+  await ops.click('#b-stage'); await res.click('#b-stage'); await sleep(1500); await res.close();
+  await waitFor(mentor, () => !document.querySelector('#g-stage .gcell'), null, 20000, 'stage cleared');
+  log('stage left; mentor stage empty');
 
   // 학생: 명단 밖 이름 거절 확인
   await sA.goto(BASE + '/?r=test');
@@ -64,6 +86,11 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
   // 운영 화면: 멘토 영상
   await waitFor(ops, () => { const v = document.querySelector('#v-M'); return v.videoWidth > 0; }, null, 30000, 'ops sees mentor');
   log('ops sees mentor video');
+  // 다음 차례(학생가) 미리 연결 확인
+  await waitFor(sA, () => document.querySelector('#w-warm').textContent.includes('준비 완료'), null, 30000, 'A warm');
+  log('student A prewarmed with mentor');
+  await waitFor(ops, () => document.querySelector('#v-N').videoWidth > 0, null, 30000, 'ops next preview');
+  log('ops sees next-student preview');
   await ops.screenshot({ path: path.join(OUT, '1_ops_waiting.png') });
   await sA.screenshot({ path: path.join(OUT, '1_student_waiting.png') });
 
@@ -78,20 +105,26 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
   await waitFor(ops, () => document.querySelector('#v-S').videoWidth > 0, null, 30000, 'ops sees student');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
   log('ops sees both & recording after', Date.now() - t0, 'ms');
+  await waitFor(sB, () => document.querySelector('#w-warm').textContent.includes('준비 완료'), null, 30000, 'B warm');
+  log('student B prewarmed during A session');
   await sleep(8000);
   await ops.screenshot({ path: path.join(OUT, '2_ops_live.png') });
   await mentor.screenshot({ path: path.join(OUT, '2_mentor_live.png') });
   await sA.screenshot({ path: path.join(OUT, '2_student_live.png') });
 
   // 다음 학생 → A 녹화 저장
-  await ops.click('#b-next');
+  await ops.screenshot({ path: path.join(OUT, '2b_ops_before_next.png') });
+  await ops.click('#b-next', { timeout: 8000 }).catch(async e => { console.log('click issue:', e.message.split('\n').slice(-3).join(' | ')); await ops.click('#b-next', { force: true }); });
+  const tB = Date.now();
   const d1 = await dl1;
   const f1 = path.join(OUT, d1.suggestedFilename());
   await d1.saveAs(f1);
   log('saved', d1.suggestedFilename(), fs.statSync(f1).size, 'bytes');
   await waitFor(sA, () => !document.querySelector('#s-done').classList.contains('hide'), null, 20000, 'A done');
   await waitFor(sB, () => document.querySelector('#l-remote').videoWidth > 0, null, 40000, 'B sees mentor');
-  log('student B live');
+  log('student B sees mentor after switch', Date.now() - tB, 'ms');
+  await waitFor(mentor, () => { const v = document.querySelector('#v-remote'); return v.videoWidth > 0 && document.querySelector('#t-who').textContent.includes('학생나'); }, null, 20000, 'mentor B');
+  log('mentor sees B after', Date.now() - tB, 'ms');
   const dl2 = ops.waitForEvent('download', { timeout: 60000 });
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording B');
   await sleep(5000);

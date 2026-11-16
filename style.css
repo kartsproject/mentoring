@@ -107,6 +107,23 @@ body:not(.dark) .chip.teal { color: var(--teal); }
 .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.18); border-top-color: #8fd0e3; animation: spin 1s linear infinite; margin: 0 auto 14px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* 여러 사람 바둑판(멘토링 전 연구원·운영진 등장) */
+.sgrid { position: absolute; inset: 0; display: grid; gap: 6px; background: #000; z-index: 1; }
+.sgrid:empty { display: none; }
+.sgrid.n1 { grid-template-columns: 1fr; }
+.sgrid.n2 { grid-template-columns: 1fr 1fr; }
+.sgrid.n3, .sgrid.n4 { grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; }
+.gcell { position: relative; background: #0b0f10; overflow: hidden; min-height: 0; }
+.gcell video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.gcell video.mirror { transform: scaleX(-1); }
+.gcell .label { top: 10px; bottom: auto; left: 10px; }
+.gwait { position: absolute; inset: 0; display: grid; place-items: center; color: #93a2a8; font-size: 14px; }
+.seg { display: inline-flex; background: #eef2f3; border-radius: 12px; padding: 4px; gap: 4px; width: 100%; margin-bottom: 14px; }
+.seg label { flex: 1; text-align: center; padding: 10px; border-radius: 9px; font-weight: 700; cursor: pointer; color: #5b6a70; }
+.seg input { display: none; }
+.seg input:checked + span { color: #fff; }
+.seg label:has(input:checked) { background: var(--teal); color: #fff; }
+
 .netbar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); background: var(--coral); color: #fff; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; z-index: 50; }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #111; color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 14px; z-index: 60; box-shadow: 0 6px 24px rgba(0,0,0,.3); }
 

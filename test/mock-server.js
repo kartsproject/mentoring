@@ -17,7 +17,7 @@ const CacheService = { getScriptCache: () => ({
   remove: k => cacheStore.delete(k),
   getAll: keys => { const o = {}; keys.forEach(k => { const v = cacheStore.get(k); if (v && v.exp > Date.now()) o[k] = v.v; }); return o; }
 }) };
-const props = { MENTOR_CODE: 'm1234', OPS_CODE: 'o1234' };
+const props = { MENTOR_CODE: 'm1234', OPS_CODE: 'o1234', RESEARCH_CODE: 'r1234' };
 const PropertiesService = { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) };
 const sheets = {};
 function mkSheet(name) {

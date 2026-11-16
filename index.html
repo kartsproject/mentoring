@@ -78,12 +78,18 @@
       <p id="w-sub">차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀝니다.<br>이 화면을 켜 둔 채로 기다려 주세요.</p>
     </div>
     <div class="rows">
+      <div><span>내 순서</span><span id="w-turn" class="chip teal">-</span></div>
       <div><span>연결 점검</span><span id="w-test" class="chip">점검 대기</span></div>
+      <div><span>멘토 연결 준비</span><span id="w-warm" class="chip">차례 전 자동 준비</span></div>
       <div><span>멘토</span><span id="w-mentor" class="chip">접속 전</span></div>
       <div><span>서버 연결</span><span id="w-net" class="chip ok"><i class="dot"></i>정상</span></div>
     </div>
     <div class="selfprev"><video id="w-self" autoplay playsinline muted></video><span class="label">내 화면</span></div>
-    <p class="note" style="text-align:center">화면이 꺼지거나 다른 앱으로 넘어가면 연결이 끊길 수 있어요.</p>
+    <div class="rows" style="padding:12px 16px">
+      <div style="border:0;padding:0 0 8px"><span>마이크 — 말해 보세요</span><span class="small muted">막대가 움직이면 정상</span></div>
+      <div class="meter" style="margin:0"><i id="w-meter"></i></div>
+    </div>
+    <p class="note" style="text-align:center">멘토링 <b>10분 전</b>에 들어와 카메라·마이크를 확인해 주세요.<br>화면이 꺼지거나 다른 앱으로 넘어가면 연결이 끊길 수 있어요.</p>
   </div>
 </section>
 
@@ -147,7 +153,7 @@
     }, 0);
   }
   var sess = null, links = null, dc = null, local = null;
-  var screen = '', lastCurAt = 0, zoomGone = false;
+  var screen = '', lastCurAt = 0, zoomGone = false, stopWaitMeter = null;
 
   $('#g-prefix').textContent = PREFIX || '이름';
   if (!PREFIX) $('#g-prefix').classList.add('hide');
@@ -208,8 +214,10 @@
     UI.attach($('#l-self'), local);
     links = new M.Links(sess, {
       getLocal: function () { return local; },
-      onRemote: function (L) { if (L.kind === 'ms') { UI.attach($('#l-remote'), L.stream); } },
-      onChange: function () { renderLive(); }
+      onRemote: function () { renderLive(); },
+      onChange: function () { renderLive(); },
+      // 다음 차례로 미리 연결돼 있어도, 내 차례 전에는 멘토에게 영상·음성을 보내지 않음
+      sendPolicy: function (L) { return L.kind !== 'ms' || !!(sess.view && sess.view.called); }
     });
     sess.on('view', render);
     sess.on('net', function (ok, fails) {
@@ -219,6 +227,7 @@
     });
     UI.netbar(sess);
     UI.wakeLock();
+    stopWaitMeter = M.Media.meter(local, $('#w-meter'));
     setupCtrls();
     go('s-wait');
     sess.start();
@@ -244,6 +253,29 @@
     if (v.notice && v.notice.text) { $('#w-notice span').textContent = v.notice.text; UI.show('#w-notice', true); }
     else UI.show('#w-notice', false);
 
+    // 내 순서
+    var turn = $('#w-turn');
+    var when = v.myTime ? ' · ' + v.myTime + ' 예정' : '';
+    if (v.called) turn.textContent = '진행 중';
+    else if (v.isNext) turn.textContent = '다음 차례' + when;
+    else if (v.done) turn.textContent = '완료';
+    else turn.textContent = (v.ahead ? '앞에 ' + v.ahead + '명' : '대기') + when;
+    if (screen === 's-wait') {
+      if (v.isNext) {
+        $('#w-title').textContent = v.busy ? '다음 차례입니다' : '곧 시작합니다';
+        $('#w-sub').innerHTML = v.busy ? '앞 학생 멘토링이 끝나면 <b>바로 시작</b>됩니다.<br>카메라 앞에서 기다려 주세요.' : '운영진이 곧 멘토링을 시작합니다.<br>카메라 앞에서 기다려 주세요.';
+      } else {
+        $('#w-title').textContent = '대기 중입니다';
+        $('#w-sub').innerHTML = '차례가 되면 <b>자동으로 멘토링 화면</b>으로 바뀝니다.<br>이 화면을 켜 둔 채로 기다려 주세요.';
+      }
+    }
+    var wl = $('#w-warm');
+    if (v.isNext && ms && ms.state === 'connected') { wl.className = 'chip ok'; wl.innerHTML = '<i class="dot"></i>준비 완료'; }
+    else if (v.isNext) { wl.className = 'chip warn'; wl.textContent = '준비 중…'; }
+    else { wl.className = 'chip'; wl.textContent = '차례 전 자동 준비'; }
+    sess.interval = v.isNext || v.called ? 1200 : 2500;
+    links.applyPolicy();
+
     // 점검·멘토 상태
     var t = $('#w-test');
     if (!v.test) { t.className = 'chip'; t.textContent = v.host ? '점검 대기' : '운영진 접속 전'; }
@@ -262,8 +294,8 @@
       }
       lastCurAt = v.cur ? v.cur.at : lastCurAt;
     } else {
-      if (ms) links.close('ms', 'M', false);
-      if (v.done) { if (screen !== 's-done') go('s-done'); }
+      // 미리 연결(다음 차례)은 멘토 쪽에서 관리 — 여기서는 끊지 않음
+      if (v.done && !v.isNext) { if (screen !== 's-done') go('s-done'); }
       else if (screen !== 's-wait') go('s-wait');
     }
     renderLive();

@@ -129,7 +129,7 @@
       self.files.slice(4).forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); x.blob = null; x.url = null; });
       self.save(f);
       self.onFile(f);
-      self.onState(false);
+      self.onState(self.recording());   // 다음 학생 녹화가 이미 시작됐을 수 있음
     };
     rec.start(1000);
     this.rec = rec; this.recName = filename; this.recAt = started;
