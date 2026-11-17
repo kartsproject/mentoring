@@ -154,6 +154,7 @@
     cam = check.stream;
     go('s-room'); entered = true; UI.wakeLock();
     $('#t-me').textContent = sess.name;
+    $('#t-sub').textContent = '미술 심화 멘토링 · ' + (sess.r === 'test' ? '리허설' : sess.r + '회차');   // 어느 회차에 들어왔는지 보이게
     room = new A.Room({ sess: sess, box: $('#stage'), localCam: function () { return cam; }, localScr: function () { return scr; },
       onTileClick: function (it) { room.pin = it.feature || room.pin === it.key ? null : it.key; room.lastWant = ''; room.render(room.view); },
       onSfuState: function (st) { $('#t-conn').classList.toggle('off', st !== 'connected'); $('#t-conn span').textContent = st === 'connected' ? '연결됨' : '연결 중…'; if (st === 'failed') reconnect(); } });

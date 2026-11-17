@@ -143,6 +143,7 @@
     cam = check.stream;
     go('s-room'); entered = true; UI.wakeLock();
     $('#t-me').textContent = '멘토 ' + sess.name;
+    $('#t-sub').textContent = '미술 심화 멘토링 · ' + (sess.r === 'test' ? '리허설' : sess.r + '회차');   // 어느 회차에 들어왔는지 보이게
     room = new A.Room({ sess: sess, box: $('#stage'), localCam: function () { return cam; }, localScr: function () { return scr; },
       onTileClick: function (it) {
         var sp = room.view && room.view.spot && room.view.spot[room.view.myRoom];
