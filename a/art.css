@@ -56,6 +56,35 @@
 .tile:hover .t-tools { display: flex; }
 .t-tools button { border: 0; border-radius: 7px; background: rgba(18,19,21,.8); color: #fff; font-size: 12px; font-weight: 700; padding: 5px 8px; cursor: pointer; }
 
+/* 고정 자리 배치: 위 멘토 · 아래 학생 (녹화 화면과 같은 구성) */
+.astage.fixed { flex-direction: column; gap: 6px; padding: 10px 14px; background: #12465C; }
+.r-top { flex: 1.15 1 0; min-height: 0; display: flex; justify-content: center; align-items: center; gap: 12px; container-type: size; }
+.r-center { display: flex; justify-content: center; align-items: center; gap: 10px; height: 100%; }
+.r-side { display: flex; flex-direction: column; justify-content: center; gap: 8px; height: 100%; }
+.r-side:empty { display: none; }
+.r-top .tile { flex: none; aspect-ratio: 16/9; width: min(calc(100cqh * 16 / 9), calc((100cqw - (var(--n) - 1) * 10px) / var(--n))); }
+/* 발표 자료가 있을 때: 양옆 멘토는 높이를 나눠 작게, 가운데 자료는 남은 폭·높이 가득 */
+.r-top.has-feature { --sw: calc((100cqh - (var(--rows) - 1) * 8px) / var(--rows) * 16 / 9); }
+.r-top.has-feature .r-side .tile { width: min(var(--sw), 18cqw); }
+.r-top.has-feature .tile.feature { width: min(calc(100cqh * 16 / 9), calc(100cqw - 2 * min(var(--sw), 18cqw) - 24px)); }
+.r-top.has-feature.one-side .tile.feature { width: min(calc(100cqh * 16 / 9), calc(100cqw - min(var(--sw), 18cqw) - 12px)); }
+.r-div { flex: none; height: 14px; position: relative; display: grid; place-items: center; }
+.r-div::before { content: ""; position: absolute; left: 12%; right: 12%; top: 50%; height: 1px; background: #E9C460; opacity: .8; }
+.r-div i::before { content: "✦"; position: relative; color: #F2C94C; font-size: 15px; font-style: normal; background: #12465C; padding: 0 8px; }
+.r-bot { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: 8px; }
+.astage.fixed .tile { border: 3px solid #fff; border-radius: 4px; }
+.astage.fixed .tile video { object-fit: cover; }
+.astage.fixed .tile video.portrait, .astage.fixed .tile.feature video, .astage.fixed .tile.feature img { object-fit: contain; }
+.astage.fixed .tile.mentor .t-label { background: rgba(18,19,21,.72); }
+.astage.fixed .tile.spot { border-color: var(--yel); }
+.astage.fixed .tile.talk, .astage.fixed .tile.speaking { border-color: #4CD787; }
+.tile .spk { left: 8px; bottom: 8px; }
+.tile.speaking .t-label { left: 44px !important; }
+.astage.fixed .tile.feature { border-color: #F2C94C; }
+.tile.absent { cursor: default; }
+.tile.absent .t-wait { color: #C9CDD2; font-size: clamp(13px, 1.4vw, 18px); font-weight: 700; }
+.tile.absent .t-label { display: none; }
+
 /* 아래 조작 줄 */
 .abar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 12px max(10px, env(safe-area-inset-bottom)); background: var(--k1); border-top: 1px solid var(--k-line); flex-wrap: wrap; }
 .abtn { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; padding: 7px 10px; border-radius: 12px; border: 0; background: rgba(255,255,255,.06); color: #fff; font-size: 11.5px; font-weight: 700; cursor: pointer; }
@@ -70,9 +99,10 @@
 .amenu button small { display: block; font-weight: 500; color: var(--gray); font-size: 12px; }
 
 /* 멘토: 큰 남은 시간 */
-.abig { position: absolute; top: 68px; right: 16px; z-index: 6; text-align: center; background: rgba(18,19,21,.72); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 8px 22px 10px; pointer-events: none; }
-.abig b { display: block; font-size: clamp(36px, 5vw, 64px); line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
-.abig small { display: block; font-size: 13px; font-weight: 700; margin-top: 4px; color: var(--k-soft); }
+.abig { display: flex; align-items: baseline; gap: 8px; background: rgba(255,255,255,.08); border-radius: 12px; padding: 4px 14px; pointer-events: none; }
+.abig.hide { display: none; }
+.abig b { font-size: clamp(24px, 2.6vw, 34px); line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.abig small { font-size: 12.5px; font-weight: 700; color: var(--k-soft); }
 .abig.last { background: rgba(217,68,58,.95); border-color: transparent; animation: pulse 1s infinite; }
 .abig.last small { color: #fff; }
 @keyframes pulse { 50% { transform: scale(1.04); } }
@@ -83,7 +113,14 @@
   .tile.small { height: 100%; aspect-ratio: 4/3; }
   .r-main.n2 { grid-template-columns: 1fr; }
   .r-main.n3, .r-main.n4, .r-main.n5, .r-main.n6 { grid-template-columns: 1fr 1fr; }
-  .abig { top: 60px; right: 8px; padding: 6px 14px 8px; }
+  .abig { padding: 2px 10px; }
+  .astage.fixed { overflow-y: auto; padding: 8px; }
+  .r-top { flex: none; display: grid; grid-template-columns: 1fr 1fr; container-type: normal; }
+  .r-side, .r-center { display: contents; }
+  .r-top .tile, .r-top .tile.feature { width: auto; }
+  .r-top .tile.feature { grid-column: 1 / -1; order: -1 !important; }
+  .r-bot { flex: none; grid-auto-rows: auto; }
+  .r-bot .tile { aspect-ratio: 4/3; }
   .abtn { min-width: 54px; padding: 6px 6px; }
   .atop .ttl small { display: none; }
 }

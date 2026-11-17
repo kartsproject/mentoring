@@ -89,16 +89,21 @@ vm.runInContext(fs.readFileSync(path.join(ROOT, CODE + '/apps-script/Code.gs'), 
 const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 const hm = m => { const d = new Date(Date.now() + 9 * 3600e3 + m * 60000); return d.toISOString().slice(11, 16); };
 if (CODE === 'a') {
+  // 예전(Ver.1.0) 6칸 회차 탭 → setup이 4칸으로 바꾸는지
+  sheets['회차'] = mkSheet('회차');
+  sheets['회차'].appendRow(['회차', '날짜', '전체1 시작', '분반 시작', '전체2 시작', '마침']);
+  sheets['회차'].appendRow(['2', '2026-11-21', '10:00', '11:00', '', '12:00']);
   ctx.setup();
+  console.log('[migrate] 회차:', JSON.stringify(sheets['회차'].rows));
   props.CF_SFU_APP_ID = 'testapp'; props.CF_SFU_APP_TOKEN = 'testtoken';   // setup의 SFU 시험 연결은 건너뜀
   const ro = sheets['명단'];
   ro.rows.length = 1;
   [['test', '학생가', '20140101', 'A', '010-1111-2222', '010-3333-4444'], ['test', '학생나', '20150202', 'A', '', ''], ['test', '학생다', '20160303', 'B', '010-5555-6666', ''], ['test', '학생라', '20160404', 'B', '', ''], ['test', '학생마', '', 'B', '', '']].forEach(r => ro.appendRow(r));
   sheets['멘토'].rows.length = 1;
-  [['test', '멘토일', 'A'], ['test', '멘토이', 'B']].forEach(r => sheets['멘토'].appendRow(r));
+  [['test', '멘토일', 'A'], ['test', '멘토이', 'B'], ['test', '멘토삼', 'C'], ['test', '멘토사', 'D']].forEach(r => sheets['멘토'].appendRow(r));
   sheets['회차'].rows.length = 1;
-  sheets['회차'].appendRow(['test', today, hm(-5), hm(30), hm(60), hm(70)]);
-  sheets['회차'].appendRow(['2', '2026-11-21', '10:00', '11:00', '', '12:00']);
+  sheets['회차'].appendRow(['test', today, hm(-5), hm(70)]);
+  sheets['회차'].appendRow(['2', '2026-11-21', '10:00', '12:00']);
   ctx.cache_().remove('data');
 } else {
 // 예전 4칸 명단에서 옮겨 담기까지 시험

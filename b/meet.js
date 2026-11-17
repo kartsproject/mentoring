@@ -664,5 +664,69 @@
   // K 표지
   UI.kmark = function (cls) { return '<span class="kmark' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>'; };
 
-  window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck };
+  /* ───── 발언자 표시: 소리 크기를 재서 말하는 사람 칸에 아이콘(왼쪽 아래)·초록 후광 ─────
+   *  track(key, stream): 키(사람)별 소리 재기 / on(key): 지금 말하는 중인지 / listen(fn): 바뀔 때 알림
+   *  auto(videoSel, hostSel): 화면의 영상 요소들을 찾아 그 영상의 소리로 칸(host)에 표시(무용 화면용)
+   */
+  var Speak = (function () {
+    var ac = null, items = {}, fns = [], autos = [], timer = null, buf = null;
+    var THR = 0.015, HOLD = 800;
+    function ctx() {
+      if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+      if (ac.state !== 'running') ac.resume().catch(function () {});
+      return ac;
+    }
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (t) { document.addEventListener(t, function () { if (ac && ac.state !== 'running') ac.resume().catch(function () {}); }, true); });
+    function set(key, stream) {
+      var at = stream && stream.getAudioTracks && stream.getAudioTracks()[0], it = items[key];
+      if (it && it.tid === (at && at.id)) return;
+      if (it) { try { it.src.disconnect(); } catch (e) {} delete items[key]; if (it.on) emit(key, false); }
+      if (!at || at.readyState === 'ended') return;
+      var c = ctx(); if (!c) return;
+      try {
+        var src = c.createMediaStreamSource(new MediaStream([at])), an = c.createAnalyser();
+        an.fftSize = 2048; src.connect(an);
+        items[key] = { src: src, an: an, tid: at.id, track: at, on: false, last: 0, hits: 0 };
+      } catch (e) {}
+      if (!timer) timer = setInterval(loop, 140);
+    }
+    function emit(key, on) { fns.forEach(function (f) { try { f(key, on); } catch (e) {} }); }
+    function loop() {
+      var now = Date.now();
+      autos.forEach(function (a) {
+        document.querySelectorAll(a.v).forEach(function (el) {
+          if (!el.__spk) el.__spk = 'v' + Math.random().toString(36).slice(2, 8);
+          set(el.__spk, el.srcObject || null);
+          var host = el.closest(a.h) || el.parentNode, on = !!(items[el.__spk] && items[el.__spk].on);
+          if (host && host.classList.contains('speaking') !== on) mark(host, on);
+        });
+      });
+      Object.keys(items).forEach(function (k) {
+        var it = items[k];
+        if (it.track.readyState === 'ended') { set(k, null); return; }
+        if (!buf || buf.length !== it.an.fftSize) buf = new Float32Array(it.an.fftSize);
+        it.an.getFloatTimeDomainData(buf);
+        var sum = 0; for (var i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+        var rms = Math.sqrt(sum / buf.length), loud = it.track.enabled && rms > THR;
+        it.hits = loud ? it.hits + 1 : 0;
+        if (it.hits >= 1) it.last = now;
+        var on = now - it.last < HOLD;
+        if (on !== it.on) { it.on = on; emit(k, on); }
+      });
+    }
+    function mark(host, on) {
+      host.classList.toggle('speaking', on);
+      if (on && !host.querySelector(':scope > .spk')) { var s = document.createElement('span'); s.className = 'spk'; s.innerHTML = ICON_SPK; host.appendChild(s); }
+    }
+    var ICON_SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></svg>';
+    return {
+      track: set,
+      on: function (k) { return !!(items[k] && items[k].on); },
+      listen: function (fn) { fns.push(fn); },
+      auto: function (videoSel, hostSel) { autos.push({ v: videoSel, h: hostSel }); if (!timer) timer = setInterval(loop, 140); },
+      mark: mark, ICON: ICON_SPK
+    };
+  })();
+
+  window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck, Speak: Speak };
 })();

@@ -62,7 +62,7 @@
     <div class="meter"><i id="c-meter"></i></div>
     <ul class="tips">
       <li><b>PC·노트북</b>을 권장합니다. 휴대폰은 가로로 세워 두세요.</li>
-      <li>전체 멘토링 때는 마이크가 꺼진 채로 들어가고, 조별 멘토링이 되면 자동으로 켜집니다.</li>
+      <li>전체 멘토링 때는 마이크가 꺼진 채로 들어가고, 분반 멘토링이 되면 자동으로 켜집니다.</li>
       <li>작품은 <b>화면 공유 · 후면 카메라 · 사진 올리기</b>로 보여 줄 수 있어요.</li>
     </ul>
     <div class="err" id="c-err"></div>
@@ -155,7 +155,7 @@
     go('s-room'); entered = true; UI.wakeLock();
     $('#t-me').textContent = sess.name;
     room = new A.Room({ sess: sess, box: $('#stage'), localCam: function () { return cam; }, localScr: function () { return scr; },
-      onTileClick: function (it) { room.pin = room.pin === it.key ? null : it.key; room.render(room.view); },
+      onTileClick: function (it) { room.pin = it.feature || room.pin === it.key ? null : it.key; room.lastWant = ''; room.render(room.view); },
       onSfuState: function (st) { $('#t-conn').classList.toggle('off', st !== 'connected'); $('#t-conn span').textContent = st === 'connected' ? '연결됨' : '연결 중…'; if (st === 'failed') reconnect(); } });
     room.backCam = false;
     setMic(false);   // 전체 멘토링에서는 마이크 끈 채로
@@ -277,7 +277,7 @@
     try {
       var micOn = cam.getAudioTracks()[0] && cam.getAudioTracks()[0].enabled;
       check.stream = cam; await check.flip(); cam = check.stream; check.stopMeterOnly();
-      backCam = check.facing === 'environment'; room.o.backCam = backCam;
+      backCam = check.facing === 'environment'; room.backCam = backCam;
       cam.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
       await room.sfu.publish('cam', cam.getVideoTracks()[0]);
       await room.sfu.publish('mic', cam.getAudioTracks()[0]);

@@ -55,7 +55,7 @@
     <ul class="tips">
       <li>학생 칸을 누르면 <b>그 학생(화면 공유·작품 사진)을 모두에게 크게</b> 보여 줍니다. 다시 누르면 원래대로.</li>
       <li>학생 칸 위에 마우스를 올리면 「마이크 끄기」「손 내리기」가 나옵니다.</li>
-      <li>단계가 바뀌면(전체 ↔ 조별) 자동으로 해당 방으로 이동합니다.</li>
+      <li>단계가 바뀌면(전체 ↔ 분반) 자동으로 해당 방으로 이동합니다.</li>
     </ul>
     <div class="err" id="c-err"></div>
     <button class="btn full" id="c-btn" disabled>입장하기</button>
@@ -71,12 +71,12 @@
     <span class="phasechip" id="t-phase"></span>
     <span class="sp"></span>
     <span class="atimer hide" id="t-timer"></span>
+    <div class="abig hide" id="t-big"><b id="t-big-b"></b><small id="t-big-s"></small></div>
     <span class="conn3" id="t-conn"><i></i><span>연결됨</span></span>
   </div>
   <div class="apend hide" id="t-pend"></div>
   <div class="anotice hide" id="t-notice"><span id="t-notice-tx"></span><button class="x" type="button" id="t-notice-x" aria-label="닫기"></button></div>
   <div class="astage" id="stage" style="position:relative"></div>
-  <div class="abig hide" id="t-big"><b id="t-big-b"></b><small id="t-big-s"></small></div>
   <div class="abar">
     <button class="abtn" type="button" id="b-mic"></button>
     <button class="abtn" type="button" id="b-cam"></button>
@@ -239,7 +239,7 @@
     var to = v.myRoom, ment = to !== 'all' ? (v.mentorsOf[to.slice(1)] || []).join('·') : '';
     $('#t-move-h').innerHTML = to === 'all' ? '<em>전체</em>로 모입니다' : '<em>' + A.roomName(to) + '</em>로 이동합니다';
     var cnt = (v.people || []).filter(function (p) { return p.room === to && p.role === 'student' && p.live; }).length;
-    $('#t-move-p').textContent = to === 'all' ? '전체 멘토링으로 돌아왔습니다.' : '학생 ' + cnt + '명과 조별 멘토링을 시작합니다.';
+    $('#t-move-p').textContent = to === 'all' ? '전체 멘토링으로 돌아왔습니다.' : '학생 ' + cnt + '명과 분반 멘토링을 시작합니다.';
     UI.show('#t-move', true);
     clearTimeout(showMove.t); showMove.t = setTimeout(function () { UI.show('#t-move', false); }, 2600);
   }
@@ -292,7 +292,7 @@
     try {
       var micOn = cam.getAudioTracks()[0] && cam.getAudioTracks()[0].enabled;
       check.stream = cam; await check.flip(); cam = check.stream; check.stopMeterOnly();
-      backCam = check.facing === 'environment'; room.o.backCam = backCam;
+      backCam = check.facing === 'environment'; room.backCam = backCam;
       cam.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
       await room.sfu.publish('cam', cam.getVideoTracks()[0]);
       await room.sfu.publish('mic', cam.getAudioTracks()[0]);

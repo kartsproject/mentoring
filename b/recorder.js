@@ -148,6 +148,7 @@
 
   Recorder.prototype.draw = function () {
     var c = this.ctx, W = this.W, H = this.H;
+    if (this.painter) { try { this.painter(c, W, H); } catch (e) { console.warn('painter', e); } return; }   // 화면 구성을 직접 그리는 경우(미술)
     c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
     var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
     if (this.layout) {

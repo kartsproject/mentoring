@@ -16,10 +16,16 @@
   header.top h1 { font-size: 17px; margin: 0; }
   header.top h1 small { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--band-soft); font-weight: 600; }
   .steps { display: flex; gap: 3px; padding: 3px; background: rgba(255,255,255,.06); border-radius: 10px; }
-  .steps button { border: 0; background: transparent; color: var(--band-soft); font-weight: 700; font-size: 13.5px; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
-  .steps button:hover { color: #fff; background: rgba(255,255,255,.08); }
-  .steps button.on { background: var(--yel); color: var(--ink); }
-  .steps button.pend { box-shadow: inset 0 0 0 2px var(--yel); color: #fff; }
+  .steps { align-items: center; }
+  .phnow { font-weight: 800; font-size: 14px; padding: 6px 12px; border-radius: 7px; background: rgba(255,255,255,.1); white-space: nowrap; }
+  .phnow.ph-all { background: #2F8A57; color: #fff; }
+  .phnow.ph-group { background: var(--art); color: #fff; }
+  .steps button { border: 0; font-weight: 800; font-size: 14px; border-radius: 7px; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+  .steps button.go { background: var(--yel); color: var(--ink); }
+  .steps button.ghost { background: transparent; color: var(--band-soft); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+  .steps button.go:hover { filter: brightness(1.05); }
+  .steps button.arm { background: var(--red); color: #fff; box-shadow: none; animation: blink 1s infinite; }
+  .steps button:disabled { opacity: .6; cursor: default; animation: none; }
   header.top .sp { flex: 1; }
   .tchip { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 14px; background: rgba(255,255,255,.08); border-radius: 8px; padding: 6px 11px; white-space: nowrap; }
   .tchip.soon { background: var(--red); animation: blink 1s infinite; }
@@ -31,10 +37,6 @@
   .switch i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
   .switch input:checked + i { background: var(--rec); }
   .switch input:checked + i::after { left: 19px; }
-  .phpop { position: absolute; z-index: 40; background: var(--paper); color: var(--ink); border-radius: 12px; padding: 8px; box-shadow: 0 20px 50px rgba(0,0,0,.35); display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
-  .phpop b { font-size: 13px; padding: 4px 8px; }
-  .phpop button { border: 0; background: var(--desk); border-radius: 8px; padding: 9px 12px; font-weight: 700; cursor: pointer; text-align: left; }
-  .phpop button:hover { background: var(--yel-lt); }
   .recbad { background: var(--red); color: #fff; text-align: center; font-weight: 800; padding: 8px; animation: blink 1.2s infinite; flex: none; }
 
   .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; }
@@ -52,7 +54,7 @@
   .rph .btn.ghost.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
   .rph .talk.down { background: var(--rec) !important; border-color: var(--rec) !important; color: #fff !important; }
   .rpb { flex: 1; min-height: 160px; display: grid; gap: 6px; padding: 0 8px 8px; grid-auto-rows: 1fr; }
-  .rpb.c1 { grid-template-columns: 1fr; } .rpb.c2 { grid-template-columns: 1fr 1fr; } .rpb.c3 { grid-template-columns: repeat(3, 1fr); } .rpb.c4 { grid-template-columns: repeat(4, 1fr); }
+  .rpb.c1 { grid-template-columns: 1fr; } .rpb.c2 { grid-template-columns: 1fr 1fr; } .rpb.c3 { grid-template-columns: repeat(3, 1fr); } .rpb.c4 { grid-template-columns: repeat(4, 1fr); } .rpb.c5 { grid-template-columns: repeat(5, 1fr); }
   .rpb .tile, .rpb .tile.small { min-height: 90px; aspect-ratio: auto; height: auto; }
   .rpb .tile.big { grid-column: span 2; grid-row: span 2; }
   .empty-room { display: grid; place-items: center; color: var(--k-soft); font-size: 14px; }
@@ -112,7 +114,7 @@
     <div class="steps op-only" id="steps"></div>
     <span class="tchip" id="h-timer"></span>
     <span class="sp"></span>
-    <label class="switch op-only" title="이 PC에서 전체·조별 영상을 FHD로 녹화합니다"><input type="checkbox" id="sw-rec"><i></i><span>이 PC에서 녹화</span></label>
+    <label class="switch op-only" title="이 PC에서 전체·분반 영상을 FHD로 녹화합니다"><input type="checkbox" id="sw-rec"><i></i><span>이 PC에서 녹화</span></label>
     <span class="me" id="h-me"></span>
     <button class="btn ghost sm" id="b-out" type="button">나가기</button>
   </header>
@@ -190,9 +192,10 @@
     $('#h-sub').textContent = '미술 심화 멘토링 · ' + (sess.r === 'test' ? '리허설' : sess.r + '회차');
     UI.netbar(sess);
     room = new A.Room({ sess: sess, noRender: true, box: document.createElement('div'), localCam: function () { return null; },
-      onSfuState: function (st) { if (st === 'failed') reopen(); }, onTrack: function () { paintRooms(); } });
+      onSfuState: function (st) { if (st === 'failed') reopen(); }, onTrack: function () { paintRooms(); if (recOn) recSync(); } });
     sess.on('view', onView);
     sess.start();
+    M.Speak.listen(function (id, on) { UI.$$('.rpb .tile').forEach(function (c) { if (c._it && c._it.id === id && c._it.kind === 'cam') M.Speak.mark(c, on); }); });
     try {
       mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
       mic.getAudioTracks().forEach(function (t) { t.enabled = false; });
@@ -223,40 +226,48 @@
     if (recOn) recSync();
   }
 
-  /* 위 띠: 단계 버튼 */
-  var STEPS = [['ready', '시작 전'], ['all1', '전체 멘토링'], ['group', '조별 멘토링'], ['all2', '전체 마무리'], ['end', '마침']];
+  /* 위 띠: 진행 버튼 — 시작 전 → [멘토링 시작] → 전체 ⇄ [분반 시작]/[분반 종료] → [마침]
+   * 누르면 바로 모두 이동(실수 방지로 두 번 누름) */
+  function phaseLabel(v) { return v.phase === 'all' ? '전체' + (v.round > 1 ? ' ' + v.round : '') : v.phase === 'group' ? '분반' + (v.round > 1 ? ' ' + v.round : '') : A.PH[v.phase]; }
   function paintHeader(v) {
-    $('#steps').innerHTML = STEPS.map(function (s) {
-      return '<button type="button" data-p="' + s[0] + '" class="' + (v.phase === s[0] ? 'on' : '') + (v.pend && v.pend.to === s[0] ? ' pend' : '') + '">' + s[1] + '</button>';
-    }).join('');
+    var acts = v.phase === 'ready' ? [['all', '멘토링 시작', 'go']]
+      : v.phase === 'all' ? [['group', '분반 시작', 'go'], ['end', '마침', 'ghost']]
+      : v.phase === 'group' ? [['all', '분반 종료 · 전체로', 'go']]
+      : [['all', '다시 전체로', 'ghost']];
+    var sig = v.phase + v.round;
+    if ($('#steps').dataset.sig !== sig) {
+      $('#steps').dataset.sig = sig;
+      $('#steps').innerHTML = '<span class="phnow ph-' + v.phase + '">' + UI.esc(phaseLabel(v)) + '</span>' + acts.map(function (a) {
+        return '<button type="button" class="' + a[2] + '" data-p="' + a[0] + '" data-l="' + UI.esc(a[1]) + '">' + UI.esc(a[1]) + '</button>';
+      }).join('');
+    }
     tick();
   }
   $('#steps').addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b || !view) return;
-    var to = b.dataset.p, old = document.querySelector('.phpop'); if (old) old.remove();
-    if (to === view.phase && !view.pend) return;
-    var pop = document.createElement('div'); pop.className = 'phpop';
-    var r = b.getBoundingClientRect(); pop.style.left = r.left + 'px'; pop.style.top = (r.bottom + 6) + 'px';
-    pop.innerHTML = '<b>' + UI.esc(A.PH[to]) + '(으)로</b><button data-d="0">바로 이동</button><button data-d="60">1분 뒤 (예고 띄우기)</button><button data-d="180">3분 뒤</button>' +
-      (view.pend ? '<button data-d="x">예약 취소</button>' : '');
-    document.body.appendChild(pop);
-    pop.onclick = function (ev) {
-      var d = ev.target.closest('button'); if (!d) return;
-      pop.remove();
-      if (d.dataset.d === 'x') sess.op('unpend'); else sess.op('phase', { to: to, delay: Number(d.dataset.d) });
-    };
-    setTimeout(function () { document.addEventListener('click', function off(ev) { if (!ev.target.closest('.phpop') && !ev.target.closest('#steps')) { pop.remove(); document.removeEventListener('click', off); } }); }, 0);
+    var b = e.target.closest('button'); if (!b || !view || b.disabled) return;
+    if (!b.classList.contains('arm')) {   // 첫 번째: 확인 요청
+      UI.$$('#steps button.arm').forEach(function (x) { x.classList.remove('arm'); x.textContent = x.dataset.l; });
+      b.classList.add('arm'); b.textContent = '한 번 더 누르면 ' + b.dataset.l;
+      clearTimeout(b._t); b._t = setTimeout(function () { b.classList.remove('arm'); b.textContent = b.dataset.l; }, 3500);
+      return;
+    }
+    clearTimeout(b._t); b.disabled = true; b.textContent = '이동 중…';
+    sess.op('phase', { to: b.dataset.p, delay: 0 }).then(function (j) {
+      if (!j.ok) { UI.toast('바꾸지 못했습니다(' + (j.error || '') + ')'); b.disabled = false; b.textContent = b.dataset.l; b.classList.remove('arm'); }
+      else UI.toast(b.dataset.p === 'group' ? '분반을 시작했습니다 — 학생·멘토가 각 조로 이동합니다' : b.dataset.p === 'all' ? '모두 전체로 모입니다' : b.dataset.p === 'end' ? '멘토링을 마쳤습니다' : '');
+    });
   });
   function tick() {
     if (!view) return;
     var t = A.timerText(view, sess.now());
-    $('#h-timer').textContent = t ? t.text : A.PH[view.phase];
+    var el = (view.phase === 'all' || view.phase === 'group') ? ' · ' + phaseLabel(view) + ' ' + UI.mmss(Math.max(0, sess.now() - view.phaseAt)) + ' 경과' : '';
+    $('#h-timer').textContent = (t ? t.text : A.PH[view.phase]) + el;
     $('#h-timer').classList.toggle('soon', !!(t && t.soon));
     if (recOn) recWatch();
   }
   setInterval(tick, 1000);
 
-  /* 방 보기: 전체면 한 판, 조별이면 조마다 한 판 */
+  /* 방 보기: 전체면 한 판, 분반이면 조마다 한 판 */
   function roomsNow(v) {
     if (v.phase === 'group') return v.groups.map(function (g) { return 'g' + g; }).concat(v.people.some(function (p) { return p.room === 'all' && (p.role === 'student' || p.role === 'mentor') && p.live; }) ? ['all'] : []);
     return ['all'];
@@ -289,17 +300,14 @@
         (ppl.some(function (p) { return p.hand; }) ? ' · 손든 학생 있음' : '');
       el.classList.toggle('hear', listen === rm);
       el.querySelector('.hear').classList.toggle('on', listen === rm);
-      // 칸: 사람 영상 + 화면 공유 + 작품 사진
-      var items = [];
-      ppl.forEach(function (p) {
-        var st = room.streams[p.id] || {};
-        items.push({ key: p.id + '|cam', p: p, stream: st.cam, label: (p.role === 'mentor' ? '멘토 ' : '') + p.name, kind: 'cam' });
-        if (p.tr && p.tr.scr) items.push({ key: p.id + '|scr', p: p, stream: st.scr, label: p.name + ' 화면', kind: 'scr' });
-        if (p.photo) items.push({ key: p.id + '|photo|' + p.photo.f, p: p, photo: p.photo.f, label: p.name + ' 사진', kind: 'photo' });
-      });
+      // 칸: 위 멘토(+크게 볼 것) · 아래 학생 — 명단 자리 고정, 들어오지 않은 사람은 검은 칸에 이름
+      var sl = A.slots(v, rm, { streams: room.streams, me: v.me });
+      var items = sl.mentors.slice();
+      if (sl.feature) items.push(sl.feature);
+      items = items.concat(sl.students);
       var spot = v.spot && v.spot[rm];
       var body = el.querySelector('.rpb'), n = items.length;
-      body.className = 'rpb c' + (n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4);
+      body.className = 'rpb c' + (n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5);
       var ks = {};
       if (!n) body.innerHTML = '<div class="empty-room">아직 아무도 없습니다</div>';
       else { var em = body.querySelector('.empty-room'); if (em) em.remove(); }
@@ -309,18 +317,27 @@
         if (!c) {
           c = document.createElement('div'); c.className = 'tile small'; c.dataset.k = it.key;
           c.innerHTML = (it.kind === 'photo' ? '<img alt="">' : '<video playsinline muted></video>') + '<div class="t-wait"></div><span class="t-label"></span><span class="t-badges"></span>';
-          c.onclick = function () { var same = spot && spot.id === it.p.id && spot.kind === it.kind; if (role === 'ops') sess.op('spot', same ? { room: rm } : { room: rm, target: it.p.id, kind: it.kind }); };
+          c.onclick = function () {
+            var x = c._it; if (!x.p || role !== 'ops') return;
+            var sp = view.spot && view.spot[rm], same = sp && sp.id === x.id && sp.kind === x.kind;
+            sess.op('spot', same || x.feature ? { room: rm } : { room: rm, target: x.id, kind: x.kind });
+          };
           body.appendChild(c);
         }
+        c._it = it;
         c.style.order = i;
-        c.classList.toggle('spot', !!spot && spot.id === it.p.id && spot.kind === it.kind);
-        c.classList.toggle('big', !!spot && spot.id === it.p.id && spot.kind === it.kind && n > 2);
-        c.classList.toggle('mentor', it.p.role === 'mentor');
-        var vid = c.querySelector('video'); if (vid && vid.srcObject !== (it.stream || null)) { vid.srcObject = it.stream || null; if (it.stream) vid.play().catch(function () {}); }
+        var absent = !it.p || !it.p.live;
+        c.classList.toggle('absent', absent);
+        c.classList.toggle('spot', !!it.spot);
+        c.classList.toggle('big', !!it.feature && n > 2);
+        c.classList.toggle('mentor', it.role === 'mentor');
+        M.Speak.mark(c, it.kind === 'cam' && !absent && M.Speak.on(it.id));
+        var vid = c.querySelector('video'), want = absent ? null : (it.stream || null);
+        if (vid && vid.srcObject !== want) { vid.srcObject = want; if (want) vid.play().catch(function () {}); }
         var img = c.querySelector('img'); if (img && !img.src) A.img(sess, it.photo).then(function (u) { img.src = u; }).catch(function () {});
-        c.querySelector('.t-wait').textContent = it.kind === 'photo' ? '' : it.stream ? '' : '연결 중…';
+        c.querySelector('.t-wait').textContent = absent ? it.name : it.kind === 'photo' ? '' : it.stream ? '' : '연결 중…';
         c.querySelector('.t-label').textContent = it.label;
-        c.querySelector('.t-badges').innerHTML = it.p.hand && it.kind === 'cam' ? '<b class="hand">' + UI.ico('hand') + '</b>' : '';
+        c.querySelector('.t-badges').innerHTML = it.p && it.p.hand && it.kind === 'cam' ? '<b class="hand">' + UI.ico('hand') + '</b>' : '';
       });
       Array.from(body.querySelectorAll('.tile')).forEach(function (c) { if (!ks[c.dataset.k]) c.remove(); });
     });
@@ -404,7 +421,7 @@
   };
 
   /* ───── 녹화(이 PC) ─────
-   * 전체 단계: 전체 방 1개 파일, 조별 단계: 조마다 파일(버거우면 4분할 1개 파일로 자동 전환)
+   * 전체 단계: 전체 방 1개 파일, 분반 단계: 조마다 파일(버거우면 4분할 1개 파일로 자동 전환)
    * 무용과 같은 안전장치: 폴더 자동 저장 + 예비 사본·복구 + 멈춤 감지 + 소리 막힘 대응
    */
   var REC = window.MeetRecorder, vids = {};
@@ -437,33 +454,152 @@
   }
   var imgs = {};
   function imgFor(f) { if (!imgs[f]) { var im = imgs[f] = new Image(); A.img(sess, f).then(function (u) { im.src = u; }); } return imgs[f]; }
+  // 녹화 화면에 그릴 방 구성(위 멘토 · 아래 학생 · 크게 볼 것) + 녹음할 소리
   function sectionOf(rm) {
-    var v = view, spot = v.spot && v.spot[rm], items = [], aud = [];
-    v.people.filter(function (p) { return p.room === rm && (p.role === 'student' || p.role === 'mentor') && p.live; })
-      .sort(function (a, b) { return (a.role === 'mentor' ? 0 : 1) - (b.role === 'mentor' ? 0 : 1) || a.name.localeCompare(b.name, 'ko'); })
-      .forEach(function (p) {
-        var st = room.streams[p.id] || {};
-        if (st.mic) aud.push({ key: p.id + '|mic', stream: st.mic });
-        items.push({ key: p.id + '|cam', video: vidFor(p.id + '|cam', st.cam), label: (p.role === 'mentor' ? '멘토 ' : '') + p.name, big: !!spot && spot.id === p.id && spot.kind === 'cam' });
-        if (p.tr && p.tr.scr) items.push({ key: p.id + '|scr', video: vidFor(p.id + '|scr', st.scr), label: p.name + ' 화면 공유', big: !spot || (spot.id === p.id && spot.kind === 'scr') });
-        if (p.photo) items.push({ key: p.id + '|ph', img: imgFor(p.photo.f), label: p.name + ' 작품 사진', big: !!spot && spot.id === p.id && spot.kind === 'photo' });
-      });
+    var v = view, aud = [];
+    var sl = A.slots(v, rm, { streams: room.streams, me: v.me });
+    var conv = function (it) {
+      var o = { key: it.key, id: it.id, kind: it.kind, label: it.label, name: it.name, feature: !!it.feature, mentor: it.role === 'mentor', absent: !it.p || !it.p.live };
+      if (it.kind === 'photo') o.img = imgFor(it.photo);
+      else if (!o.absent) o.video = vidFor(it.key, it.stream);
+      return o;
+    };
+    sl.mentors.concat(sl.students).forEach(function (it) {
+      var st = room.streams[it.id] || {};
+      if (it.p && it.p.live && st.mic) aud.push({ key: it.id + '|mic', stream: st.mic });
+    });
     // 운영진·연구원이 그 방에 말하는 소리도 녹음
     v.people.filter(function (p) { return (p.role === 'ops' || p.role === 'research') && p.room === rm && p.id !== v.me; }).forEach(function (p) {
       var st = room.streams[p.id] || {}; if (st.mic && p.talk) aud.push({ key: p.id + '|mic', stream: st.mic });
     });
     if (rm === listen && mic) aud.push({ key: 'me|mic', stream: mic });   // 내 마이크는 말할 때만 켜짐
-    var ment = rm === 'all' ? '' : (v.mentorsOf[rm.slice(1)] || []).join('·');
-    return { title: rm === 'all' ? '' : A.roomName(rm) + (ment ? ' · 멘토 ' + ment : ''), items: items, audio: aud, idle: rm === 'all' ? '멘토링 대기 중' : '조별 멘토링' };
+    return { room: rm, mode: rm === 'all' ? 'all' : 'group', sub: rm === 'all' ? '' : '소그룹 멘토링 ' + A.gname(rm.slice(1)).replace('조', ''),
+             top: sl.mentors.map(conv), feat: sl.feature ? conv(sl.feature) : null, bot: sl.students.map(conv), audio: aud };
+  }
+
+  /* 녹화 화면 그리기(1920×1080) — 프로젝트 틀(img/rec-bg.jpg) 위에 위 멘토 · 아래 학생, 빈 자리는 검은 칸에 이름 */
+  var BG = new Image(); BG.src = 'img/rec-bg.jpg';
+  var FONT = '"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", sans-serif';
+  function drawMedia(c, el, x, y, w, h, contain) {
+    var vw = el ? (el.videoWidth || el.naturalWidth || 0) : 0, vh = el ? (el.videoHeight || el.naturalHeight || 0) : 0;
+    if (!vw || !(el.tagName === 'IMG' ? el.complete : el.readyState >= 2)) return false;
+    var portrait = vh > vw * 1.05, fit = contain || portrait;
+    var sc = fit ? Math.min(w / vw, h / vh) : Math.max(w / vw, h / vh), dw = vw * sc, dh = vh * sc;
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+    try { c.drawImage(el, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); } catch (e) {}
+    c.restore(); return true;
+  }
+  function drawCell(c, it, x, y, w, h, k, labelH) {
+    var b = Math.max(2, Math.round(4 * k)), spk = !it.absent && it.kind === 'cam' && M.Speak.on(it.id);
+    if (spk) {   // 말하는 사람: 초록 후광
+      c.save(); c.shadowColor = 'rgba(76,215,135,.9)'; c.shadowBlur = 26 * k; c.fillStyle = '#4CD787';
+      c.fillRect(x - b * 1.6, y - b * 1.6, w + 3.2 * b, h + 3.2 * b); c.restore();
+    }
+    c.fillStyle = spk ? '#4CD787' : it.feature ? '#F2C94C' : '#fff'; c.fillRect(x - b, y - b, w + 2 * b, h + 2 * b);
+    c.fillStyle = '#000'; c.fillRect(x, y, w, h);
+    var ok = !it.absent && drawMedia(c, it.video || it.img, x, y, w, h, it.feature);
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (!ok) { c.fillStyle = '#9AA0A6'; c.font = '700 ' + Math.round(Math.min(26, Math.max(13, h / 7)) * Math.min(1, k + .2)) + 'px ' + FONT; c.fillText(it.absent ? it.name : '연결 중…', x + w / 2, y + h / 2); }
+    if (spk) {   // 왼쪽 아래 말하기 아이콘
+      var r0 = Math.max(9, 15 * k), cx = x + 10 * k + r0, cy = y + h - 10 * k - r0;
+      c.fillStyle = '#2FB36A'; c.beginPath(); c.arc(cx, cy, r0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#fff'; c.lineWidth = Math.max(1.5, 2.4 * k); c.lineCap = 'round';
+      [-2, -1, 0, 1, 2].forEach(function (i) { var hh = [4, 7, 10, 7, 4][i + 2] * k * (0.8 + 0.4 * Math.abs(Math.sin(Date.now() / 160 + i))); c.beginPath(); c.moveTo(cx + i * 4 * k, cy - hh); c.lineTo(cx + i * 4 * k, cy + hh); c.stroke(); });
+    }
+    c.fillStyle = '#fff'; c.font = '700 ' + Math.round(17 * k) + 'px ' + FONT;
+    c.fillText(it.label, x + w / 2, y + h + b + labelH / 2);
+    c.textAlign = 'left';
+  }
+  // 한 줄에 칸 놓기(크게 볼 것은 2배 폭) — 가운데 정렬
+  function drawRow(c, items, R, k, labelH) {
+    if (!items.length) return;
+    var gap = 14 * k, sumW = 0, maxW = 1;
+    items.forEach(function (it) { var wt = it.feature ? 2 : 1; sumW += wt; maxW = Math.max(maxW, wt); });
+    var unit = Math.min((R.w - gap * (items.length - 1)) / sumW, (R.h - labelH) * 16 / 9 / maxW);
+    var total = unit * sumW + gap * (items.length - 1), x = R.x + (R.w - total) / 2;
+    var hMax = unit * maxW * 9 / 16;
+    items.forEach(function (it) {
+      var w = unit * (it.feature ? 2 : 1), h = w * 9 / 16;
+      drawCell(c, it, x, R.y + (R.h - labelH - hMax) / 2 + (hMax - h) / 2, w, h, k, labelH);
+      x += w + gap;
+    });
+  }
+  // 발표 자료가 있을 때: 가운데 자료 크게, 멘토는 양옆에 작게(위아래로 쌓음)
+  function drawFeatureTop(c, ms, feat, R, k, labelH) {
+    var gap = 14 * k, half = Math.ceil(ms.length / 2), L = ms.slice(0, half), Rt = ms.slice(half), rows = Math.max(1, L.length, Rt.length);
+    var sh = ms.length ? (R.h - rows * labelH - (rows - 1) * 6 * k) / rows : 0, sw = Math.min(sh * 16 / 9, R.w * .2); sh = sw * 9 / 16;
+    var sides = (L.length ? sw + gap : 0) + (Rt.length ? sw + gap : 0);
+    var fw = Math.min((R.h - labelH) * 16 / 9, R.w - sides), fh = fw * 9 / 16;
+    var total = sides + fw, x = R.x + (R.w - total) / 2;
+    var col = function (list, cx) {
+      var colH = list.length * (sh + labelH) + (list.length - 1) * 6 * k, y = R.y + (R.h - colH) / 2;
+      list.forEach(function (it) { drawCell(c, it, cx, y, sw, sh, k * .85, labelH); y += sh + labelH + 6 * k; });
+    };
+    if (L.length) { col(L, x); x += sw + gap; }
+    drawCell(c, feat, x, R.y + (R.h - labelH - fh) / 2, fw, fh, k, labelH); x += fw + gap;
+    if (Rt.length) col(Rt, x);
+  }
+  function drawGrid(c, items, R, k, labelH) {
+    var n = items.length; if (!n) return;
+    var rows = n <= 5 ? 1 : n <= 14 ? 2 : 3, cols = Math.ceil(n / rows), gap = 14 * k, rowH = R.h / rows;
+    var w = Math.min((R.w - gap * (cols - 1)) / cols, (rowH - labelH - 10 * k) * 16 / 9), h = w * 9 / 16;
+    for (var r = 0; r < rows; r++) {
+      var row = items.slice(r * cols, (r + 1) * cols), total = w * row.length + gap * (row.length - 1), x = R.x + (R.w - total) / 2;
+      var y = R.y + r * rowH + (rowH - labelH - h) / 2;
+      row.forEach(function (it) { drawCell(c, it, x, y, w, h, k, labelH); x += w + gap; });
+    }
+  }
+  function drawDivider(c, cx, y, half, k) {
+    c.strokeStyle = 'rgba(233,196,96,.85)'; c.lineWidth = Math.max(1, 1.5 * k);
+    c.beginPath(); c.moveTo(cx - half, y); c.lineTo(cx + half, y); c.stroke();
+    var star = function (x, r) { c.beginPath(); for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4, rr = i % 2 ? r * 0.28 : r; c.lineTo(x + Math.sin(a) * rr, y - Math.cos(a) * rr); } c.closePath(); c.fill(); };
+    c.fillStyle = '#12465C'; c.fillRect(cx - 70 * k, y - 18 * k, 140 * k, 36 * k);
+    c.fillStyle = '#F2C94C'; star(cx, 22 * k); star(cx - 42 * k, 12 * k); star(cx + 42 * k, 12 * k);
+  }
+  // 방 하나를 R 안에 그림(전체: 위 멘토 줄·아래 학생 2줄 / 소그룹: 위 멘토 크게·아래 학생 1줄)
+  function drawRoomPlan(c, sec, R, k) {
+    var labelH = 30 * k, g = sec.mode === 'group';
+    var topR = g ? { x: R.x, y: R.y + R.h * .02, w: R.w, h: R.h * .585 } : { x: R.x, y: R.y, w: R.w, h: R.h * .415 };
+    var divY = R.y + R.h * (g ? .622 : .43);
+    var botR = g ? { x: R.x, y: R.y + R.h * .645, w: R.w, h: R.h * .35 } : { x: R.x, y: R.y + R.h * .455, w: R.w, h: R.h * .545 };
+    if (sec.feat) drawFeatureTop(c, sec.top, sec.feat, topR, k, labelH); else drawRow(c, sec.top, topR, k, labelH);
+    drawDivider(c, R.x + R.w / 2, divY, R.w * .39, k);
+    if (g) drawRow(c, sec.bot, botR, k, labelH); else drawGrid(c, sec.bot, botR, k, labelH);
+  }
+  function painterFor(x) {
+    return function (c, W, H) {
+      if (BG.complete && BG.naturalWidth) c.drawImage(BG, 0, 0, W, H);
+      else { c.fillStyle = '#F1D069'; c.fillRect(0, 0, W, H); c.fillStyle = '#12465C'; c.fillRect(22, 22, W - 44, H - 44); }
+      var secs = x.plan || [], S = W / 1920;
+      var C0 = { x: 96 * S, y: 128 * S, w: 1730 * S, h: 868 * S };
+      if (secs.length === 1) {
+        var sec = secs[0];
+        if (sec.sub) { c.fillStyle = '#fff'; c.font = '700 ' + Math.round(22 * S) + 'px ' + FONT; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(sec.sub, 1826 * S, 127 * S); c.textAlign = 'left'; }
+        drawRoomPlan(c, sec, sec.sub ? { x: C0.x, y: C0.y + 14 * S, w: C0.w, h: C0.h - 14 * S } : C0, S);
+      } else {   // 4분할(PC가 버거울 때): 소그룹 4개를 한 화면에
+        var rowsN = Math.ceil(secs.length / 2), gw = (C0.w - 20 * S) / 2, gh = (C0.h - 20 * S * (rowsN - 1)) / rowsN;
+        secs.forEach(function (sec, i) {
+          var R = { x: C0.x + (i % 2) * (gw + 20 * S), y: C0.y + Math.floor(i / 2) * (gh + 20 * S), w: gw, h: gh };
+          c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(R.x, R.y, R.w, R.h);
+          c.fillStyle = '#F2C94C'; c.font = '700 ' + Math.round(17 * S) + 'px ' + FONT; c.textBaseline = 'middle'; c.fillText(sec.sub, R.x + 10 * S, R.y + 16 * S);
+          drawRoomPlan(c, sec, { x: R.x + 8 * S, y: R.y + 30 * S, w: R.w - 16 * S, h: R.h - 34 * S }, S * (rowsN > 1 ? .55 : .7));
+        });
+      }
+    };
   }
   function stamp() { var k = new Date(Date.now() + 9 * 3600e3).toISOString(); return k.slice(2, 4) + k.slice(5, 7) + k.slice(8, 10) + '_' + k.slice(11, 13) + k.slice(14, 16); }
   function fileName(key) {
     var r = sess.r === 'test' ? '리허설' : sess.r + '회차', ph = view.phase;
-    var what = key === 'quad' ? '조별_4분할' : key === 'all' ? ({ ready: '대기', all1: '전체1', all2: '전체2', end: '대기', group: '전체' })[ph] : (function () { var g = key.slice(1); var m = (view.mentorsOf[g] || []).join('·'); return A.gname(g) + (m ? '_' + m : ''); })();
+    // 전체(분반전) → 분반1~4(조마다) → 전체(분반후). 분반을 또 하면 뒤에 _2차, 전체는 _분반후2 …
+    var rd = view.round || 1, again = view.phase === 'group' && rd > 1 ? '_' + rd + '차' : '';
+    var what = key === 'quad' ? '분반_4분할' + again
+      : key === 'all' ? (view.phase === 'group' ? '분반_미배정' + again : rd <= 1 ? '전체_분반전' : '전체_분반후' + (rd > 2 ? rd - 1 : ''))
+      : (function () { var g = Number(key.slice(1)); var m = (view.mentorsOf[g] || []).join('·'); return '분반' + g + '_' + A.gname(g) + (m ? '_' + m : '') + again; })();
     return stamp() + '_미술_' + r + '_' + what;
   }
   function wanted() {   // 지금 녹화해야 할 파일들: key → 묶음 목록
     var v = view, out = {};
+    if (v.phase === 'ready' || v.phase === 'end') return out;   // 시작 전·마친 뒤는 녹화하지 않음
     if (v.phase === 'group') {
       var gs = v.groups.map(function (g) { return 'g' + g; });
       if (quad) out.quad = gs; else gs.forEach(function (g) { out[g] = [g]; });
@@ -473,20 +609,22 @@
   }
   function recSync() {
     if (!view || !recOn) return;
-    var want = wanted(), ph = view.phase;
+    var want = wanted(), ph = view.phase + (view.round || '');
     Object.keys(recs).forEach(function (k) { if (!want[k] || recs[k].ph !== ph) stopRec(k); });
     Object.keys(want).forEach(function (k) {
       var x = recs[k];
       if (!x) {
-        var r = new REC({ onFile: fileAdded, onState: function () {} });
+        var r = new REC({ onFile: fileAdded, onState: function () {}, fps: C.REC_FPS || 30 });
         r.setDir(dirH); r.resume();
         x = recs[k] = { r: r, ph: ph, rooms: want[k], made: Date.now() };
       }
       x.rooms = want[k];
-      x.r.title = '2026 K예술영재 · 미술 심화 멘토링 · ' + A.PH[ph] + (k !== 'all' && k !== 'quad' ? ' · ' + A.roomName(k) : '');
+      x.r.title = '2026 K예술영재 · 미술 심화 멘토링 · ' + phaseLabel(view) + (k !== 'all' && k !== 'quad' ? ' · ' + A.roomName(k) : '');
       var secs = x.rooms.map(sectionOf), aud = [];
       secs.forEach(function (s) { aud = aud.concat(s.audio); });
-      x.r.setLayout(secs.map(function (s) { return { title: x.rooms.length > 1 ? s.title : '', items: s.items, idle: s.idle }; }), aud);
+      x.plan = secs;
+      if (!x.r.painter) x.r.painter = painterFor(x);
+      x.r.setLayout([], aud);
       if (!x.r.recording() && !x.starting) {
         // 소리 장치가 깨어난 뒤 시작(최대 1초 기다림) — 안 깨어나면 영상만이라도 바로 녹화
         x.starting = true;
@@ -521,24 +659,27 @@
     });
     var avgLag = lag.reduce(function (a, b) { return a + Math.max(0, b); }, 0) / (lag.length || 1);
     // 그리기를 건너뛴 비율(PC가 버거워 초당 장면 수가 줄어든 정도)
+    keys = Object.keys(recs);
     var sk = 0; keys.forEach(function (k) { sk += recs[k].r.skipped || 0; });
     skipHist.push(Math.max(0, sk - lastSkip) / Math.max(1, keys.length * 30)); lastSkip = sk; if (skipHist.length > 10) skipHist.shift();
     var skipRate = skipHist.reduce(function (a, b) { return a + b; }, 0) / skipHist.length;
     if (!quad && C.QUAD_FALLBACK !== false && view && view.phase === 'group' && keys.length >= 3 && skipHist.length >= 10 && (avgLag > 250 || skipRate > 0.4)) {
-      quad = true; UI.toast('PC가 버거워 조별 녹화를 4분할 1개 파일로 바꿉니다', 6000); recSync();
+      quad = true; UI.toast('PC가 버거워 분반 녹화를 4분할 1개 파일로 바꿉니다', 6000); recSync();
     }
     keys = Object.keys(recs);
-    if (!keys.length && !bad) bad = '녹화가 되고 있지 않습니다!';
+    var live = view && (view.phase === 'all' || view.phase === 'group');
+    if (!keys.length && !bad && live) bad = '녹화가 되고 있지 않습니다!';
+    if (!keys.length && !live) warn = warn || (view && view.phase === 'end' ? '멘토링을 마쳐 녹화를 멈췄습니다(파일 저장 완료)' : '「멘토링 시작」을 누르면 녹화가 시작됩니다');
     var lines = keys.map(function (k) { var h = recs[k].r.health(); return h ? '● ' + UI.esc(h.name) + ' · ' + UI.mmss(h.sec * 1000) + ' · ' + (h.bytes / 1048576).toFixed(1) + 'MB' : '○ ' + k + ' 시작 중'; });
     $('#rec-live').innerHTML = (bad || warn ? '<b>' + UI.esc(bad || warn) + '</b><br>' : '') + lines.join('<br>') + (quad ? '<br>4분할 모드' : '');
     $('#rec-live').className = 'reclive' + (bad ? ' bad' : warn ? ' warn' : '');
     var t = Object.values(recs)[0]; if (t) $('#rec-type').textContent = t.r.ext().toUpperCase() + ' · ' + t.r.W + '×' + t.r.H;
   }
   ['pointerdown', 'keydown'].forEach(function (t) { document.addEventListener(t, function () { Object.keys(recs).forEach(function (k) { recs[k].r.resume(); }); }, true); });
-  // 녹화 PC가 없으면 모든 운영진에게 경고(조별·전체 단계)
+  // 녹화 PC가 없으면 모든 운영진에게 경고(전체·분반 단계)
   setInterval(function () {
     if (!view) return;
-    var need = ['all1', 'group', 'all2'].indexOf(view.phase) >= 0, none = !view.recorder;
+    var need = ['all', 'group'].indexOf(view.phase) >= 0, none = !view.recorder;
     UI.show('#recbad', need && none && role === 'ops');
     $('#recbad').textContent = '녹화 PC가 없습니다! 녹화할 PC에서 「이 PC에서 녹화」를 켜 주세요.';
   }, 1500);

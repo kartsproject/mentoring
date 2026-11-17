@@ -9,19 +9,17 @@
   var A = {};
   A.gname = function (g) { g = Number(String(g || '').replace(/\D/g, '')) || 0; return g ? String.fromCharCode(64 + g) + '조' : '전체'; };
   A.roomName = function (room) { return !room || room === 'all' ? '전체' : A.gname(room.slice(1)); };
-  A.PH = { ready: '시작 전', all1: '전체 멘토링', group: '조별 멘토링', all2: '전체 마무리', end: '마침' };
+  A.PH = { ready: '시작 전', all: '전체 멘토링', group: '분반 멘토링', end: '마침' };
   A.roleName = function (r) { return { student: '학생', mentor: '멘토', ops: '운영', research: '연구원' }[r] || ''; };
 
-  // 단계 경계 시각(회차 시트) → 다음 경계까지 남은 시간
+  // 회차 시트의 시작·마침 시각 → 지금 기준으로 다음 시각까지 남은 시간(분반은 시각 없이 운영진이 버튼으로)
   A.nextMark = function (v, now) {
     var s = v.sess || {}, d = s.date;
     var t = function (hm) { if (!d || !hm) return 0; var x = new Date(d + 'T' + hm + ':00+09:00').getTime(); return isNaN(x) ? 0 : x; };
-    var order = [['all1', t(s.all1)], ['group', t(s.group)], ['all2', t(s.all2)], ['end', t(s.end)]].filter(function (x) { return x[1]; });
-    var label = { all1: '전체 멘토링 시작', group: '조별 멘토링 시작', all2: '전체 마무리', end: '마침' };
-    var cur = v.phase, idx = ['ready', 'all1', 'group', 'all2', 'end'].indexOf(cur);
-    var next = order.filter(function (x) { return ['ready', 'all1', 'group', 'all2', 'end'].indexOf(x[0]) > idx; })[0];
-    if (!next) return null;
-    return { to: next[0], at: next[1], left: next[1] - now, label: label[next[0]] };
+    if (v.phase === 'end') return null;
+    if (v.phase === 'ready' && t(s.start)) return { to: 'all', at: t(s.start), left: t(s.start) - now, label: '멘토링 시작' };
+    if (t(s.end)) return { to: 'end', at: t(s.end), left: t(s.end) - now, label: '마침' };
+    return null;
   };
 
   /* 작품 사진: 로그인한 사람만 관문을 거쳐 받음(공개 링크 없음) */
@@ -50,6 +48,56 @@
     return j.f;
   };
 
+
+  /* 방 자리 정하기(화면·녹화 공통)
+   *  mentors: 그 방 멘토(명단 순서) / students: 그 방 학생(명단 순서) — 명단에 없지만 들어온 사람은 뒤에 붙임
+   *  feature: 크게 볼 것 — 내가 누른 것 > 멘토가 지정한 것 > 화면 공유 > 최근 작품 사진 */
+  A.MSUF = (M.CFG.MENTOR_SUFFIX != null ? M.CFG.MENTOR_SUFFIX : ' 교수님');
+  A.slots = function (v, room, o) {
+    o = o || {};
+    var people = v.people || [], byId = {}, me = o.me || v.me, streams = o.streams || {};
+    people.forEach(function (p) { byId[p.id] = p; });
+    var inRoom = function (p) { return p && p.room === room; };
+    var gOf = function (x) { return room === 'all' ? true : 'g' + x.g === room; };
+    var mk = function (id, name, role) {
+      var p = byId[id], mine = id === me, st = streams[id] || {};
+      if (p && !inRoom(p)) p = null;   // 다른 방에 있음(이 방 자리는 비움)
+      var stream = mine ? o.localCam : st.cam;
+      var tr = stream && stream.getVideoTracks && stream.getVideoTracks()[0], set = tr && tr.getSettings ? tr.getSettings() : {};
+      return { key: id + '|cam', id: id, kind: 'cam', role: role, name: name, p: p || (mine ? { id: id, live: true } : null), mine: mine,
+               label: role === 'mentor' ? name + A.MSUF : name + (mine ? ' (나)' : ''), stream: p || mine ? stream : null,
+               mirror: mine && !o.backCam, portrait: !!(set.width && set.height && set.height > set.width) };
+    };
+    var seen = {}, mentors = [], students = [];
+    (v.mroster || []).forEach(function (m) { if (gOf(m)) { seen[m.id] = 1; mentors.push(mk(m.id, m.name, 'mentor')); } });
+    (v.roster || []).forEach(function (x) { if (gOf(x)) { seen[x.id] = 1; students.push(mk(x.id, x.name, 'student')); } });
+    people.forEach(function (p) {   // 명단 밖(리허설·추가 인원)
+      if (seen[p.id] || !inRoom(p) || (p.role !== 'mentor' && p.role !== 'student') || (!p.live && p.id !== me)) return;
+      (p.role === 'mentor' ? mentors : students).push(mk(p.id, p.name, p.role));
+    });
+    // 크게 볼 것
+    var here = people.filter(function (p) { return inRoom(p) && (p.role === 'mentor' || p.role === 'student') && (p.live || p.id === me); });
+    var cand = [];
+    here.forEach(function (p) {
+      var mine = p.id === me, st = streams[p.id] || {};
+      var scr = mine ? o.localScr : st.scr;
+      if ((p.tr && p.tr.scr) || (mine && scr)) cand.push({ key: p.id + '|scr', id: p.id, kind: 'scr', p: p, name: p.name, label: p.name + ' · 화면 공유', stream: scr, mine: mine, at: p.scrAt || (mine ? Date.now() : 1) });
+      if (p.photo) cand.push({ key: p.id + '|photo|' + p.photo.f, id: p.id, kind: 'photo', p: p, name: p.name, label: p.name + ' · 작품 사진', photo: p.photo.f, at: p.photo.at || 0 });
+    });
+    var spot = v.spot && v.spot[room], feat = null;
+    var find = function (key) { return cand.filter(function (c) { return c.key === key; })[0]; };
+    var asCam = function (id) { var s0 = mentors.concat(students).filter(function (x) { return x.id === id && x.p; })[0]; return s0 ? Object.assign({}, s0, { key: id + '|big', label: s0.label.replace(' (나)', '') + ' · 크게 보기', mine: s0.mine }) : null; };
+    if (o.pin) feat = find(o.pin) || (o.pin.indexOf('|cam') > 0 ? asCam(o.pin.split('|')[0]) : null);
+    if (!feat) {   // 가장 최근 것: 멘토가 지정한 것 · 화면 공유 · 작품 사진
+      var sp = null;
+      if (spot) { sp = spot.kind === 'cam' ? asCam(spot.id) : cand.filter(function (c) { return c.id === spot.id && c.kind === spot.kind; })[0] || null; if (sp) sp = Object.assign({}, sp, { at: spot.at || 0, isSpot: true }); }
+      feat = (sp ? [sp] : []).concat(cand).sort(function (a, b) { return (b.at || 0) - (a.at || 0); })[0] || null;
+    }
+    if (feat) { feat.feature = true; feat.spot = !!feat.isSpot; }
+    mentors.concat(students).forEach(function (x) { x.spot = !!(spot && spot.kind === 'cam' && spot.id === x.id); });
+    return { mentors: mentors, students: students, feature: feat, photos: cand.filter(function (c) { return c.kind === 'photo'; }) };
+  };
+
   /* ───────── 방: 받기·배치 ───────── */
   function Room(o) {
     var self = this;
@@ -58,6 +106,10 @@
     this.audios = {};      // key → <audio>
     this.pin = null;       // 내 화면에서만 크게(클릭)
     this.listen = null;    // 운영진: 소리를 들을 방(null이면 내 방)
+    // 말하는 사람 칸에 후광·아이콘
+    M.Speak.listen(function (id, on) {
+      Array.from(self.box.querySelectorAll('.tile')).forEach(function (c) { if (c._it && c._it.id === id && c._it.kind === 'cam') M.Speak.mark(c, on); });
+    });
     this.sfu = new window.ArtSFU(o.sess, {
       onTrack: function (key, track) { self.track(key, track); },
       onState: function (st) { if (o.onSfuState) o.onSfuState(st); },
@@ -75,6 +127,7 @@
     if (this.view && !this.o.noRender) this.render(this.view);
   };
   Room.prototype.audio = function (key, stream) {
+    M.Speak.track(key.split('|')[0], stream);   // 발언자 표시용 소리 재기
     var a = this.audios[key];
     if (!stream) { if (a) { a.srcObject = null; a.remove(); delete this.audios[key]; } return; }
     if (!a) { a = this.audios[key] = document.createElement('audio'); a.autoplay = true; a.dataset.k = key; document.body.appendChild(a); }
@@ -112,78 +165,70 @@
     }).catch(function (e) { console.warn('sfu want', e); self.retry = true; });
   };
 
-  // 화면 배치: big(크게 1개) + strip(작은 칸들) 또는 grid(같은 크기)
+  // 화면 배치(고정 자리): 위 멘토 · 아래 학생, 들어오지 않은 사람은 검은 칸에 이름. 작품(공유·사진·크게 보기)은 위 줄에 크게
   Room.prototype.render = function (v) {
     this.view = v;
     var self = this, me = v.me, room = v.myRoom;
-    var here = (v.people || []).filter(function (p) {
-      return p.room === room && (p.role === 'student' || p.role === 'mentor') && (p.live || p.id === me);
-    });
-    here.sort(function (a, b) { return (a.role === 'mentor' ? 0 : 1) - (b.role === 'mentor' ? 0 : 1) || a.name.localeCompare(b.name, 'ko'); });
-    var items = [];
-    here.forEach(function (p) {
-      var mine = p.id === me, st = self.streams[p.id] || {};
-      items.push({ key: p.id + '|cam', id: p.id, kind: 'cam', p: p, label: (p.role === 'mentor' ? '멘토 ' : '') + p.name + (mine ? ' (나)' : ''),
-                   stream: mine ? self.o.localCam() : st.cam, mirror: mine && !self.o.backCam, mine: mine });
-      var scr = mine ? self.o.localScr && self.o.localScr() : st.scr;
-      if (p.tr && p.tr.scr || (mine && scr)) items.push({ key: p.id + '|scr', id: p.id, kind: 'scr', p: p, label: p.name + ' 화면 공유', stream: scr, mine: mine });
-      if (p.photo) items.push({ key: p.id + '|photo|' + p.photo.f, id: p.id, kind: 'photo', p: p, label: p.name + ' 작품 사진', photo: p.photo.f });
-    });
-    // 무엇을 크게: 내가 누른 것 > 멘토가 지정한 것 > 화면 공유 > (전체 단계) 멘토
-    var spot = v.spot && v.spot[room], big = null;
-    var find = function (id, kind) { return items.filter(function (it) { return it.id === id && it.kind === kind; })[0]; };
-    if (this.pin) big = items.filter(function (it) { return it.key === self.pin; })[0] || null;
-    if (!big && spot) big = find(spot.id, spot.kind) || null;
-    if (!big) big = items.filter(function (it) { return it.kind === 'scr'; })[0] || null;
-    var mainList;
-    if (big) mainList = [big];
-    else if (room === 'all' && items.some(function (it) { return it.p.role === 'mentor'; })) mainList = items.filter(function (it) { return it.p.role === 'mentor' && it.kind === 'cam'; });
-    else mainList = items.slice();
-    var rest = items.filter(function (it) { return mainList.indexOf(it) < 0; });
-    this.paint(mainList, rest, spot);
+    if (this.o.localCam && this.o.localCam()) M.Speak.track(me, this.o.localCam());
+    var sl = A.slots(v, room, { pin: this.pin, streams: this.streams, me: me, localCam: this.o.localCam && this.o.localCam(), localScr: this.o.localScr && this.o.localScr(), backCam: this.backCam });
+    this.paint(sl);
     this.applyVolumes();
   };
-  Room.prototype.paint = function (main, rest, spot) {
+  Room.prototype.paint = function (sl) {
     var box = this.box, self = this;
-    if (!box.querySelector('.r-main')) box.innerHTML = '<div class="r-main"></div><div class="r-strip"></div>';
-    var mainEl = box.querySelector('.r-main'), stripEl = box.querySelector('.r-strip');
-    box.classList.toggle('has-strip', rest.length > 0);
-    mainEl.className = 'r-main n' + Math.min(main.length, 9) + (main.length === 1 && (main[0].kind !== 'cam') ? ' doc' : '');
-    var put = function (host, list, small) {
-      var keep = {};
+    if (!box.querySelector('.r-top')) box.innerHTML = '<div class="r-top"><div class="r-side l"></div><div class="r-center"></div><div class="r-side r"></div></div><div class="r-div"><i></i></div><div class="r-bot"></div>';
+    box.classList.add('fixed');
+    var top = box.querySelector('.r-top'), bot = box.querySelector('.r-bot');
+    var sideL = top.querySelector('.r-side.l'), sideR = top.querySelector('.r-side.r'), center = top.querySelector('.r-center');
+    // 발표 자료(공유·사진·크게 보기)가 있으면: 가운데 크게, 멘토는 양옆에 작게(위아래로 쌓음)
+    var ms = sl.mentors, half = Math.ceil(ms.length / 2), topList = ms.slice();
+    var left = sl.feature ? ms.slice(0, half) : [], right = sl.feature ? ms.slice(half) : [], mid = sl.feature ? [sl.feature] : ms;
+    if (sl.feature) topList.push(sl.feature);
+    top.style.setProperty('--n', Math.max(1, mid.length));
+    top.style.setProperty('--rows', Math.max(1, left.length, right.length));
+    top.classList.toggle('has-feature', !!sl.feature);
+    top.classList.toggle('one-side', !!sl.feature && !right.length);
+    var n = sl.students.length, cols = n <= 4 ? Math.max(1, n) : n <= 10 ? Math.ceil(n / 2) : Math.ceil(n / 2);
+    if (innerWidth < 700) cols = Math.min(cols, 3);
+    bot.style.setProperty('--cols', cols);
+    var all = {};
+    topList.concat(sl.students).forEach(function (it) { all[it.key] = 1; });
+    var put = function (host, list) {
       list.forEach(function (it, i) {
-        keep[it.key] = 1;
         var c = box.querySelector('[data-k="' + CSS.escape(it.key) + '"]');
         if (!c) {
           c = document.createElement('div'); c.className = 'tile'; c.dataset.k = it.key;
           c.innerHTML = (it.kind === 'photo' ? '<img alt="">' : '<video autoplay playsinline' + (it.mine ? ' muted' : '') + '></video>') +
             '<div class="t-wait"></div><span class="t-label"></span><span class="t-badges"></span><span class="t-tools"></span>';
-          c.onclick = function (e) { if (e.target.closest('.t-tools')) return; if (self.o.onTileClick) self.o.onTileClick(c._it, c); };
+          c.onclick = function (e) { if (e.target.closest('.t-tools')) return; if (self.o.onTileClick && c._it.p) self.o.onTileClick(c._it, c); };
         }
         c._it = it;
         if (c.parentNode !== host) host.appendChild(c);
-        if (self.o.tools) c.querySelector('.t-tools').innerHTML = self.o.tools(it);
         c.style.order = i;
-        c.classList.toggle('small', !!small);
-        c.classList.toggle('mentor', it.p.role === 'mentor');
-        c.classList.toggle('spot', !!spot && spot.id === it.id && spot.kind === it.kind);
+        if (self.o.tools) c.querySelector('.t-tools').innerHTML = it.p ? self.o.tools(it) : '';
+        c.classList.toggle('mentor', it.role === 'mentor');
+        c.classList.toggle('feature', !!it.feature);
+        c.classList.toggle('absent', !it.p || (!it.p.live && !it.mine));
+        c.classList.toggle('spot', !!it.spot);
         c.classList.toggle('pinned', self.pin === it.key);
         c.classList.toggle('talk', !!(it.p && it.p.talk));
+        M.Speak.mark(c, it.kind === 'cam' && !!it.p && M.Speak.on(it.id));
         var vid = c.querySelector('video');
-        if (vid) { UI.attach(vid, it.stream || null); vid.classList.toggle('mirror', !!it.mirror); }
+        if (vid) { UI.attach(vid, it.stream || null); vid.classList.toggle('mirror', !!it.mirror); vid.classList.toggle('portrait', !!it.portrait); }
         var img = c.querySelector('img');
-        if (img && !img.src) A.img(self.sess, it.photo).then(function (u) { img.src = u; }).catch(function () { c.querySelector('.t-wait').textContent = '사진을 불러오지 못했습니다'; });
-        var waiting = it.kind === 'photo' ? !img.src : !it.stream;
-        c.querySelector('.t-wait').textContent = waiting ? (it.kind === 'photo' ? '사진 불러오는 중…' : !it.p.live ? '연결 끊김' : '연결 중…') : '';
+        if (img && !img.src && it.photo) A.img(self.sess, it.photo).then(function (u) { img.src = u; }).catch(function () { c.querySelector('.t-wait').textContent = '사진을 불러오지 못했습니다'; });
+        var wait = '';
+        if (!it.p) wait = it.name;                                   // 아직 들어오지 않음: 검은 칸에 이름
+        else if (it.kind === 'photo') wait = img && img.src ? '' : '사진 불러오는 중…';
+        else if (!it.p.live && !it.mine) wait = it.name;
+        else if (!it.stream) wait = '연결 중…';
+        c.querySelector('.t-wait').textContent = wait;
         c.querySelector('.t-label').textContent = it.label;
-        c.querySelector('.t-badges').innerHTML = (it.p.hand && it.kind === 'cam' ? '<b class="hand">' + UI.ico('hand') + '</b>' : '') +
-          (it.kind === 'cam' && it.p.role === 'mentor' ? '' : '');
+        c.querySelector('.t-badges').innerHTML = it.p && it.p.hand && it.kind === 'cam' ? '<b class="hand">' + UI.ico('hand') + '</b>' : '';
       });
-      Array.from(host.children).forEach(function (c) { if (!all[c.dataset.k]) c.remove(); });
     };
-    var all = {}; main.concat(rest).forEach(function (it) { all[it.key] = 1; });
-    put(mainEl, main, false);
-    put(stripEl, rest, true);
+    put(sideL, left); put(center, mid); put(sideR, right);
+    put(bot, sl.students);
     Array.from(box.querySelectorAll('.tile')).forEach(function (c) { if (!all[c.dataset.k]) c.remove(); });
   };
 

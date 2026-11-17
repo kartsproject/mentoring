@@ -1,9 +1,9 @@
 /**
- * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.0
+ * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.2
  *
  * 하는 일
  *  - 입장(학생: 이름+생년월일, 멘토·운영진·연구원: 코드+이름), 회차는 날짜로 자동
- *  - 진행 단계(입장 → 전체1 → 분반 → 전체2 → 마침)와 조 배정·공지·손들기·크게 보기 보관
+ *  - 진행 단계(시작 전 → 전체 ⇄ 분반(여러 번 가능) → 마침)와 조 배정·공지·손들기·크게 보기 보관
  *  - Cloudflare Realtime SFU(영상 중계) 연결 요청을 앱 비밀키로 대신 보냄(비밀키는 브라우저에 가지 않음)
  *  - 작품 사진: 드라이브에 저장하고, 로그인한 사람에게만 보내 줌(공개 링크 없음)
  *  - 시트 「명단」「멘토」「회차」 읽기, 「기록」「관찰 메모」 남기기
@@ -27,11 +27,12 @@ var SEEN_LIVE_MS = 12000;
 var TZ = 'Asia/Seoul';
 var SFU_BASE = 'https://rtc.live.cloudflare.com/v1/apps/';
 var PHOTO_DIR = 'K예술영재_미술멘토링_작품사진';
-var PHASES = ['ready', 'all1', 'group', 'all2', 'end'];
+var PHASES = ['ready', 'all', 'group', 'end'];
 
 var ROSTER_HEAD = ['회차', '이름', '생년월일', '조', '학생 연락처', '보호자 연락처'];
 var MENTOR_HEAD = ['회차', '멘토', '조'];
-var SESS_HEAD = ['회차', '날짜', '전체1 시작', '분반 시작', '전체2 시작', '마침'];
+var SESS_HEAD = ['회차', '날짜', '시작', '마침'];
+var SESS_HEAD_OLD = ['회차', '날짜', '전체1 시작', '분반 시작', '전체2 시작', '마침'];
 
 /* ───────────── 진입점 ───────────── */
 function doPost(e) {
@@ -71,9 +72,14 @@ function cget_(k) { var v = cache_().get(k); return v ? JSON.parse(v) : null; }
 function cput_(k, v) { cache_().put(k, JSON.stringify(v), TTL); }
 function props_() { return PropertiesService.getScriptProperties(); }
 function blankState_() {
-  return { parts: {}, n: 0, phase: 'ready', phaseAt: Date.now(), pend: null, assign: {}, mgroup: {}, spot: {}, hands: {}, notice: null, recorder: null, seq: 0 };
+  return { parts: {}, n: 0, phase: 'ready', phaseAt: Date.now(), pend: null, assign: {}, mgroup: {}, spot: {}, hands: {}, notice: null, recorder: null, rounds: { all: 0, group: 0 }, seq: 0 };
 }
-function getState_(r) { return cget_('st|' + r) || blankState_(); }
+function getState_(r) {
+  var s = cget_('st|' + r) || blankState_();
+  if (s.phase === 'all1' || s.phase === 'all2') s.phase = 'all';   // 예전(Ver.1.0) 단계 이름
+  s.rounds = s.rounds || { all: 0, group: 0 };
+  return s;
+}
 function putState_(r, s) { s.seq = (s.seq || 0) + 1; cput_('st|' + r, s); }
 function withLock_(fn) { var l = LockService.getScriptLock(); l.waitLock(15000); try { return fn(); } finally { l.releaseLock(); } }
 function token_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 20); }
@@ -96,10 +102,11 @@ function grp_(v) {
   var n = Number(t.replace(/\D/g, '')); return n > 0 && n < 10 ? n : 0;
 }
 function ss_() { try { return SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { return null; } }
-function sheetRows_(name) {
+function sheetRows_(name, withHead) {
   var ss = ss_(), sh = ss && ss.getSheetByName(name);
-  if (!sh || sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, Math.max(1, sh.getLastColumn())).getDisplayValues();
+  if (!sh || sh.getLastRow() < 2) return withHead ? { head: [], rows: [] } : [];
+  var all = sh.getRange(1, 1, sh.getLastRow(), Math.max(1, sh.getLastColumn())).getDisplayValues();
+  return withHead ? { head: all[0], rows: all.slice(1) } : all.slice(1);
 }
 // 명단·멘토·회차를 한 번에 읽어 1분 보관
 function data_() {
@@ -116,10 +123,14 @@ function data_() {
     if (!r || !nm) return;
     (d.mentors[r] = d.mentors[r] || []).push({ name: nm, g: grp_(v[2]) });
   });
-  sheetRows_('회차').forEach(function (v) {
+  // 회차: 머리글로 열 찾기 — 「시작」(또는 예전 「전체1 시작」)과 「마침」만 씀
+  var se = sheetRows_('회차', true), H = se.head.map(function (h) { return String(h).replace(/\s/g, ''); });
+  var cStart = H.indexOf('시작') >= 0 ? H.indexOf('시작') : H.indexOf('전체1시작') >= 0 ? H.indexOf('전체1시작') : 2;
+  var cEnd = H.indexOf('마침') >= 0 ? H.indexOf('마침') : 3;
+  se.rows.forEach(function (v) {
     var r = roomOf_(v[0]);
     if (!r) return;
-    d.sess[r] = { r: r, date: String(v[1] || '').trim().replace(/\./g, '-'), all1: hm_(v[2]), group: hm_(v[3]), all2: hm_(v[4]), end: hm_(v[5]) };
+    d.sess[r] = { r: r, date: String(v[1] || '').trim().replace(/\./g, '-'), start: hm_(v[cStart]), end: hm_(v[cEnd]) };
   });
   cache_().put('data', JSON.stringify(d), 60);
   return d;
@@ -195,7 +206,8 @@ function applyPending_(r) {
 }
 function setPhase_(r, s, to, by) {
   s.phase = to; s.phaseAt = Date.now(); s.pend = null; s.spot = {}; s.hands = {};
-  log_(r, '단계', by || '', to);
+  if (to === 'all' || to === 'group') s.rounds[to] = (s.rounds[to] || 0) + 1;   // 전체 n번째·분반 n번째(녹화 파일 이름)
+  log_(r, '단계', by || '', { ready: '시작 전', all: '전체', group: '분반', end: '마침' }[to] + (s.rounds[to] ? ' ' + s.rounds[to] : ''));
 }
 // 누가 어느 방에 있는지: 'all' 또는 'g1'..'g9'
 function roomFor_(r, s, id) {
@@ -214,15 +226,19 @@ function view_(r, s, id, now) {
   var people = Object.keys(s.parts).map(function (i) {
     var p = s.parts[i];
     var o = { id: i, pid: p.pid, role: p.role, name: p.name, live: live(i), room: roomFor_(r, s, i), sfu: p.sfu, tr: p.tr,
-              hand: s.hands[i] || 0, photo: p.photo || null, muteAt: p.muteAt || 0, talk: !!(seen[i] && seen[i].info && seen[i].info.talk) };
+              hand: s.hands[i] || 0, photo: p.photo || null, scrAt: p.scrAt || 0, muteAt: p.muteAt || 0, talk: !!(seen[i] && seen[i].info && seen[i].info.talk) };
     if (staff && seen[i]) o.info = seen[i].info;
     return o;
   });
-  // 명단에 있지만 아직 들어오지 않은 학생(운영진 화면용)
+  // 명단의 학생·멘토(화면 자리 고정: 들어오지 않은 사람은 빈 칸에 이름) — 연락처는 운영진·연구원만
   var roster = (d.roster[r] || []).map(function (x) {
     var sid = 'S_' + x.name, o = { id: sid, name: x.name, g: s.assign[sid] || x.g, g0: x.g, joined: !!s.parts[sid], live: live(sid) };
     if (staff) { o.sPhone = x.sPhone; o.pPhone = x.pPhone; }
     return o;
+  });
+  var mroster = (d.mentors[r] || []).map(function (m) {
+    var mid = 'M_' + m.name.slice(0, 12);
+    return { id: mid, name: m.name, g: s.mgroup[mid] || m.g, live: live(mid) };
   });
   var groups = {};
   (d.mentors[r] || []).forEach(function (m) { if (m.g) groups[m.g] = groups[m.g] || []; });
@@ -233,12 +249,12 @@ function view_(r, s, id, now) {
   people.forEach(function (p) { if (p.role === 'mentor') { var g = s.mgroup[p.id] || mentorGroup_(r, p.name); if (g) (mentorsOf[g] = mentorsOf[g] || []).push(p.name); } });
   (d.mentors[r] || []).forEach(function (m) { if (m.g && !(mentorsOf[m.g] || []).length) mentorsOf[m.g] = [m.name]; });
   var v = {
-    seq: s.seq, me: id, myRoom: roomFor_(r, s, id), myGroup: me.role === 'student' ? (s.assign[id] || defaultGroup_(r, me.name)) : me.role === 'mentor' ? (s.mgroup[id] || mentorGroup_(r, me.name)) : 0, phase: s.phase, phaseAt: s.phaseAt, pend: s.pend,
+    seq: s.seq, me: id, myRoom: roomFor_(r, s, id), myGroup: me.role === 'student' ? (s.assign[id] || defaultGroup_(r, me.name)) : me.role === 'mentor' ? (s.mgroup[id] || mentorGroup_(r, me.name)) : 0, phase: s.phase, phaseAt: s.phaseAt, pend: s.pend, round: s.rounds[s.phase] || 0,
     sess: d.sess[r] || { r: r }, people: people, spot: s.spot, notice: s.notice,
     groups: Object.keys(groups).map(Number).sort(), mentorsOf: mentorsOf,
     recorder: s.recorder && live(s.recorder) ? s.recorder : null
   };
-  if (me.role !== 'student') v.roster = roster;
+  v.roster = roster; v.mroster = mroster;
   return v;
 }
 
@@ -262,13 +278,17 @@ function op_(r, req) {
     switch (cmd) {
       case 'pub':   // 내가 올린 영상·소리 이름 등록(SFU 세션)
         me.sfu = String(req.sfu || '').slice(0, 64);
+        var oldScr = me.tr && me.tr.scr;
         me.tr = {};
         ['cam', 'mic', 'scr'].forEach(function (k) { if (req.tr && req.tr[k]) me.tr[k] = String(req.tr[k]).slice(0, 64); });
+        if (me.tr.scr && me.tr.scr !== oldScr) me.scrAt = now;   // 화면 공유 시작 시각(가장 최근 것을 크게)
         break;
       case 'phase':   // 단계 바꾸기(바로 또는 n초 뒤)
         need(ops);
         var to = String(req.to || '');
+        if (to === 'all1' || to === 'all2') to = 'all';
         if (PHASES.indexOf(to) < 0) return { ok: false, error: 'bad_phase' };
+        if (to === s.phase) return { ok: true, same: true };
         var delay = Math.max(0, Math.min(600, Number(req.delay) || 0)) * 1000;
         if (delay) s.pend = { to: to, at: now + delay, by: who }; else setPhase_(r, s, to, who);
         break;
@@ -444,8 +464,19 @@ function setup() {
     var ro = mk('명단', ROSTER_HEAD, [['test', '리허설학생1', '', 'A', '', ''], ['test', '리허설학생2', '', 'B', '', '']]);
     ro.getRange('C:C').setNumberFormat('@'); ro.getRange('E:F').setNumberFormat('@');
     mk('멘토', MENTOR_HEAD, [['test', '리허설멘토1', 'A'], ['test', '리허설멘토2', 'B']]);
-    var se = mk('회차', SESS_HEAD, [['test', '', '', '', '', '']]);
-    se.getRange('B:F').setNumberFormat('@');
+    var se = mk('회차', SESS_HEAD, [['test', '', '', '']]);
+    // 예전(Ver.1.0) 6칸 머리글이면 4칸(회차·날짜·시작·마침)으로 바꿈 — 시작은 「전체1 시작」, 마침은 그대로 옮김
+    var h0 = se.getRange(1, 1, 1, 6).getDisplayValues()[0].join('|');
+    if (h0 === SESS_HEAD_OLD.join('|')) {
+      var n0 = se.getLastRow();
+      if (n0 > 1) {
+        var old = se.getRange(2, 1, n0 - 1, 6).getDisplayValues();
+        se.getRange(2, 1, n0 - 1, 6).setValues(old.map(function (x) { return [x[0], x[1], x[2], x[5], '', '']; }));
+      }
+      se.getRange(1, 1, 1, 6).setValues([SESS_HEAD.concat(['', ''])]);
+      Logger.log('회차 탭을 새 형식(회차·날짜·시작·마침)으로 바꿨습니다');
+    }
+    se.getRange('B:D').setNumberFormat('@');
     mk('기록', ['시각', '회차', '구분', '이름', '내용']);
     mk('관찰 메모', ['시각', '회차', '단계·조', '연구원', '메모']);
   }
