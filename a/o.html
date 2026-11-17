@@ -52,11 +52,9 @@
   .rph .btn.sm { padding: 5px 10px; }
   .rph .btn.ghost.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
   .rph .talk.down { background: var(--rec) !important; border-color: var(--rec) !important; color: #fff !important; }
-  .rpb { flex: 1; min-height: 160px; display: grid; gap: 6px; padding: 0 8px 8px; grid-auto-rows: 1fr; }
-  .rpb.c1 { grid-template-columns: 1fr; } .rpb.c2 { grid-template-columns: 1fr 1fr; } .rpb.c3 { grid-template-columns: repeat(3, 1fr); } .rpb.c4 { grid-template-columns: repeat(4, 1fr); } .rpb.c5 { grid-template-columns: repeat(5, 1fr); }
-  .rpb .tile, .rpb .tile.small { min-height: 90px; aspect-ratio: auto; height: auto; }
-  .rpb .tile.big { grid-column: span 2; grid-row: span 2; }
-  .empty-room { display: grid; place-items: center; color: var(--k-soft); font-size: 14px; }
+  .rpb.astage { flex: 1; min-height: 200px; margin: 0 8px 8px; border-radius: 10px; }
+  .rpb .t-label { font-size: 11px; padding: 2px 6px; }
+  .rooms.n2 .rpb.astage, .rooms.n3 .rpb.astage, .rooms.n4 .rpb.astage { padding: 6px; }
 
   .side { overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; border-left: 1px solid var(--line); }
   .box { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
@@ -260,7 +258,7 @@
     if (!view) return;
     var t = A.timerText(view, sess.now());
     var el = (view.phase === 'all' || view.phase === 'group') ? ' · ' + phaseLabel(view) + ' ' + UI.mmss(Math.max(0, sess.now() - view.phaseAt)) + ' 경과' : '';
-    $('#h-timer').textContent = (t ? t.text : A.PH[view.phase]) + el;
+    $('#h-timer').textContent = ((t ? t.text : '') + el).replace(/^ · /, '');
     if (recOn) recWatch();
   }
   setInterval(tick, 1000);
@@ -300,44 +298,17 @@
       el.querySelector('.hear').classList.toggle('on', listen === rm);
       // 칸: 위 멘토(+크게 볼 것) · 아래 학생 — 명단 자리 고정, 들어오지 않은 사람은 검은 칸에 이름
       var sl = A.slots(v, rm, { streams: room.streams, me: v.me });
-      var items = sl.mentors.slice();
-      if (sl.feature) items.push(sl.feature);
-      items = items.concat(sl.students);
-      var spot = v.spot && v.spot[rm];
-      var body = el.querySelector('.rpb'), n = items.length;
-      body.className = 'rpb c' + (n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : n <= 16 ? 4 : 5);
-      var ks = {};
-      if (!n) body.innerHTML = '<div class="empty-room">아직 아무도 없습니다</div>';
-      else { var em = body.querySelector('.empty-room'); if (em) em.remove(); }
-      items.forEach(function (it, i) {
-        ks[it.key] = 1;
-        var c = body.querySelector('[data-k="' + CSS.escape(it.key) + '"]');
-        if (!c) {
-          c = document.createElement('div'); c.className = 'tile small'; c.dataset.k = it.key;
-          c.innerHTML = (it.kind === 'photo' ? '<img alt="">' : '<video playsinline muted></video>') + '<div class="t-wait"></div><span class="t-label"></span><span class="t-badges"></span>';
-          c.onclick = function () {
-            var x = c._it; if (!x.p || role !== 'ops') return;
-            var sp = view.spot && view.spot[rm], same = sp && sp.id === x.id && sp.kind === x.kind;
-            sess.op('spot', same || x.feature ? { room: rm } : { room: rm, target: x.id, kind: x.kind });
-          };
-          body.appendChild(c);
-        }
-        c._it = it;
-        c.style.order = i;
-        var absent = !it.p || !it.p.live;
-        c.classList.toggle('absent', absent);
-        c.classList.toggle('spot', !!it.spot);
-        c.classList.toggle('big', !!it.feature && n > 2);
-        c.classList.toggle('mentor', it.role === 'mentor');
-        M.Speak.mark(c, it.kind === 'cam' && !absent && M.Speak.on(it.id));
-        var vid = c.querySelector('video'), want = absent ? null : (it.stream || null);
-        if (vid && vid.srcObject !== want) { vid.srcObject = want; if (want) vid.play().catch(function () {}); }
-        var img = c.querySelector('img'); if (img && !img.src) A.img(sess, it.photo).then(function (u) { img.src = u; }).catch(function () {});
-        c.querySelector('.t-wait').textContent = absent ? it.name : it.kind === 'photo' ? '' : it.stream ? '' : '연결 중…';
-        c.querySelector('.t-label').textContent = it.label;
-        c.querySelector('.t-badges').innerHTML = it.p && it.p.hand && it.kind === 'cam' ? '<b class="hand">' + UI.ico('hand') + '</b>' : '';
-      });
-      Array.from(body.querySelectorAll('.tile')).forEach(function (c) { if (!ks[c.dataset.k]) c.remove(); });
+      // 학생·멘토 화면과 같은 배치로 그림(전체: 멘토 2×2 크게·학생 6×2 작게, 영역 구분 / 분반: 멘토 크게·학생 한 줄)
+      var body = el.querySelector('.rpb');
+      if (!body.classList.contains('astage')) body.className = 'rpb astage';
+      var fx = el._fx || (el._fx = { box: body, pin: null, sess: sess, o: {
+        onTileClick: function (x) {
+          if (!x.p || role !== 'ops') return;
+          var sp = view.spot && view.spot[rm], same = sp && sp.id === x.id && sp.kind === x.kind;
+          sess.op('spot', same || x.feature ? { room: rm } : { room: rm, target: x.id, kind: x.kind });
+        } } });
+      fx.view = { myRoom: rm };
+      A.Room.prototype.paint.call(fx, sl);
     });
     Array.from(box.children).forEach(function (el) { if (!keep[el.dataset.room]) el.remove(); });
   }
