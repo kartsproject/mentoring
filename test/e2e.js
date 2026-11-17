@@ -64,6 +64,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await panel.waitForSelector('#s-main:not(.hide)', { timeout: 20000 });
   await waitFor(panel, () => document.querySelectorAll('#list .st').length >= 4 && document.body.classList.contains('pmode'), null, 15000, 'panel list');
   log('waiting-room panel window opened & auto-logged in:', await text(panel, '#h-title'));
+  await waitFor(ops, () => document.body.classList.contains('split') && document.querySelector('#c-list').offsetParent === null && document.querySelector('#c-stage').getBoundingClientRect().width > innerWidth * 0.9, null, 5000, 'main window full-width video');
+  log('main window: waiting room moved out → video uses full width:', await ops.evaluate(() => Math.round(document.querySelector('#c-stage').getBoundingClientRect().width) + '/' + innerWidth));
 
   // 멘토
   await mentor.goto(BASE + '/b/m.html?r=test');
@@ -121,7 +123,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   // 대기실 채팅·공지
   await sA.fill('#text', '안녕하세요 학생가입니다'); await sA.click('#sendBtn');
   await waitFor(panel, () => /학생가입니다/.test(document.querySelector('#msgs').textContent), null, 15000, 'panel sees student chat');
-  await ops.fill('#chatText', '반가워요! 운영진입니다'); await ops.click('#chatForm button');
+  await panel.fill('#chatText', '반가워요! 운영진입니다'); await panel.click('#chatForm button');   // 대기실을 새 창으로 뺐으므로 채팅은 대기실 창에서
   await waitFor(sB, () => /운영진입니다/.test(document.querySelector('#msgs').textContent) && /운영진/.test(document.querySelector('#msgs .m.o .who').textContent), null, 15000, 'student sees ops chat');
   await panel.fill('#bcText', '앞 순서가 조금 늦어지고 있어요'); await panel.click('#bcForm button'); await panel.click('#bcForm button');
   await waitFor(sA, () => !document.querySelector('#bc').hidden && /늦어지고/.test(document.querySelector('#bc').textContent), null, 15000, 'student sees bc');
@@ -148,6 +150,10 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('recording started on host window');
   if (process.env.SHOTS) { await SHOT(ops, 'ops_popup_start'); await ops.evaluate(() => { window.__tShift = 9 * 60000 + 5000; }); await sleep(1200); await SHOT(ops, 'ops_last1min'); await SHOT(panel, 'panel_last1min'); await ops.evaluate(() => { window.__tShift = 0; }); await ops.setViewportSize({ width: 1920, height: 1080 }); await sleep(1500); await SHOT(ops, 'ops_1920'); await ops.setViewportSize({ width: 1600, height: 950 }); }
   if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
+  await SHOT(ops, 'ops_split');
+  await panel.close();
+  await waitFor(ops, () => !document.body.classList.contains('split') && document.querySelector('#c-list').offsetParent !== null, null, 5000, 'panel closed → list back');
+  log('panel window closed → waiting room back in main window');
   await sleep(4000);
 
   // 다음 학생
@@ -249,7 +255,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   all.forEach(f => log('file:', f.name, (f.size / 1e6).toFixed(1) + 'MB', f.w + 'x' + f.h, f.err ? 'ERROR ' + f.err : 'plays'));
   const broken = all.filter(f => f.size && (f.err || f.w !== 1920));
   if (broken.length) throw new Error('unplayable recordings: ' + broken.map(f => f.name).join(', '));
-  const cur2 = await ops2.evaluate(() => window.__rec().health().name);
+  const cur2 = await ops2.evaluate(() => (window.__rec().health() || {}).name || '');
   const empty = all.filter(f => !f.size && !/crswap/.test(f.name) && f.name !== cur2);
   if (empty.length) throw new Error('empty files left: ' + empty.map(f => f.name).join(', '));
   log('crash recovery OK — all saved recordings play at 1920x1080');

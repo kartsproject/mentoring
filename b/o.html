@@ -104,6 +104,12 @@
     header.top h1 small, .conn2 span, #simBtn, #guideBtn, .vsep { display: none; }
   }
 
+  /* 대기실을 새 창으로 뺐을 때: 이 창은 영상·녹화만 크게 */
+  body.split:not(.pmode) .body { grid-template-columns: minmax(0, 1fr); display: grid; }
+  body.split:not(.pmode) #c-list, body.split:not(.pmode) #c-chat, body.split:not(.pmode) .mtabs { display: none !important; }
+  body.split:not(.pmode) #c-stage { display: flex !important; }
+  #b-room.on { background: var(--yel); color: var(--ink); border-color: var(--yel); }
+
   /* 화면(영상) 단 — 어두운 무대 */
   .panel { background: var(--k1); border: 1px solid var(--k-line); border-radius: 14px; }
   .panel h3 { margin: 0; padding: 14px 16px 6px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
@@ -535,7 +541,7 @@
       onUnread: function (n) { $('#mtUnread').textContent = n; $('#mtUnread').hidden = !n; },
       onHot: function (n) { hotN = n; $('#mtList').classList.toggle('alert', !!n && tab !== 'list'); $('#mtList span').textContent = n ? '학생 · 알림 ' + n : '학생'; },
       onHotAlert: function (type) { if (type === 'due' && tab === 'chat' && document.activeElement !== $('#chatText') && innerWidth <= 1500) setTab('list'); },
-      chatVisible: function () { return innerWidth > 1500 && !PANEL || (PANEL && innerWidth > 1000) || tab === 'chat'; },
+      chatVisible: function () { return innerWidth > 1500 && !PANEL && !split || (PANEL && innerWidth > 1000) || tab === 'chat'; },
       showChat: function () { if (tab !== 'chat' && (innerWidth <= 1500 || PANEL && innerWidth <= 1000)) setTab('chat'); },
       onRendered: function () { fitList(); placeAlerts(); },
       titleBusy: function () { return document.visibilityState === 'hidden' && rec && rec.recording(); }
@@ -897,13 +903,32 @@
     if (!confirmClick(this, '정말 나가기')) return;
     goOut();
   };
-  // 대기실 창 따로 띄우기(녹화 담당이 녹화 창 옆에 두고 함께 운영)
+  // 대기실 창 따로 띄우기(듀얼 모니터): 대기실(학생 목록·알림·채팅)은 새 창으로, 이 창은 영상·녹화를 화면 가득
+  var split = false, roomWin = null;
+  function setSplit(on) {
+    split = !!on;
+    document.body.classList.toggle('split', split);
+    var b = $('#b-room');
+    b.classList.toggle('on', split);
+    b.querySelector('span').textContent = split ? '대기실 다시 합치기' : '대기실 창 열기';
+    b.title = split ? '대기실 창을 닫고 이 창에 학생 목록·채팅을 다시 보입니다' : '학생 목록·알림·채팅을 새 창으로 옮기고, 이 창은 영상을 화면 가득 씁니다';
+    if (split) setTab('stage');
+    else setTab(innerWidth <= 1000 ? 'stage' : 'list');
+    setTimeout(function () { fitList(); placeAlerts(); window.dispatchEvent(new Event('resize')); }, 50);
+  }
   $('#b-room').onclick = function () {
+    if (split) {   // 다시 합치기: 대기실 창 닫음
+      try { if (roomWin && !roomWin.closed) roomWin.close(); } catch (e) {}
+      roomWin = null; setSplit(false); return;
+    }
     remember();
     var w = window.open(location.pathname + '?r=' + encodeURIComponent(r) + '&mode=room', 'karts_room_' + r, 'width=1180,height=900');
-    if (!w) UI.toast('팝업이 막혔습니다. 주소창 오른쪽의 팝업 차단 아이콘에서 「허용」을 눌러 주세요.', 5000);
-    else if (innerWidth <= 1500) UI.toast('대기실 창을 열었습니다. 이 창은 화면·녹화 위주로 쓰시면 됩니다.');
+    if (!w) { UI.toast('팝업이 막혔습니다. 주소창 오른쪽의 팝업 차단 아이콘에서 「허용」을 눌러 주세요.', 5000); return; }
+    roomWin = w; setSplit(true);
+    UI.toast('대기실을 새 창으로 옮겼습니다. 새 창을 다른 모니터로 옮겨 쓰세요.', 4000);
   };
+  // 대기실 창을 닫으면 이 창에 대기실이 다시 나타남
+  setInterval(function () { if (split && (!roomWin || roomWin.closed)) { roomWin = null; setSplit(false); UI.toast('대기실 창이 닫혀 이 창에 다시 보입니다'); } }, 1000);
 
   /* ───── 화면 등장(멘토링 전) + 스페이스로 말하기 ───── */
   var pttMode = true, pttHeld = false;
