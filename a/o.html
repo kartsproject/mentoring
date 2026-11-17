@@ -29,6 +29,9 @@
   header.top .sp { flex: 1; }
   .tchip { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12.5px; color: var(--band-soft); padding: 6px 4px; white-space: nowrap; }   /* 진행 시간: 참고용으로 작게 */
   header.top .btn.ghost { background: transparent; color: var(--band-tx); border-color: rgba(255,255,255,.2); }
+  .hbtn { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,.22); background: transparent; color: var(--band-tx); font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .hbtn svg { width: 16px; height: 16px; }
+  .hbtn.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
   .me { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; background: rgba(255,255,255,.08); border-radius: 8px; padding: 5px 10px; }
   .switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
   .switch input { display: none; }
@@ -126,6 +129,8 @@
     <div class="steps op-only" id="steps"></div>
     <span class="tchip" id="h-timer"></span>
     <span class="sp"></span>
+    <button class="hbtn" id="b-mycam" type="button" title="내 카메라를 켜면 지금 듣고 있는 방의 학생·멘토 화면과 녹화에 보입니다"></button>
+    <button class="hbtn" id="b-mymic" type="button" title="켜 두면 누르지 않아도 지금 듣고 있는 방에 내 소리가 들립니다"></button>
     <label class="switch op-only" title="이 PC에서 전체·분반 영상을 FHD로 녹화합니다"><input type="checkbox" id="sw-rec"><i></i><span>이 PC에서 녹화</span></label>
     <span class="me" id="h-me"></span>
     <button class="btn ghost sm" id="b-out" type="button">나가기</button>
@@ -217,6 +222,8 @@
       mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
       mic.getAudioTracks().forEach(function (t) { t.enabled = false; });
     } catch (e) { UI.toast('마이크를 켜지 못해 말하기는 쓸 수 없습니다(보기·듣기는 됨).', 5000); }
+    if (mic) M.Speak.track(sess.id, mic);
+    paintMyBtns();
     await reopen();
     sess.op('visit', { room: 'all' });
   }
@@ -225,18 +232,21 @@
       room.lastWant = '';
       await room.sfu.open();
       if (mic) await room.sfu.publish('mic', mic.getAudioTracks()[0]);
-      else sess.op('pub', { sfu: room.sfu.sid, tr: {} });
+      if (opsCam) await room.sfu.publish('cam', opsCam.getVideoTracks()[0]);
+      if (!mic && !opsCam) sess.op('pub', { sfu: room.sfu.sid, tr: {} });
     } catch (e) { console.warn(e); setTimeout(reopen, 4000); }
   }
 
   /* 상태 받기 */
   function onView(v) {
     view = v;
-    // 받을 영상: 녹화 PC는 모두 높은 화질, 아니면 작은 화질. 소리는 모두 받고 고른 방만 들림
+    // 받을 화질: 녹화 PC는 멘토·크게 보기 f, 학생 h(녹화 칸 크기에 맞춤) / 다른 운영 화면은 q(크게 보기만 h). 소리는 모두 받고 고른 방만 들림
     room.listen = listen;
     room.sync(v, function (p) {
-      if (p.role === 'ops' || p.role === 'research') return { mic: true };
-      return { cam: recOn ? 'h' : 'l', mic: true, scr: true };
+      if (p.role === 'ops' || p.role === 'research') return { mic: true, cam: recOn ? 'h' : 'q' };
+      var sp = v.spot && v.spot[p.room], big = sp && sp.id === p.id;
+      var rid = recOn ? (p.role === 'mentor' || big ? 'f' : 'h') : (big ? 'h' : 'q');
+      return { cam: rid, mic: true, scr: true };
     });
     room.view = v; room.applyVolumes();
     paintHeader(v); paintRooms(); paintBoard(v); paintAbs(v); paintWho(v); paintNotice(v);
@@ -245,13 +255,14 @@
 
   /* 위 띠: 진행 버튼 — 시작 전 → [멘토링 시작] → 전체 ⇄ [분반 시작]/[분반 종료] → [마침]
    * 누르면 바로 모두 이동(실수 방지로 두 번 누름) */
-  function phaseLabel(v) { return v.phase === 'all' ? '전체' + (v.round > 1 ? ' ' + v.round : '') : v.phase === 'group' ? '분반' + (v.round > 1 ? ' ' + v.round : '') : A.PH[v.phase]; }
+  function phaseLabel(v) { if (v.phase === 'end' && v.closed) return '마침 · 모두 퇴장함'; return v.phase === 'all' ? '전체' + (v.round > 1 ? ' ' + v.round : '') : v.phase === 'group' ? '분반' + (v.round > 1 ? ' ' + v.round : '') : A.PH[v.phase]; }
   function paintHeader(v) {
     var acts = v.phase === 'ready' ? [['all', '멘토링 시작', 'go']]
       : v.phase === 'all' ? [['group', '분반 시작', 'go'], ['end', '마침', 'ghost']]
       : v.phase === 'group' ? [['all', '분반 종료 · 전체로', 'go']]
-      : [['all', '다시 전체로', 'ghost']];
-    var sig = v.phase + v.round;
+      : v.closed ? [['all', '다시 전체로', 'ghost']]
+      : [['closeall', '모두 퇴장시키기', 'go'], ['all', '다시 전체로', 'ghost']];
+    var sig = v.phase + v.round + (v.closed ? 'c' : '');
     if ($('#steps').dataset.sig !== sig) {
       $('#steps').dataset.sig = sig;
       $('#steps').innerHTML = '<span class="phnow ph-' + v.phase + '">' + UI.esc(phaseLabel(v)) + '</span>' + acts.map(function (a) {
@@ -269,9 +280,10 @@
       return;
     }
     clearTimeout(b._t); b.disabled = true; b.textContent = '이동 중…';
-    sess.op('phase', { to: b.dataset.p, delay: 0 }).then(function (j) {
+    var req = b.dataset.p === 'closeall' ? sess.op('closeall') : sess.op('phase', { to: b.dataset.p, delay: 0 });
+    req.then(function (j) {
       if (!j.ok) { UI.toast('바꾸지 못했습니다(' + (j.error || '') + ')'); b.disabled = false; b.textContent = b.dataset.l; b.classList.remove('arm'); }
-      else UI.toast(b.dataset.p === 'group' ? '분반을 시작했습니다 — 학생·멘토가 각 조로 이동합니다' : b.dataset.p === 'all' ? '모두 전체로 모입니다' : b.dataset.p === 'end' ? '멘토링을 마쳤습니다' : '');
+      else UI.toast(b.dataset.p === 'group' ? '분반을 시작했습니다 — 학생·멘토가 각 조로 이동합니다' : b.dataset.p === 'all' ? '모두 전체로 모입니다' : b.dataset.p === 'end' ? '멘토링을 마쳤습니다(녹화 저장) — 「모두 퇴장시키기」로 학생·멘토 화면을 닫을 수 있습니다' : b.dataset.p === 'closeall' ? '학생·멘토를 모두 퇴장시켰습니다' : '', 5000);
     });
   });
   function tick() {
@@ -317,7 +329,7 @@
       el.classList.toggle('hear', listen === rm);
       el.querySelector('.hear').classList.toggle('on', listen === rm);
       // 칸: 위 멘토(+크게 볼 것) · 아래 학생 — 명단 자리 고정, 들어오지 않은 사람은 검은 칸에 이름
-      var sl = A.slots(v, rm, { streams: room.streams, me: v.me });
+      var sl = A.slots(v, rm, { streams: room.streams, me: v.me, localCam: opsCam });
       // 학생·멘토 화면과 같은 배치로 그림(전체: 멘토 2×2 크게·학생 6×2 작게, 영역 구분 / 분반: 멘토 크게·학생 한 줄)
       var body = el.querySelector('.rpb');
       if (!body.classList.contains('astage')) body.className = 'rpb astage';
@@ -343,9 +355,37 @@
   function talk(on) {
     if (!mic) return;
     talking = on;
-    mic.getAudioTracks().forEach(function (t) { t.enabled = on; });
-    sess.info.talk = on; sess.kick();
+    var live = on || micOpen;
+    mic.getAudioTracks().forEach(function (t) { t.enabled = live; });
+    sess.info.talk = live; sess.kick();
+    paintMyBtns();
   }
+  /* 내 카메라·마이크 켜고 끄기(운영진·연구원) — 지금 듣고 있는 방에 보이고 들림 */
+  var micOpen = false, opsCam = null;
+  function paintMyBtns() {
+    var c = $('#b-mycam'), m = $('#b-mymic');
+    c.innerHTML = UI.ico('video') + '<span>' + (opsCam ? '카메라 켜짐' : '카메라 꺼짐') + '</span>'; c.classList.toggle('on', !!opsCam);
+    m.innerHTML = UI.ico('mic') + '<span>' + (micOpen ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; m.classList.toggle('on', micOpen);
+    m.disabled = !mic;
+  }
+  $('#b-mymic').onclick = function () {
+    if (!mic) { UI.toast('마이크를 쓸 수 없습니다(브라우저 권한 확인)'); return; }
+    micOpen = !micOpen; talk(talking);
+    UI.toast(micOpen ? A.roomName(listen) + '에 내 소리가 들립니다' : '마이크를 껐습니다(누르고 말하기는 계속 됩니다)');
+  };
+  $('#b-mycam').onclick = async function () {
+    var b = this; b.disabled = true;
+    try {
+      if (opsCam) {
+        await room.sfu.unpublish('cam'); opsCam.getTracks().forEach(function (t) { t.stop(); }); opsCam = null;
+      } else {
+        opsCam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 24 } }, audio: false });
+        await room.sfu.publish('cam', opsCam.getVideoTracks()[0]);
+        UI.toast(A.roomName(listen) + ' 화면에 내 카메라가 보입니다');
+      }
+    } catch (e) { UI.toast('카메라를 켜지 못했습니다'); if (opsCam) { opsCam.getTracks().forEach(function (t) { t.stop(); }); opsCam = null; } }
+    b.disabled = false; paintMyBtns(); paintRooms(); if (recOn) recSync();
+  };
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'Space' || e.repeat || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
     e.preventDefault(); talk(true);
@@ -465,17 +505,39 @@
 
   function vidFor(key, stream) {
     var v = vids[key];
-    if (!stream) { if (v) { v.srcObject = null; v.remove(); delete vids[key]; } return null; }
+    if (!stream) { if (v) { v.srcObject = null; v.remove(); delete vids[key]; } tapFor(key, null); return null; }
     if (!v) { v = vids[key] = document.createElement('video'); v.muted = true; v.playsInline = true; $('#recvids').appendChild(v); }
     if (v.srcObject !== stream) { v.srcObject = stream; v.play().catch(function () {}); }
+    v.__tap = tapFor(key, stream);
     return v;
+  }
+  /* 녹화용 영상 프레임을 트랙에서 직접 받음(MediaStreamTrackProcessor)
+   * — 창이 가려지거나 다른 탭을 봐도 영상이 멈추지 않게. 지원하지 않으면 <video>로 그림 */
+  var taps = {};
+  function tapFor(key, stream) {
+    var tr = stream && stream.getVideoTracks()[0], t = taps[key];
+    if (t && (!tr || t.src !== tr.id)) { t.stop(); delete taps[key]; t = null; }
+    if (!tr || typeof MediaStreamTrackProcessor !== 'function') return null;
+    if (t) return t;
+    try {
+      var clone = tr.clone(), reader = new MediaStreamTrackProcessor({ track: clone }).readable.getReader();
+      t = taps[key] = { src: tr.id, frame: null, at: 0, stop: function () { this.dead = true; try { reader.cancel(); } catch (e) {} try { clone.stop(); } catch (e) {} if (this.frame) { this.frame.close(); this.frame = null; } } };
+      (function pump() {
+        reader.read().then(function (r) {
+          if (r.done || t.dead) { if (r.value) r.value.close(); return; }
+          if (t.frame) t.frame.close();
+          t.frame = r.value; t.at = Date.now(); pump();
+        }).catch(function () {});
+      })();
+      return t;
+    } catch (e) { return null; }
   }
   var imgs = {};
   function imgFor(f) { if (!imgs[f]) { var im = imgs[f] = new Image(); A.img(sess, f).then(function (u) { im.src = u; }); } return imgs[f]; }
   // 녹화 화면에 그릴 방 구성(위 멘토 · 아래 학생 · 크게 볼 것) + 녹음할 소리
   function sectionOf(rm) {
     var v = view, aud = [];
-    var sl = A.slots(v, rm, { streams: room.streams, me: v.me });
+    var sl = A.slots(v, rm, { streams: room.streams, me: v.me, localCam: opsCam });
     var conv = function (it) {
       var o = { key: it.key, id: it.id, kind: it.kind, label: it.label, name: it.name, feature: !!it.feature, mentor: it.role === 'mentor', absent: !it.p || !it.p.live };
       if (it.kind === 'photo') o.img = imgFor(it.photo);
@@ -499,8 +561,10 @@
   var BG = new Image(); BG.src = 'img/rec-bg.jpg';
   var FONT = '"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", sans-serif';
   function drawMedia(c, el, x, y, w, h, contain) {
-    var vw = el ? (el.videoWidth || el.naturalWidth || 0) : 0, vh = el ? (el.videoHeight || el.naturalHeight || 0) : 0;
-    if (!vw || !(el.tagName === 'IMG' ? el.complete : el.readyState >= 2)) return false;
+    var tap = el && el.__tap;
+    if (tap && tap.frame && Date.now() - tap.at < 5000) el = tap.frame;   // 트랙에서 바로 받은 최신 프레임
+    var vw = el ? (el.displayWidth || el.videoWidth || el.naturalWidth || 0) : 0, vh = el ? (el.displayHeight || el.videoHeight || el.naturalHeight || 0) : 0;
+    if (!vw || !(el.displayWidth || (el.tagName === 'IMG' ? el.complete : el.readyState >= 2))) return false;
     var portrait = vh > vw * 1.05, fit = contain || portrait;
     var sc = fit ? Math.min(w / vw, h / vh) : Math.max(w / vw, h / vh), dw = vw * sc, dh = vh * sc;
     c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
@@ -663,7 +727,7 @@
     Object.keys(want).forEach(function (k) {
       var x = recs[k];
       if (!x) {
-        var r = new REC({ onFile: fileAdded, onState: function () {}, fps: C.REC_FPS || 30 });
+        var r = new REC({ onFile: fileAdded, onState: function () {}, fps: C.REC_FPS || 24 });
         r.setDir(dirH); r.resume();
         x = recs[k] = { r: r, ph: ph, rooms: want[k], made: Date.now() };
       }
@@ -710,9 +774,9 @@
     // 그리기를 건너뛴 비율(PC가 버거워 초당 장면 수가 줄어든 정도)
     keys = Object.keys(recs);
     var sk = 0; keys.forEach(function (k) { sk += recs[k].r.skipped || 0; });
-    skipHist.push(Math.max(0, sk - lastSkip) / Math.max(1, keys.length * 30)); lastSkip = sk; if (skipHist.length > 10) skipHist.shift();
+    skipHist.push(Math.max(0, sk - lastSkip) / Math.max(1, keys.length * (C.REC_FPS || 24))); lastSkip = sk; if (skipHist.length > 20) skipHist.shift();
     var skipRate = skipHist.reduce(function (a, b) { return a + b; }, 0) / skipHist.length;
-    if (!quad && C.QUAD_FALLBACK !== false && view && view.phase === 'group' && keys.length >= 3 && skipHist.length >= 10 && (avgLag > 250 || skipRate > 0.4)) {
+    if (!quad && C.QUAD_FALLBACK !== false && view && view.phase === 'group' && keys.length >= 3 && skipHist.length >= 20 && (avgLag > 400 || skipRate > 0.6)) {   // 20초 넘게 크게 버거울 때만
       quad = true; UI.toast('PC가 버거워 분반 녹화를 4분할 1개 파일로 바꿉니다', 6000); recSync();
     }
     keys = Object.keys(recs);
@@ -733,6 +797,12 @@
     $('#recbad').textContent = '녹화 PC가 없습니다! 녹화할 PC에서 「이 PC에서 녹화」를 켜 주세요.';
   }, 1500);
   window.addEventListener('beforeunload', function (e) { if (Object.keys(recs).length) { e.preventDefault(); e.returnValue = ''; } });
+  // 녹화 PC에서 이 탭이 가려지면 경고(다른 탭·최소화는 녹화가 끊길 수 있음)
+  document.addEventListener('visibilitychange', function () {
+    if (!recOn) return;
+    if (document.hidden) document.title = '● 녹화 중 — 이 탭을 앞에 두세요';
+    else { document.title = '미술 심화 멘토링 · 운영'; UI.toast('녹화 중에는 이 탭을 다른 탭 뒤로 보내거나 창을 최소화하지 마세요', 5000); }
+  });
 
   $('#b-out').onclick = function () {
     if (Object.keys(recs).length && !confirm('녹화 중입니다. 저장하고 나갈까요?')) return;

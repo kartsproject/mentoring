@@ -43,6 +43,7 @@
     aside.queue.open { transform: none; }
     .qtoggle { display: inline-flex; }
   }
+  .mout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
 </head>
 <body>
@@ -88,6 +89,7 @@
       <span class="sp"></span>
       <span class="timer hide" id="t-timer">10:00</span>
       <button class="btn ghost sm qtoggle" id="b-queue">순서</button>
+      <button class="btn ghost sm mout" type="button" id="m-out">나가기</button>
     </div>
     <div class="vbox">
       <video class="main" id="v-remote" autoplay playsinline></video>
@@ -316,6 +318,20 @@
   }
 })();
 </script>
-<script>/* 발언자 표시 */ Meet.Speak.auto('#v-remote', '.vbox'); Meet.Speak.auto('#v-self', '.pip');</script>
+<script>/* 발언자 표시 */ Meet.Speak.auto('#v-remote', '.vbox'); Meet.Speak.auto('#v-self', '.pip');
+  // 오른쪽 위 나가기(두 번 눌러 확인) — 카메라·마이크 끄고 처음 화면으로
+  (function () {
+    var b = document.getElementById('m-out'); if (!b) return;
+    b.onclick = function () {
+      if (!(b.dataset.armed && Date.now() - Number(b.dataset.armed) < 3000)) {
+        b.dataset.armed = Date.now(); b.textContent = '정말 나가기';
+        setTimeout(function () { b.textContent = '나가기'; delete b.dataset.armed; }, 3000); return;
+      }
+      document.querySelectorAll('video').forEach(function (v) { var st = v.srcObject; if (st && v.muted) st.getTracks().forEach(function (t) { t.stop(); }); });
+      var r = new URLSearchParams(location.search).get('r');
+      location.href = location.pathname + (r ? '?r=' + encodeURIComponent(r) : '');
+    };
+  })();
+</script>
 </body>
 </html>

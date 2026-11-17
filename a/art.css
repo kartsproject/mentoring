@@ -18,6 +18,12 @@
 .conn3 i { width: 7px; height: 7px; border-radius: 50%; background: #6FD39B; }
 .conn3.off i { background: var(--yel); }
 
+/* 오른쪽 위 나가기 */
+.aout { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25); background: transparent; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; }
+.aout svg { width: 16px; height: 16px; }
+.aout:hover { background: rgba(255,255,255,.08); }
+.aout.arm { background: var(--red); border-color: var(--red); }
+
 /* 공지·이동 안내 */
 .anotice { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--yel); color: var(--ink); font-weight: 700; font-size: 14.5px; }
 .anotice .x { margin-left: auto; border: 0; background: rgba(0,0,0,.08); border-radius: 7px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: inherit; }

@@ -73,6 +73,7 @@
     <span class="atimer quiet hide" id="t-timer"></span>
     <div class="abig hide" id="t-big"><b id="t-big-b"></b><small id="t-big-s"></small></div>
     <span class="conn3" id="t-conn"><i></i><span>연결됨</span></span>
+    <button class="aout" type="button" id="b-out"></button>
   </div>
   <div class="apend hide" id="t-pend"></div>
   <div class="anotice hide" id="t-notice"><span id="t-notice-tx"></span><button class="x" type="button" id="t-notice-x" aria-label="닫기"></button></div>
@@ -83,7 +84,6 @@
     <button class="abtn hide" type="button" id="b-hand"></button>
     <button class="abtn" type="button" id="b-unspot"></button>
     <button class="abtn" type="button" id="b-share"></button>
-    <button class="abtn leave" type="button" id="b-out"></button>
   </div>
   <div class="amenu hide" id="m-share">
     <button type="button" id="s-screen"><span>화면 공유<small>PC의 작업 화면·포트폴리오 파일 보여 주기</small></span></button>
@@ -141,6 +141,7 @@
     $('#c-btn').disabled = true;
     check.stopMeterOnly();
     cam = check.stream;
+    A.lightCam(cam);
     go('s-room'); entered = true; UI.wakeLock();
     $('#t-me').textContent = '멘토 ' + sess.name;
     $('#t-sub').textContent = '미술 심화 멘토링 · ' + (sess.r === 'test' ? '리허설' : sess.r + '회차');   // 어느 회차에 들어왔는지 보이게
@@ -180,15 +181,29 @@
   async function reconnect() { if (reconnecting) return; reconnecting = true; room.lastWant = ''; Object.keys(room.streams).forEach(function (k) { delete room.streams[k]; }); await openSfu(); reconnecting = false; }
 
   function meP(v) { return (v.people || []).filter(function (p) { return p.id === v.me; })[0] || {}; }
+  // 운영진이 「모두 퇴장」을 누르면: 카메라·마이크 끄고 연결을 닫은 뒤 마침 안내
+  var closedOut = false;
+  function closeOut() {
+    if (closedOut) return; closedOut = true;
+    try { if (cam) cam.getTracks().forEach(function (t) { t.stop(); }); if (scr) scr.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    try { if (room) { Object.keys(room.audios).forEach(function (k) { room.audio(k, null); }); room.sfu.close(); } } catch (e) {}
+    try { sess.stop(); } catch (e) {}
+    try { sessionStorage.removeItem('art_stu'); } catch (e) {}
+    clearTimeout(showMove.t);
+    $('#t-move-h').innerHTML = '멘토링이 <em>모두 끝났습니다</em>';
+    $('#t-move-p').textContent = '참여해 주셔서 감사합니다. 이제 이 창을 닫아도 됩니다.';
+    UI.show('#t-move', true);
+    document.title = '멘토링 종료 | 미술 심화 멘토링';
+  }
   function onView(v) {
+    if (v.closed && v.phase === 'end') { closeOut(); return; }
     var me = meP(v), myRoom = v.myRoom;
     // 받을 영상: 내 방 사람들. 멘토·크게 보는 사람은 높은 화질
     var spot = v.spot && v.spot[myRoom];
     room.sync(v, function (p) {
-      if ((p.role === 'ops' || p.role === 'research')) return p.room === myRoom ? { mic: true } : null;
+      if ((p.role === 'ops' || p.role === 'research')) return p.room === myRoom ? { mic: true, cam: 'h' } : null;   // 운영진·연구원이 카메라를 켜면 보임
       if (p.room !== myRoom) return null;
-      var hi = p.role === 'mentor' || myRoom !== 'all' || (spot && spot.id === p.id);
-      return { cam: hi ? 'h' : 'l', mic: true, scr: true };
+      return { cam: A.camRid(v, p, myRoom, room.pin), mic: true, scr: true };
     });
     room.render(v);
     // 방이 바뀜 → 이동 안내, 마이크 자동
@@ -262,7 +277,15 @@
   $('#b-share').onclick = function (e) { e.stopPropagation(); $('#m-share').classList.toggle('hide'); };
   document.addEventListener('click', function (e) { if (!e.target.closest('#m-share')) UI.show('#m-share', false); });
   $('#b-out').innerHTML = UI.ico('out') + '<span>나가기</span>';
-  $('#b-out').onclick = function () { if (!confirm('멘토링에서 나갈까요?')) return; location.href = location.pathname; };
+  $('#b-out').onclick = function () {   // 오른쪽 위 나가기(두 번 눌러 확인)
+    var b = this;
+    if (!(b.dataset.armed && Date.now() - Number(b.dataset.armed) < 3000)) {
+      b.dataset.armed = Date.now(); b.querySelector('span').textContent = '정말 나가기'; b.classList.add('arm');
+      setTimeout(function () { b.querySelector('span').textContent = '나가기'; b.classList.remove('arm'); delete b.dataset.armed; }, 3000); return;
+    }
+    try { if (cam) cam.getTracks().forEach(function (t) { t.stop(); }); if (scr) scr.getTracks().forEach(function (t) { t.stop(); }); if (room) room.sfu.close(); } catch (e) {}
+    location.href = location.pathname + (sess && sess.r ? '?r=' + encodeURIComponent(sess.r) : '');
+  };
   setCam(true);
 
   // 화면 공유

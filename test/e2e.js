@@ -106,9 +106,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
       log('wrong birth rejected');
     }
     await p.fill('#g-name', name); await p.fill('#g-birth', birth); await p.check('#g-agree'); await p.click('#g-btn');
-    await p.waitForSelector('#rules.on', { timeout: 15000 });
-    if (wrongFirst) { await sleep(500); await SHOT(p, 'stu_rules0'); await p.click('#rNext'); await sleep(500); await SHOT(p, 'stu_rules1'); }
-    for (let i = 0; i < 10 && await p.isVisible('#rules.on'); i++) await p.click('#rNext');
+    if (await p.isVisible('#rules.on')) throw new Error('유의사항 카드가 나오면 안 됨');
     await p.waitForSelector('#c-btn:not([disabled])', { timeout: 15000 });
     if (wrongFirst) { await sleep(800); await SHOT(p, 'stu_check'); }
     await p.click('#c-btn');

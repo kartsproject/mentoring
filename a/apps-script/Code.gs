@@ -1,5 +1,5 @@
 /**
- * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.2
+ * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.3
  *
  * 하는 일
  *  - 입장(학생: 이름+생년월일, 멘토·운영진·연구원: 코드+이름), 회차는 날짜로 자동
@@ -206,6 +206,7 @@ function applyPending_(r) {
 }
 function setPhase_(r, s, to, by) {
   s.phase = to; s.phaseAt = Date.now(); s.pend = null; s.spot = {}; s.hands = {};
+  if (to !== 'end') s.closed = 0;   // 다시 시작하면 「모두 퇴장」 풀림
   if (to === 'all' || to === 'group') s.rounds[to] = (s.rounds[to] || 0) + 1;   // 전체 n번째·분반 n번째(녹화 파일 이름)
   log_(r, '단계', by || '', { ready: '시작 전', all: '전체', group: '분반', end: '마침' }[to] + (s.rounds[to] ? ' ' + s.rounds[to] : ''));
 }
@@ -252,7 +253,8 @@ function view_(r, s, id, now) {
     seq: s.seq, me: id, myRoom: roomFor_(r, s, id), myGroup: me.role === 'student' ? (s.assign[id] || defaultGroup_(r, me.name)) : me.role === 'mentor' ? (s.mgroup[id] || mentorGroup_(r, me.name)) : 0, phase: s.phase, phaseAt: s.phaseAt, pend: s.pend, round: s.rounds[s.phase] || 0,
     sess: d.sess[r] || { r: r }, people: people, spot: s.spot, notice: s.notice,
     groups: Object.keys(groups).map(Number).sort(), mentorsOf: mentorsOf,
-    recorder: s.recorder && live(s.recorder) ? s.recorder : null
+    recorder: s.recorder && live(s.recorder) ? s.recorder : null,
+    closed: s.closed || 0
   };
   v.roster = roster; v.mroster = mroster;
   return v;
@@ -330,6 +332,12 @@ function op_(r, req) {
         need(staff);
         memo_(r, who, String(req.where || ''), String(req.text || '').slice(0, 500));
         return { ok: true };
+      case 'closeall':   // 멘토링을 마치고 학생·멘토 모두 퇴장시키기
+        need(ops);
+        if (s.phase !== 'end') setPhase_(r, s, 'end', who);
+        s.closed = now; s.notice = null;
+        log_(r, '모두 퇴장', who, '');
+        break;
       case 'reset': need(ops); var parts = s.parts, n = s.n; s = blankState_(); s.parts = parts; s.n = n; log_(r, '초기화', who, ''); break;
       default: return { ok: false, error: 'bad_cmd' };
     }
@@ -370,8 +378,16 @@ function sfu_(r, req) {
       path = '/sessions/' + sid + '/tracks/new';
       body = { tracks: (req.tracks || []).slice(0, 40).map(function (t) {
         var o = { location: 'remote', sessionId: String(t.sessionId), trackName: String(t.trackName) };
-        if (t.rid) o.simulcast = { preferredRid: String(t.rid), preferredRidNotAvailable: 'asciibetical' };
+        // 화질층이 없거나 망이 부족하면 다음 화질로 자동 전환(영상 멈춤 방지)
+        if (t.rid) o.simulcast = { preferredRid: String(t.rid), priorityOrdering: 'asciibetical', ridNotAvailable: 'asciibetical' };
         return o;
+      }) };
+      break;
+    case 'update':   // 받는 영상의 화질만 바꾸기(다시 받지 않음)
+      path = '/sessions/' + sid + '/tracks/update'; method = 'put';
+      body = { tracks: (req.tracks || []).slice(0, 40).map(function (t) {
+        return { location: 'remote', sessionId: String(t.sessionId), trackName: String(t.trackName), mid: String(t.mid),
+                 simulcast: { preferredRid: String(t.rid), priorityOrdering: 'asciibetical', ridNotAvailable: 'asciibetical' } };
       }) };
       break;
     case 'reneg':

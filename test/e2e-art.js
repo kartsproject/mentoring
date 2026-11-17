@@ -88,6 +88,14 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     if (!/학생라/.test(absent) || !/학생마/.test(absent)) throw new Error('absent students should show as black tiles with names: ' + absent);
     await waitFor(ops, () => [...document.querySelectorAll('.rp video')].filter(v => v.readyState >= 2 && v.videoWidth > 0).length >= 5, null, 40000, 'ops sees 6 videos');
     log('ops sees all 5 videos in 전체');
+    // 운영진 카메라·마이크 켜기 → 같은 방 학생 화면에 「운영 …」 칸
+    await ops.click('#b-mycam');
+    await waitFor(st['학생가'], () => [...document.querySelectorAll('.tile .t-label')].some(l => /운영 /.test(l.textContent)), null, 40000, 'ops cam visible to student');
+    await ops.click('#b-mymic');
+    log('ops camera on → student tiles:', await st['학생가'].evaluate(() => [...document.querySelectorAll('.r-bot .tile .t-label')].map(l => l.textContent).filter(Boolean).join(', ')), '| ops buttons:', await ops.evaluate(() => document.querySelector('#b-mycam').textContent + ' / ' + document.querySelector('#b-mymic').textContent));
+    await SHOT(st['학생가'], 'stu_opscam');
+    await ops.click('#b-mymic');
+    await ops.click('#b-mycam');
     await ops.click('#b-who');
     const who = await waitFor(ops, () => { const t = document.querySelector('#who-b').innerText; return /멘토일/.test(t) && /운영A/.test(t) && t; }, null, 10000, 'who popup');
     log('전체 접속자 팝업:', who.replace(/\n+/g, ' / ').slice(0, 220));
@@ -173,8 +181,16 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     await waitFor(st['학생가'], () => /전체/.test(document.querySelector('#t-room').textContent), null, 45000, 'back to 전체');
     await waitFor(st['학생가'], () => [...document.querySelectorAll('.tile video')].filter(v => v.readyState >= 2 && v.videoWidth > 0).length >= 4, null, 60000, 'all2 videos');
     log('all2: everyone back, videos:', (await liveTiles(st['학생가'])).length);
-    await sleep(5000);
+    await waitFor(ops, () => Object.values(window.__recs()).some(x => x.r.recording() && x.r.stat && x.r.stat.bytes > 150000), null, 60000, '전체_분반후 has data');
+    await sleep(3000);
     await phase('end');
+    await sleep(3000);
+    await phase('closeall');
+    await waitFor(st['학생가'], () => /모두 끝났습니다/.test(document.querySelector('#t-move').textContent) && !document.querySelector('#t-move').classList.contains('hide'), null, 30000, 'student closed');
+    await waitFor(m1, () => /모두 끝났습니다/.test(document.querySelector('#t-move').textContent), null, 30000, 'mentor closed');
+    log('모두 퇴장 → 학생·멘토 화면 종료 안내, 카메라 꺼짐:', await st['학생가'].evaluate(() => document.querySelectorAll('video').length >= 0 && document.title));
+    await SHOT(st['학생가'], 'stu_closed');
+    log('sfu tracks/update calls:', await host.evaluate(() => window.__upd || 0));
     await sleep(12000);
     log('end phase — rec:', await ops.evaluate(() => JSON.stringify(Object.values(window.__recs()).map(x => [x.ph, x.starting, x.r.health()]))));
     // 녹화 멈추고 파일 확인

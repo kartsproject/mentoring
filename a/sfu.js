@@ -65,9 +65,12 @@
       if (cur) { await cur.tr.sender.replaceTrack(track); cur.track = track; return cur.name; }
       var pc = self.pc, init = { direction: 'sendonly' };
       if (track.kind === 'video') {
-        // 작은 칸은 낮은 화질(l), 크게 볼 때·녹화는 높은 화질(h)
-        if (self.simulcast && kind === 'cam') init.sendEncodings = [{ rid: 'h', maxBitrate: 1200000 }, { rid: 'l', scaleResolutionDownBy: 4, maxBitrate: 180000 }];
-        else init.sendEncodings = [{ maxBitrate: kind === 'scr' ? 2500000 : 1200000 }];
+        // 화질 3단(f 원본 · h 절반 · q 1/4) — 받는 쪽이 칸 크기에 맞춰 고르고, 망이 나쁘면 Cloudflare가 자동으로 낮춤
+        if (self.simulcast && kind === 'cam') init.sendEncodings = [
+          { rid: 'f', maxBitrate: 800000, maxFramerate: 24 },
+          { rid: 'h', scaleResolutionDownBy: 2, maxBitrate: 300000, maxFramerate: 24 },
+          { rid: 'q', scaleResolutionDownBy: 4, maxBitrate: 100000, maxFramerate: 15 }];
+        else init.sendEncodings = [{ maxBitrate: kind === 'scr' ? 2500000 : 800000 }];
       }
       var tr;
       try { tr = pc.addTransceiver(track, init); }
@@ -113,11 +116,22 @@
       if (!self.pc || !self.sid) return;
       var pc = self.pc, now = Date.now(), wantMap = {};
       want.forEach(function (w) { wantMap[w.key] = w; });
-      // ① 이제 필요 없거나(사람이 나감·방이 바뀜) 화질·트랙이 바뀐 것 닫기
+      // ① 이제 필요 없거나(사람이 나감·방이 바뀜) 트랙이 바뀐 것 닫기
       var del = Object.keys(self.pulled).filter(function (k) {
         var w = wantMap[k], p = self.pulled[k];
-        return !w || w.trackName !== p.trackName || w.sessionId !== p.sessionId || (w.rid || '') !== (p.rid || '');
+        return !w || w.trackName !== p.trackName || w.sessionId !== p.sessionId;
       });
+      // ①-2 화질만 바뀐 것은 다시 받지 않고 그 자리에서 바꿈(끊김 없음)
+      var upd = Object.keys(self.pulled).filter(function (k) {
+        var w = wantMap[k], p = self.pulled[k];
+        return w && del.indexOf(k) < 0 && (w.rid || '') !== (p.rid || '') && p.rid && w.rid;
+      });
+      if (upd.length) {
+        try {
+          await self.call('update', { tracks: upd.map(function (k) { var w = wantMap[k], p = self.pulled[k]; return { sessionId: p.sessionId, trackName: p.trackName, mid: p.mid, rid: w.rid }; }) });
+          upd.forEach(function (k) { self.pulled[k].rid = wantMap[k].rid; });
+        } catch (e) { console.warn('sfu update', e); del = del.concat(upd); }
+      }
       if (del.length) {
         var trs = [], mids = [];
         del.forEach(function (k) {
@@ -136,7 +150,7 @@
       add.forEach(function (w) {
         var t = got.filter(function (g) { return g.trackName === w.trackName && g.sessionId === w.sessionId; })[0];
         if (!t || t.errorCode || t.mid == null) { self.failAt[w.key] = Date.now(); return; }
-        self.pulled[w.key] = { mid: String(t.mid), rid: w.rid || '', sessionId: w.sessionId, trackName: w.trackName, track: null };
+        self.pulled[w.key] = { mid: String(t.mid), rid: w.rid || '', sessionId: w.sessionId, trackName: w.trackName, track: null, at: Date.now() };
       });
       if (res.requiresImmediateRenegotiation && res.sessionDescription) {
         await pc.setRemoteDescription(res.sessionDescription);
@@ -154,7 +168,40 @@
     });
   };
 
+  /* 영상 멈춤 감시: 받는 영상의 프레임이 9초 넘게 늘지 않으면(보내는 쪽 끊김·화질층 사라짐) 그 영상만 다시 받음 */
+  SFU.prototype.watch = function (onStale) {
+    var self = this, last = {};
+    clearInterval(this.wt);
+    this.wt = setInterval(async function () {
+      var pc = self.pc; if (!pc || pc.connectionState !== 'connected') return;
+      var st; try { st = await pc.getStats(); } catch (e) { return; }
+      var byMid = {};
+      st.forEach(function (r) { if (r.type === 'inbound-rtp' && r.kind === 'video' && r.mid != null) byMid[String(r.mid)] = r.framesDecoded || 0; });
+      var now = Date.now(), stale = [];
+      Object.keys(self.pulled).forEach(function (k) {
+        if (!/\|cam$/.test(k)) return;   // 화면 공유는 화면이 안 바뀌면 프레임이 없을 수 있어 제외
+        var p = self.pulled[k], f = byMid[p.mid];
+        if (f == null || now - (p.at || 0) < 8000) return;
+        var l = last[k];
+        if (!l || l.f !== f) { last[k] = { f: f, t: now }; return; }
+        if (now - l.t > 9000) { stale.push(k); delete last[k]; }
+      });
+      if (!stale.length) return;
+      console.warn('sfu stale video → re-pull', stale);
+      self.serial(async function () {
+        var trs = [], mids = [];
+        stale.forEach(function (k) {
+          var p = self.pulled[k]; if (!p) return; delete self.pulled[k]; self.onTrack(k, null);
+          var t = pc.getTransceivers().filter(function (x) { return x.mid === p.mid; })[0];
+          if (t) { trs.push(t); mids.push(p.mid); }
+        });
+        try { await self.closeMids(mids, trs); } catch (e) {}
+      }).then(function () { if (onStale) onStale(stale); });
+    }, 3000);
+  };
+
   SFU.prototype.close = function () {
+    clearInterval(this.wt);
     try { this.pc && this.pc.close(); } catch (e) {}
     this.pc = null; this.sid = ''; this.pub = {}; this.pulled = {};
   };

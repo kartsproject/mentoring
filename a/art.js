@@ -52,6 +52,18 @@
   /* 방 자리 정하기(화면·녹화 공통)
    *  mentors: 그 방 멘토(명단 순서) / students: 그 방 학생(명단 순서) — 명단에 없지만 들어온 사람은 뒤에 붙임
    *  feature: 크게 볼 것 — 내가 누른 것 > 멘토가 지정한 것 > 화면 공유 > 최근 작품 사진 */
+  // 받을 화질: 크게 보는 것 f, 멘토·분반 h, 전체의 학생 칸 q (녹화 PC는 따로)
+  A.camRid = function (v, p, myRoom, pin) {
+    var spot = v.spot && v.spot[myRoom];
+    if ((spot && spot.id === p.id) || (pin && pin.indexOf(p.id + '|') === 0)) return 'f';
+    if (myRoom !== 'all') return p.role === 'mentor' ? 'f' : 'h';
+    return p.role === 'mentor' ? 'h' : 'q';
+  };
+  // 카메라를 미술용으로 가볍게(960×540, 초당 24장) — 3단 화질을 보내도 기기 부담이 적게
+  A.lightCam = function (stream) {
+    var t = stream && stream.getVideoTracks()[0];
+    if (t && t.applyConstraints) t.applyConstraints({ width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 24 } }).catch(function () {});
+  };
   A.MSUF = (M.CFG.MENTOR_SUFFIX != null ? M.CFG.MENTOR_SUFFIX : ' 교수님');
   A.slots = function (v, room, o) {
     o = o || {};
@@ -74,6 +86,15 @@
     people.forEach(function (p) {   // 명단 밖(리허설·추가 인원)
       if (seen[p.id] || !inRoom(p) || (p.role !== 'mentor' && p.role !== 'student') || (!p.live && p.id !== me)) return;
       (p.role === 'mentor' ? mentors : students).push(mk(p.id, p.name, p.role));
+    });
+    // 카메라를 켠 운영진·연구원(그 방에 있을 때) — 학생 줄 끝에
+    people.forEach(function (p) {
+      if ((p.role !== 'ops' && p.role !== 'research') || !inRoom(p) || !p.live) return;
+      var mine = p.id === me, has = mine ? !!o.localCam : !!(p.tr && p.tr.cam);
+      if (!has) return;
+      var it = mk(p.id, p.name, 'staff');
+      it.label = (p.role === 'ops' ? '운영 ' : '연구원 ') + p.name + (mine ? ' (나)' : '');
+      students.push(it);
     });
     // 크게 볼 것
     var here = people.filter(function (p) { return inRoom(p) && (p.role === 'mentor' || p.role === 'student') && (p.live || p.id === me); });
@@ -115,6 +136,8 @@
       onState: function (st) { if (o.onSfuState) o.onSfuState(st); },
       onPub: function (tr) { self.sess.op('pub', { sfu: self.sfu.sid, tr: tr }).catch(function () {}); }
     });
+    // 멈춘 영상은 다시 받기
+    this.sfu.watch(function () { self.lastWant = ''; if (self.view && self.wantFn) self.sync(self.view, self.wantFn); });
   }
   Room.prototype.track = function (key, track) {
     var p = key.split('|'), id = p[0], kind = p[1];
@@ -147,10 +170,11 @@
   };
   // 이 사람 영상을 어떤 화질로 받을지 정하고 SFU에 요청
   Room.prototype.sync = function (v, wantFn) {
+    this.wantFn = wantFn;
     var me = v.me, list = [];
     (v.people || []).forEach(function (p) {
       if (p.id === me || !p.live || !p.sfu || !p.tr) return;
-      var w = wantFn(p);   // { cam: 'h'|'l'|false, mic: bool, scr: bool }
+      var w = wantFn(p);   // { cam: 'f'|'h'|'q'|false, mic: bool, scr: bool }
       if (!w) return;
       if (w.cam && p.tr.cam) list.push({ key: p.id + '|cam', sessionId: p.sfu, trackName: p.tr.cam, rid: w.cam === true ? '' : w.cam });
       if (w.mic && p.tr.mic) list.push({ key: p.id + '|mic', sessionId: p.sfu, trackName: p.tr.mic });

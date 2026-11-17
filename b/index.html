@@ -162,6 +162,7 @@
   .zoomcard .card { text-align: center; }
   html, body { touch-action: pan-x pan-y; }
   button, a, input { touch-action: manipulation; }
+  .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
 </head>
 <body>
@@ -179,7 +180,7 @@
         <div><small>2026 K예술영재 프로젝트</small><b>심화과정 · 무용</b></div></div>
       <div class="eyebrow"><i class="fdot"></i>무용분야 심화 멘토링</div>
       <h1>온라인 멘토링 <em>대기실</em></h1>
-      <p>본인 확인 후 유의사항을 읽고<br>대기실에 입장해 주세요.</p>
+      <p>본인 확인 후<br>대기실에 입장해 주세요.</p>
     </div>
   </header>
   <main class="wrap lmain">
@@ -230,7 +231,7 @@
     <span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>
     <h1><small id="rm-sub">무용 심화 멘토링</small>대기실</h1>
     <span class="conn" id="conn"><i></i><span>실시간 연결됨</span></span>
-    <button class="pill" type="button" id="rulesBtn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 5 4 4H6l4-4z"/><path d="M12 12v9"/></svg>유의사항</button>
+    <button class="pill hide" type="button" id="rulesBtn"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 5 4 4H6l4-4z"/><path d="M12 12v9"/></svg>유의사항</button>
     <button class="pill ghost" type="button" id="b-out">나가기</button>
   </div>
   <section class="status" id="status" aria-live="assertive"></section>
@@ -260,6 +261,7 @@
     <span class="chip on"><span class="rec-dot" style="background:#fff"></span>녹화</span>
     <span class="sp"></span>
     <span class="timer" id="l-timer">10:00</span>
+    <button class="btn ghost sm lout" type="button" id="l-out">나가기</button>
   </div>
   <div class="vbox">
     <video class="main" id="l-remote" autoplay playsinline></video>
@@ -324,8 +326,8 @@
     $('#g-btn').disabled = true; $('#g-btn').textContent = '확인 중…'; $('#g-err').textContent = '';
     try {
       await login(name, birth, R0);
-      RULES_SEEN = false; save();
-      openRules(true);
+      RULES_SEEN = true; save();
+      go('s-check'); startCheck();   // 유의사항 카드 없이 바로 카메라 확인
     } catch (err) {
       $('#g-err').textContent = err.code === 'not_in_roster' ? '멘토링 명단에서 찾을 수 없습니다. 이름을 다시 확인해 주세요.'
         : err.code === 'birth' ? (birth ? '생년월일이 맞지 않습니다. 8자리(예: 20150901)로 다시 입력해 주세요.' : '생년월일 8자리를 입력해 주세요.')
@@ -638,6 +640,17 @@
   $('#z-link').onclick = function () {
     if (!zoomGone) { zoomGone = true; M.Media.stop(local); if (links) links.closeWhere(function () { return true; }, true); }
   };
+  // 멘토링 화면 오른쪽 위 나가기(두 번 눌러 확인)
+  $('#l-out').onclick = function () {
+    var b = this;
+    if (!(b.dataset.armed && Date.now() - Number(b.dataset.armed) < 3000)) {
+      b.dataset.armed = Date.now(); b.textContent = '정말 나가기';
+      setTimeout(function () { b.textContent = '나가기'; delete b.dataset.armed; }, 3000); return;
+    }
+    try { sessionStorage.removeItem('meet_stu'); } catch (e) {}
+    try { M.Media.stop(local); } catch (e) {}
+    location.href = location.pathname + (R0 ? '?r=' + encodeURIComponent(R0) : '');
+  };
   $('#b-out').onclick = function () {
     if (!confirmOut()) return;
     try { sessionStorage.removeItem('meet_stu'); } catch (e) {}
@@ -658,8 +671,8 @@
     if (!s || !s.name) return;
     try {
       await login(s.name, s.birth, s.r);
-      RULES_SEEN = !!s.rules;
-      if (RULES_SEEN) { go('s-check'); startCheck(); } else openRules(true);
+      RULES_SEEN = true;
+      go('s-check'); startCheck();
     } catch (e) { try { sessionStorage.removeItem('meet_stu'); } catch (e2) {} }
   })();
 })();

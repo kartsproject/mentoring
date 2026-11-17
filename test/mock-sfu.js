@@ -22,7 +22,7 @@ const S = {};   // sid → { pc, tracks: { name → track }, q }
 const log = (...a) => console.log('[sfu]', ...a);
 const gather = pc => new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); const f = () => { if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', f); r(); } }; pc.addEventListener('icegatheringstatechange', f); setTimeout(r, 3000); });
 async function handle(job) {
-  const m = job.path.match(/^\\/v1\\/apps\\/[^/]+\\/sessions\\/(new|([^/]+)\\/(tracks\\/new|renegotiate|tracks\\/close))$/);
+  const m = job.path.match(/^\\/v1\\/apps\\/[^/]+\\/sessions\\/(new|([^/]+)\\/(tracks\\/new|renegotiate|tracks\\/close|tracks\\/update))$/);
   if (!m) return [404, { errorCode: 'not_found' }];
   if (m[1] === 'new') {
     const sid = 's' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
@@ -60,6 +60,7 @@ async function op(s, kind, b) {
     added.forEach(([t, tr]) => out.push({ sessionId: t.sessionId, trackName: t.trackName, mid: tr.mid }));
     return [200, { requiresImmediateRenegotiation: true, sessionDescription: { type: 'offer', sdp: pc.localDescription.sdp }, tracks: out }];
   }
+  if (kind === 'tracks/update') { window.__upd = (window.__upd || 0) + 1; return [200, { requiresImmediateRenegotiation: false, tracks: (b.tracks || []).map(t => ({ mid: t.mid, trackName: t.trackName, sessionId: t.sessionId })) }]; }
   if (kind === 'renegotiate') { await pc.setRemoteDescription(b.sessionDescription); return [200, {}]; }
   if (kind === 'tracks/close') {
     if (b.sessionDescription) {
