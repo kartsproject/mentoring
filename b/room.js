@@ -1,5 +1,5 @@
 /* 대기실 운영(학생 카드·시간 알림·채팅·공지·알림 미리보기·운영 순서)
- * ops.html(녹화 창·대기실 창) 공용. 기존 b_apply room.html 기능을 새 시스템에 맞춰 옮김.
+ * o.html(녹화 창·대기실 창) 공용. 기존 b_apply room.html 기능을 새 시스템에 맞춰 옮김.
  */
 (function () {
   'use strict';

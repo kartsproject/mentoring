@@ -45,7 +45,7 @@
     var self = this;
     return api({ a: 'join', r: this.r, role: this.role, name: this.name, code: this.code, birth: this.birth, panel: this.panel }).then(function (j) {
       if (!j.ok) { var e = new Error(j.error); e.code = j.error; throw e; }
-      self.id = j.id; self.tok = j.tok; self.ice = j.ice; self.name = j.name;
+      self.id = j.id; self.tok = j.tok; self.ice = j.ice; self.name = j.name; if (j.pid) self.pid = j.pid;
       if (j.r) self.r = j.r;
       self.me = j.me || null;
       self.offset = j.now - Date.now();

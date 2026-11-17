@@ -35,7 +35,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   const ops = await mk('ops'), mentor = await mk('mentor'), res = await mk('research'), sA = await mk('stuA', { width: 420, height: 860 }), sB = await mk('stuB', { width: 420, height: 860 });
 
   // 운영진(녹화 창)
-  await ops.goto(BASE + '/b/ops.html?r=test');
+  await ops.goto(BASE + '/b/o.html?r=test');
   await SHOT(ops, 'ops_gate');
   await ops.fill('#g-name', '운영A'); await ops.fill('#g-code', 'o1234'); await ops.click('#g-btn');   // 운영진은 모두 자동 녹화
   await ops.waitForSelector('#s-main:not(.hide)');
@@ -66,7 +66,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('waiting-room panel window opened & auto-logged in:', await text(panel, '#h-title'));
 
   // 멘토
-  await mentor.goto(BASE + '/b/mentor.html?r=test');
+  await mentor.goto(BASE + '/b/m.html?r=test');
   await SHOT(mentor, 'mentor_gate');
   await mentor.fill('#g-name', '정은영'); await mentor.fill('#g-code', 'm1234'); await mentor.click('#g-btn');
   await mentor.waitForSelector('#c-btn:not([disabled])', { timeout: 15000 });
@@ -74,7 +74,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('mentor in');
 
   // 연구원: 화면 등장(스페이스로 말하기)
-  await res.goto(BASE + '/b/ops.html?r=test');
+  await res.goto(BASE + '/b/o.html?r=test');
   await res.click('.seg label:nth-child(2)');
   await res.fill('#g-name', '연구원A'); await res.fill('#g-code', 'r1234'); await res.click('#g-btn');
   await res.waitForSelector('#s-main:not(.hide)');
@@ -199,7 +199,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
 
   // 회차 자동: 주소에 회차 없이 들어오면 날짜에 맞는 회차(오늘 11/16 → 2회차 11/21)
   const m2 = await mk('mentor-auto');
-  await m2.goto(BASE + '/b/mentor.html');
+  await m2.goto(BASE + '/b/m.html');
   if (!(await m2.isVisible('#g-rrow')) || await m2.isVisible('#g-room')) throw new Error('auto room row not shown');
   if (await m2.getAttribute('#g-name', 'placeholder')) throw new Error('name placeholder still there');
   await SHOT(m2, 'mentor_gate_auto');
@@ -228,7 +228,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   const octx = ops.context();
   await ops.close();   // 창을 그냥 닫음(저장 단계 없이)
   const ops2 = await octx.newPage();
-  await ops2.goto(BASE + '/b/ops.html?r=test');
+  await ops2.goto(BASE + '/b/o.html?r=test');
   await ops2.fill('#g-name', '운영A'); await ops2.fill('#g-code', 'o1234'); await ops2.click('#g-btn');
   await ops2.waitForSelector('#recSetup:not(.hide)', { timeout: 15000 });
   await ops2.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));

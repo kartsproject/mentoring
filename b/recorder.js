@@ -100,15 +100,58 @@
     }
   };
 
+  /* 여러 사람 배치(미술): sections = [{ title, items: [{ key, video|img, label, big, stream }], idle }]
+   * 한 묶음이면 화면 전체, 여러 묶음(4분할 등)이면 나눠 그림. 소리는 모든 items의 stream을 섞음 */
+  Recorder.prototype.setLayout = function (sections, audio) {
+    var self = this, keep = {};
+    this.layout = sections;
+    var all = (audio || []).slice();
+    (sections || []).forEach(function (sec) { (sec.items || []).forEach(function (it) { all.push(it); }); });
+    all.forEach(function (it) { if (it.stream && !keep['L:' + it.key]) { keep['L:' + it.key] = 1; self.mixAudio('L:' + it.key, it.stream); } });
+    Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('L:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
+  };
+  Recorder.prototype.drawSection = function (sec, x, y, w, h) {
+    var c = this.ctx, k = this.k, gap = Math.round(6 * k), self = this;
+    if (sec.title) {
+      var th = Math.round(30 * k);
+      c.fillStyle = '#24272B'; c.fillRect(x, y, w, th);
+      c.fillStyle = '#F3F1EC'; c.font = '700 ' + Math.round(16 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
+      c.fillText(sec.title, x + 10 * k, y + th / 2);
+      y += th; h -= th;
+    }
+    var items = sec.items || [];
+    if (!items.length) { this.drawTile({ video: null }, x, y, w, h, '', sec.idle || '대기 중'); return; }
+    var big = items.filter(function (it) { return it.big; })[0];
+    if (big && items.length > 1) {
+      var rest = items.filter(function (it) { return it !== big; }), bw = Math.round(w * 0.74);
+      this.drawTile(big, x, y, bw - gap, h, '');
+      var n = rest.length, ch = Math.min((h - gap * (n - 1)) / n, (w - bw) * 0.75);
+      rest.forEach(function (it, i) { self.drawTile(it, x + bw, y + i * (ch + gap), w - bw, ch, ''); });
+      return;
+    }
+    var cnt = items.length, cols = Math.ceil(Math.sqrt(cnt)), rows = Math.ceil(cnt / cols);
+    if (cnt === 2) { cols = 2; rows = 1; }
+    var cw = (w - gap * (cols - 1)) / cols, rh = (h - gap * (rows - 1)) / rows;
+    items.forEach(function (it, i) { self.drawTile(it, x + (i % cols) * (cw + gap), y + Math.floor(i / cols) * (rh + gap), cw, rh, ''); });
+  };
+
   Recorder.prototype.draw = function () {
     var c = this.ctx, W = this.W, H = this.H;
     c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
     var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
+    if (this.layout) {
+      var L = this.layout, self = this;
+      if (L.length <= 1) this.drawSection(L[0] || { items: [] }, 0, top, W, th);
+      else {
+        var cols = 2, rows = Math.ceil(L.length / 2), sw = (W - gap) / cols, sh = (th - gap * (rows - 1)) / rows;
+        L.forEach(function (sec, i) { self.drawSection(sec, (i % cols) * (sw + gap), top + Math.floor(i / cols) * (sh + gap), sw, sh); });
+      }
+    } else
     this.drawTile(this.tiles.M, 0, top, tw, th, '멘토', this.idle.M);
     if (this.group.length) {
       var n = this.group.length, gh = (th - gap * (n - 1)) / n, self = this;
       this.group.forEach(function (g, i) { self.drawTile(g, tw + gap, top + i * (gh + gap), tw, gh, ''); });
-    } else this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
+    } else if (!this.layout) this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
     // 상단 표시줄
     c.fillStyle = '#1A1C1F'; c.fillRect(0, 0, W, top);
     ['#4F8AC9', '#D0628A', '#D46C3C', '#4E9B55'].forEach(function (col, i) { c.fillStyle = col; c.fillRect(i * W / 4, top - Math.round(3 * k), W / 4, Math.round(3 * k)); });   // 분야 색 띠
@@ -122,12 +165,13 @@
   };
 
   Recorder.prototype.drawTile = function (t, x, y, w, h, fallback, idle) {
-    var c = this.ctx, v = t.video, k = this.k;
+    var c = this.ctx, v = t.video || t.img, k = this.k;
     c.fillStyle = '#000'; c.fillRect(x, y, w, h);
-    var ok = v && v.readyState >= 2 && v.videoWidth > 0;
+    var vw = v ? (v.videoWidth || v.naturalWidth || 0) : 0, vh = v ? (v.videoHeight || v.naturalHeight || 0) : 0;
+    var ok = v && vw > 0 && (v.tagName === 'IMG' ? v.complete : v.readyState >= 2);
     if (ok) {
-      var s = Math.min(w / v.videoWidth, h / v.videoHeight);
-      var dw = v.videoWidth * s, dh = v.videoHeight * s;
+      var s = Math.min(w / vw, h / vh);
+      var dw = vw * s, dh = vh * s;
       try { c.drawImage(v, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); } catch (e) {}
     } else {
       c.fillStyle = '#686C72'; c.font = '600 ' + Math.round(20 * k) + 'px "Pretendard Variable", Pretendard, sans-serif';
