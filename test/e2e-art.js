@@ -88,6 +88,11 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     if (!/학생라/.test(absent) || !/학생마/.test(absent)) throw new Error('absent students should show as black tiles with names: ' + absent);
     await waitFor(ops, () => [...document.querySelectorAll('.rp video')].filter(v => v.readyState >= 2 && v.videoWidth > 0).length >= 5, null, 40000, 'ops sees 6 videos');
     log('ops sees all 5 videos in 전체');
+    await ops.click('#b-who');
+    const who = await waitFor(ops, () => { const t = document.querySelector('#who-b').innerText; return /멘토일/.test(t) && /운영A/.test(t) && t; }, null, 10000, 'who popup');
+    log('전체 접속자 팝업:', who.replace(/\n+/g, ' / ').slice(0, 220));
+    await SHOT(ops, 'ops_who');
+    await ops.click('#who-x');
     const spk = await st['학생가'].evaluate(async () => { const seen = {}; for (let i = 0; i < 25; i++) { document.querySelectorAll('.tile.speaking').forEach(t => { seen[t._it.label] = 1; }); await new Promise(r => setTimeout(r, 200)); } return Object.keys(seen).join(', '); });
     log('speaking indicator seen on student screen for:', spk || '(none)');
     const spkM = await m1.evaluate(async () => { const seen = {}; for (let i = 0; i < 25; i++) { document.querySelectorAll('.tile.speaking').forEach(t => { seen[t._it.label] = 1; }); await new Promise(r => setTimeout(r, 200)); } return Object.keys(seen).join(', '); });

@@ -85,6 +85,21 @@
   .files li { padding: 4px 0; border-bottom: 1px dashed var(--dash); word-break: break-all; }
   #recvids { position: fixed; left: 0; bottom: 0; width: 2px; height: 2px; overflow: hidden; opacity: .01; pointer-events: none; }
   body.research .op-only { display: none !important; }
+  /* 전체 접속자 팝업 */
+  .whobg { position: fixed; inset: 0; z-index: 90; background: rgba(18,19,21,.55); display: grid; place-items: center; padding: 20px; }
+  .whobox { background: var(--paper); border-radius: 16px; width: min(760px, 100%); max-height: 86vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,.4); }
+  .whoh { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .whoh b { font-size: 17px; } .whoh small { color: var(--gray); flex: 1; }
+  .whob { overflow-y: auto; padding: 8px 18px 18px; }
+  .whob h4 { margin: 16px 0 8px; font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
+  .whob h4 small { color: var(--gray); font-weight: 600; }
+  .wgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 6px; }
+  .wcell { display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-size: 13.5px; background: #fff; }
+  .wcell i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+  .wcell.on i { background: var(--ok); }
+  .wcell.off { color: var(--gray); background: var(--desk); }
+  .wcell b { font-weight: 700; } .wcell small { margin-left: auto; color: var(--gray); font-size: 11.5px; white-space: nowrap; }
+  .wcell .tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--rec); border-radius: 5px; padding: 1px 5px; }
   @media (max-width: 1000px) { .body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; } .side { border-left: 0; } }
 </style>
 </head>
@@ -137,6 +152,7 @@
       </div>
       <div class="box">
         <h3>접속 현황 <small id="abs-sum"></small></h3>
+        <button class="btn ghost sm" id="b-who" type="button" style="margin-bottom:8px;width:100%;justify-content:center">전체 접속자 보기 <span class="muted" id="who-sum"></span></button>
         <div class="abs" id="abs"></div>
       </div>
       <div class="box">
@@ -148,6 +164,10 @@
   </div>
 </div>
 <div id="recvids"></div>
+<div class="whobg hide" id="who"><div class="whobox" role="dialog" aria-label="전체 접속자">
+  <div class="whoh"><b>전체 접속자</b><small id="who-at"></small><button type="button" class="btn ghost sm" id="who-x">닫기</button></div>
+  <div class="whob" id="who-b"></div>
+</div></div>
 
 <script src="config.js"></script>
 <script src="../b/meet.js"></script>
@@ -219,7 +239,7 @@
       return { cam: recOn ? 'h' : 'l', mic: true, scr: true };
     });
     room.view = v; room.applyVolumes();
-    paintHeader(v); paintRooms(); paintBoard(v); paintAbs(v); paintNotice(v);
+    paintHeader(v); paintRooms(); paintBoard(v); paintAbs(v); paintWho(v); paintNotice(v);
     if (recOn) recSync();
   }
 
@@ -380,6 +400,35 @@
         (role === 'ops' ? '<span>학생 ' + tel(x.sPhone) + '</span><span>보호자 ' + tel(x.pPhone) + '</span>' : '') + '</div>';
     }).join('') : '<div class="muted">모든 학생이 접속해 있습니다</div>';
   }
+
+  /* 전체 접속자 팝업: 멘토·운영진·연구원·학생 누가 들어와 있는지 */
+  function paintWho(v) {
+    var people = v.people || [], byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    var cnt = { mentor: [0, 0], ops: [0, 0], research: [0, 0], student: [0, 0] };
+    var cell = function (name, p, extra) {
+      var on = !!(p && p.live), where = on ? A.roomName(p.room) : p ? '나감' : '미접속';
+      return '<div class="wcell ' + (on ? 'on' : 'off') + '"><i></i><b>' + UI.esc(name) + '</b>' + (extra || '') + '<small>' + where + '</small></div>';
+    };
+    var sec = function (title, role, list) {
+      var on = list.filter(function (x) { return x.p && x.p.live; }).length;
+      cnt[role] = [on, list.length];
+      return '<h4>' + title + ' <small>' + on + '명 접속' + (list.length > on ? ' · ' + (list.length - on) + '명 미접속' : '') + '</small></h4>' +
+        (list.length ? '<div class="wgrid">' + list.map(function (x) { return cell(x.name, x.p, x.extra); }).join('') + '</div>' : '<div class="muted small">아직 없음</div>');
+    };
+    // 멘토: 명단 순서 + 명단 밖 접속자
+    var ms = (v.mroster || []).map(function (m) { return { name: m.name + ' (' + A.gname(m.g) + ')', p: byId[m.id] }; });
+    people.forEach(function (p) { if (p.role === 'mentor' && !(v.mroster || []).some(function (m) { return m.id === p.id; })) ms.push({ name: p.name, p: p }); });
+    var staff = function (r) { return people.filter(function (p) { return p.role === r; }).sort(function (a, b) { return (b.live ? 1 : 0) - (a.live ? 1 : 0) || a.name.localeCompare(b.name, 'ko'); })
+      .map(function (p) { return { name: p.name, p: p, extra: p.id === v.recorder ? '<span class="tag">녹화</span>' : p.talk ? '<span class="tag" style="background:var(--ok)">말하는 중</span>' : '' }; }); };
+    var sts = (v.roster || []).map(function (x) { return { name: x.name + ' (' + A.gname(x.g) + ')', p: byId[x.id] }; });
+    var html = sec('멘토', 'mentor', ms) + sec('운영진', 'ops', staff('ops')) + sec('연구원', 'research', staff('research')) + sec('학생', 'student', sts);
+    $('#who-sum').textContent = '· 멘토 ' + cnt.mentor[0] + ' · 운영 ' + cnt.ops[0] + ' · 연구원 ' + cnt.research[0];
+    if (!$('#who').classList.contains('hide')) { $('#who-b').innerHTML = html; $('#who-at').textContent = new Date(sess.now()).toTimeString().slice(0, 8) + ' 기준 · 자동으로 새로 고침'; }
+  }
+  $('#b-who').onclick = function () { UI.show('#who', true); if (view) paintWho(view); };
+  $('#who-x').onclick = function () { UI.show('#who', false); };
+  $('#who').addEventListener('click', function (e) { if (e.target.id === 'who') UI.show('#who', false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') UI.show('#who', false); });
 
   /* 관찰 메모 */
   $('#b-memo').onclick = async function () {
