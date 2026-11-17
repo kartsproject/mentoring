@@ -184,11 +184,16 @@
     var ms = sl.mentors, half = Math.ceil(ms.length / 2), topList = ms.slice();
     var left = sl.feature ? ms.slice(0, half) : [], right = sl.feature ? ms.slice(half) : [], mid = sl.feature ? [sl.feature] : ms;
     if (sl.feature) topList.push(sl.feature);
-    top.style.setProperty('--n', Math.max(1, mid.length));
+    // 전체 방: 멘토 3명 이상이면 가로 2 × 세로 2로 크게(멘토·학생 영역을 나눠 보임)
+    var allRoom = (this.view && this.view.myRoom) === 'all';
+    box.classList.toggle('mode-all', allRoom); box.classList.toggle('mode-group', !allRoom);
+    var mcols = sl.feature ? 1 : (allRoom && mid.length >= 3 ? 2 : Math.max(1, mid.length));
+    top.style.setProperty('--mcols', mcols);
+    top.style.setProperty('--mrows', sl.feature ? 1 : Math.max(1, Math.ceil(mid.length / mcols)));
     top.style.setProperty('--rows', Math.max(1, left.length, right.length));
     top.classList.toggle('has-feature', !!sl.feature);
     top.classList.toggle('one-side', !!sl.feature && !right.length);
-    var n = sl.students.length, cols = n <= 4 ? Math.max(1, n) : n <= 10 ? Math.ceil(n / 2) : Math.ceil(n / 2);
+    var n = sl.students.length, cols = n <= 4 ? Math.max(1, n) : n <= 14 ? Math.ceil(n / 2) : Math.ceil(n / 3);   // 학생 12명이면 가로 6 × 세로 2
     if (innerWidth < 700) cols = Math.min(cols, 3);
     bot.style.setProperty('--cols', cols);
     var all = {};

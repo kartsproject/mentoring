@@ -555,14 +555,45 @@
     c.fillStyle = '#F2C94C'; star(cx, 22 * k); star(cx - 42 * k, 12 * k); star(cx + 42 * k, 12 * k);
   }
   // 방 하나를 R 안에 그림(전체: 위 멘토 줄·아래 학생 2줄 / 소그룹: 위 멘토 크게·아래 학생 1줄)
+  // 영역 상자(멘토·학생 구분) — 옅은 바탕 + 왼쪽 위 이름
+  function drawZone(c, R, k, title, fill, stroke, color) {
+    var r = 14 * k;
+    c.save(); c.beginPath();
+    if (c.roundRect) c.roundRect(R.x, R.y, R.w, R.h, r); else c.rect(R.x, R.y, R.w, R.h);
+    c.fillStyle = fill; c.fill(); c.strokeStyle = stroke; c.lineWidth = Math.max(1, 1.5 * k); c.stroke(); c.restore();
+    c.fillStyle = color; c.font = '800 ' + Math.round(15 * k) + 'px ' + FONT; c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillText(title, R.x + 14 * k, R.y + 15 * k);
+  }
   function drawRoomPlan(c, sec, R, k) {
     var labelH = 30 * k, g = sec.mode === 'group';
-    var topR = g ? { x: R.x, y: R.y + R.h * .02, w: R.w, h: R.h * .585 } : { x: R.x, y: R.y, w: R.w, h: R.h * .415 };
-    var divY = R.y + R.h * (g ? .622 : .43);
-    var botR = g ? { x: R.x, y: R.y + R.h * .645, w: R.w, h: R.h * .35 } : { x: R.x, y: R.y + R.h * .455, w: R.w, h: R.h * .545 };
+    if (!g) {
+      // 전체: 위 멘토 영역(크게 — 3명 이상이면 가로 2 × 세로 2), 아래 학생 영역(작게 — 12명이면 가로 6 × 세로 2)
+      var gapZ = 12 * k, mz = { x: R.x, y: R.y, w: R.w, h: R.h * .62 }, sz = { x: R.x, y: R.y + R.h * .62 + gapZ, w: R.w, h: R.h * .38 - gapZ };
+      drawZone(c, mz, k, '멘토', 'rgba(255,255,255,.07)', 'rgba(242,201,76,.45)', '#F2C94C');
+      drawZone(c, sz, k, '학생', 'rgba(0,0,0,.22)', 'rgba(255,255,255,.12)', '#C9D6DD');
+      var inM = { x: mz.x + 16 * k, y: mz.y + 30 * k, w: mz.w - 32 * k, h: mz.h - 38 * k };
+      var inS = { x: sz.x + 16 * k, y: sz.y + 28 * k, w: sz.w - 32 * k, h: sz.h - 32 * k };
+      if (sec.feat) drawFeatureTop(c, sec.top, sec.feat, inM, k, labelH);
+      else if (sec.top.length >= 3) drawGrid2(c, sec.top, inM, k, labelH, 2);
+      else drawRow(c, sec.top, inM, k, labelH);
+      drawGrid(c, sec.bot, inS, k * .8, labelH * .8);
+      return;
+    }
+    var topR = { x: R.x, y: R.y + R.h * .02, w: R.w, h: R.h * .585 };
+    var botR = { x: R.x, y: R.y + R.h * .645, w: R.w, h: R.h * .35 };
     if (sec.feat) drawFeatureTop(c, sec.top, sec.feat, topR, k, labelH); else drawRow(c, sec.top, topR, k, labelH);
-    drawDivider(c, R.x + R.w / 2, divY, R.w * .39, k);
-    if (g) drawRow(c, sec.bot, botR, k, labelH); else drawGrid(c, sec.bot, botR, k, labelH);
+    drawDivider(c, R.x + R.w / 2, R.y + R.h * .622, R.w * .39, k);
+    drawRow(c, sec.bot, botR, k, labelH);
+  }
+  // 정해진 열 수로 크게(멘토 2×2)
+  function drawGrid2(c, items, R, k, labelH, cols) {
+    var rows = Math.ceil(items.length / cols), gx = 18 * k, gy = 8 * k, rowH = (R.h - gy * (rows - 1)) / rows;
+    var w = Math.min((R.w - gx * (cols - 1)) / cols, (rowH - labelH) * 16 / 9), h = w * 9 / 16;
+    for (var r = 0; r < rows; r++) {
+      var row = items.slice(r * cols, (r + 1) * cols), total = w * row.length + gx * (row.length - 1), x = R.x + (R.w - total) / 2;
+      var y = R.y + r * (rowH + gy) + (rowH - labelH - h) / 2;
+      row.forEach(function (it) { drawCell(c, it, x, y, w, h, k, labelH); x += w + gx; });
+    }
   }
   function painterFor(x) {
     return function (c, W, H) {

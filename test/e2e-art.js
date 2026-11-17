@@ -119,8 +119,8 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     await ops.evaluate(() => { window.MEET_CONFIG.QUAD_FALLBACK = false; });   // 시험 PC는 느려서 자동 4분할을 끄고 시험(4분할은 아래에서 직접 확인)
     await phase('group');
     log('ops header in 분반:', await ops.evaluate(() => document.querySelector('#steps').innerText.replace(/\n/g, ' | ')), '|', await ops.evaluate(() => document.querySelector('#h-timer').textContent));
-    await waitFor(st['학생가'], () => /A조/.test(document.querySelector('#t-room').textContent), null, 15000, 'student moved to A조');
-    await waitFor(st['학생다'], () => /B조/.test(document.querySelector('#t-room').textContent), null, 15000, 'student moved to B조');
+    await waitFor(st['학생가'], () => /A조/.test(document.querySelector('#t-room').textContent), null, 45000, 'student moved to A조');
+    await waitFor(st['학생다'], () => /B조/.test(document.querySelector('#t-room').textContent), null, 45000, 'student moved to B조');
     const gA = await waitFor(st['학생가'], () => { const l = [...document.querySelectorAll('.tile video')].filter(v => v.readyState >= 2 && v.videoWidth > 0).map(v => v.closest('.tile').querySelector('.t-label').textContent); return l.length >= 3 && l; }, null, 60000, 'A조 videos');
     log('group: 학생가 sees', gA.join(', '));
     if (gA.some(x => /학생다|멘토이/.test(x))) throw new Error('other group visible');

@@ -60,10 +60,10 @@
 /* 고정 자리 배치: 위 멘토 · 아래 학생 (녹화 화면과 같은 구성) */
 .astage.fixed { flex-direction: column; gap: 6px; padding: 10px 14px; background: #12465C; }
 .r-top { flex: 1.15 1 0; min-height: 0; display: flex; justify-content: center; align-items: center; gap: 12px; container-type: size; }
-.r-center { display: flex; justify-content: center; align-items: center; gap: 10px; height: 100%; }
+.r-center { display: grid; grid-template-columns: repeat(var(--mcols, 1), auto); justify-content: center; align-content: center; gap: 10px; height: 100%; }
 .r-side { display: flex; flex-direction: column; justify-content: center; gap: 8px; height: 100%; }
 .r-side:empty { display: none; }
-.r-top .tile { flex: none; aspect-ratio: 16/9; width: min(calc(100cqh * 16 / 9), calc((100cqw - (var(--n) - 1) * 10px) / var(--n))); }
+.r-top .tile { flex: none; aspect-ratio: 16/9; width: min(calc((100cqh - (var(--mrows, 1) - 1) * 10px) / var(--mrows, 1) * 16 / 9), calc((100cqw - (var(--mcols, 1) - 1) * 10px) / var(--mcols, 1))); }
 /* 발표 자료가 있을 때: 양옆 멘토는 높이를 나눠 작게, 가운데 자료는 남은 폭·높이 가득 */
 .r-top.has-feature { --sw: calc((100cqh - (var(--rows) - 1) * 8px) / var(--rows) * 16 / 9); }
 .r-top.has-feature .r-side .tile { width: min(var(--sw), 18cqw); }
@@ -85,6 +85,17 @@
 .tile.absent { cursor: default; }
 .tile.absent .t-wait { color: #C9CDD2; font-size: clamp(13px, 1.4vw, 18px); font-weight: 700; }
 .tile.absent .t-label { display: none; }
+
+/* 전체 방: 멘토 영역(크게, 2×2) · 학생 영역(작게, 6×2)을 나눠 보임 */
+.astage.fixed.mode-all { gap: 10px; }
+.astage.fixed.mode-all .r-div { display: none; }
+.astage.fixed.mode-all .r-top { flex: 2.3 1 0; position: relative; background: rgba(255,255,255,.07); border: 1px solid rgba(242,201,76,.35); border-radius: 14px; padding: 26px 14px 12px; }
+.astage.fixed.mode-all .r-bot { flex: 1 1 0; position: relative; background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 26px 14px 12px; gap: 6px; }
+.astage.fixed.mode-all .r-top::before, .astage.fixed.mode-all .r-bot::before { position: absolute; left: 14px; top: 5px; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+.astage.fixed.mode-all .r-top::before { content: "멘토"; color: #F2C94C; }
+.astage.fixed.mode-all .r-bot::before { content: "학생"; color: #C9D6DD; }
+.astage.fixed.mode-all .r-bot .tile { border-width: 2px; }
+.astage.fixed.mode-all .r-bot .t-label { font-size: 11.5px; padding: 2px 7px; left: 6px; bottom: 6px; }
 
 /* 아래 조작 줄 */
 .abar { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 12px max(10px, env(safe-area-inset-bottom)); background: var(--k1); border-top: 1px solid var(--k-line); flex-wrap: wrap; }
@@ -116,7 +127,8 @@
   .r-main.n3, .r-main.n4, .r-main.n5, .r-main.n6 { grid-template-columns: 1fr 1fr; }
   .abig { padding: 2px 10px; }
   .astage.fixed { overflow-y: auto; padding: 8px; }
-  .r-top { flex: none; display: grid; grid-template-columns: 1fr 1fr; container-type: normal; }
+  .r-top, .astage.fixed.mode-all .r-top { flex: none; display: grid; grid-template-columns: 1fr 1fr; container-type: normal; }
+  .astage.fixed.mode-all .r-bot { flex: none; }
   .r-side, .r-center { display: contents; }
   .r-top .tile, .r-top .tile.feature { width: auto; }
   .r-top .tile.feature { grid-column: 1 / -1; order: -1 !important; }
