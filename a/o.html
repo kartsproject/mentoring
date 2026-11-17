@@ -27,8 +27,7 @@
   .steps button.arm { background: var(--red); color: #fff; box-shadow: none; animation: blink 1s infinite; }
   .steps button:disabled { opacity: .6; cursor: default; animation: none; }
   header.top .sp { flex: 1; }
-  .tchip { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 14px; background: rgba(255,255,255,.08); border-radius: 8px; padding: 6px 11px; white-space: nowrap; }
-  .tchip.soon { background: var(--red); animation: blink 1s infinite; }
+  .tchip { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 12.5px; color: var(--band-soft); padding: 6px 4px; white-space: nowrap; }   /* 진행 시간: 참고용으로 작게 */
   header.top .btn.ghost { background: transparent; color: var(--band-tx); border-color: rgba(255,255,255,.2); }
   .me { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; background: rgba(255,255,255,.08); border-radius: 8px; padding: 5px 10px; }
   .switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
@@ -262,7 +261,6 @@
     var t = A.timerText(view, sess.now());
     var el = (view.phase === 'all' || view.phase === 'group') ? ' · ' + phaseLabel(view) + ' ' + UI.mmss(Math.max(0, sess.now() - view.phaseAt)) + ' 경과' : '';
     $('#h-timer').textContent = (t ? t.text : A.PH[view.phase]) + el;
-    $('#h-timer').classList.toggle('soon', !!(t && t.soon));
     if (recOn) recWatch();
   }
   setInterval(tick, 1000);

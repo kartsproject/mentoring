@@ -206,8 +206,7 @@
   function tick() {
     var v = sess && sess.view; if (!v) return;
     var t = A.timerText(v, sess.now());
-    UI.show('#t-timer', !!t && !t.pend);
-    if (t && !t.pend) { $('#t-timer').textContent = t.text; $('#t-timer').classList.toggle('soon', !!t.soon); }
+    UI.show('#t-timer', false);   // 학생 화면에는 진행 시간을 보이지 않음
     var pend = v.pend;
     UI.show('#t-pend', !!pend);
     if (pend) {

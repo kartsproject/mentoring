@@ -70,7 +70,7 @@
     <span class="roomchip all" id="t-room">전체</span>
     <span class="phasechip" id="t-phase"></span>
     <span class="sp"></span>
-    <span class="atimer hide" id="t-timer"></span>
+    <span class="atimer quiet hide" id="t-timer"></span>
     <div class="abig hide" id="t-big"><b id="t-big-b"></b><small id="t-big-s"></small></div>
     <span class="conn3" id="t-conn"><i></i><span>연결됨</span></span>
   </div>
@@ -212,15 +212,11 @@
   function tick() {
     var v = sess && sess.view; if (!v) return;
     var t = A.timerText(v, sess.now());
-    UI.show('#t-big', !!t && !t.pend);
-    if (t && !t.pend) {
-      var nm = A.nextMark(v, sess.now());
-      $('#t-big-b').textContent = UI.mmss(Math.max(0, t.left));
-      $('#t-big-s').textContent = t.soon ? (A.PH[nm.to] || '다음 단계') + ' 1분 전' : nm.label + '까지';
-      $('#t-big').classList.toggle('last', !!t.soon);
-      if (t.soon && tick.warned !== nm.to) { tick.warned = nm.to; try { var ac = new AudioContext(), o = ac.createOscillator(), g = ac.createGain(); o.connect(g); g.connect(ac.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); setTimeout(function () { o.stop(); ac.close(); }, 500); } catch (e) {} }
-    }
-    UI.show('#t-timer', false);   // 멘토는 오른쪽 위 큰 시계로 봄
+    // 진행 시간은 참고용으로만 작게(깜빡임·알림음 없음)
+    UI.show('#t-big', false);
+    var showT = !!t && !t.pend && t.left > 0;
+    UI.show('#t-timer', showT);
+    if (showT) $('#t-timer').textContent = t.text.replace(/까지.*$/, '까지') + ' ' + Math.ceil(t.left / 60000) + '분';
     var pend = v.pend;
     UI.show('#t-pend', !!pend);
     if (pend) {
