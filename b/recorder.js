@@ -25,6 +25,7 @@
     ok: function () { var n = performance.now(); while (this.w.length && this.w[0][0] < n - 1000) this.sum -= this.w.shift()[1]; return this.sum < 450; },
     add: function (t, c) { this.w.push([t, c]); this.sum += c; } };
 
+  var live = [];   // 지금 있는 녹화기들(그리기 순서 공평하게)
   // 백그라운드에서도 덜 느려지는 타이머(워커)
   function workerTimer(fps, fn) {
     var src = 'var t=null;onmessage=function(e){clearInterval(t);if(e.data>0)t=setInterval(function(){postMessage(0)},e.data)}';
@@ -61,11 +62,20 @@
     this.srcNodes = {};
     var self = this;
     this.skipped = 0;
-    this.stopTimer = workerTimer(this.fps, function () {
+    live.push(this);
+    var stopT = null;
+    this.stopTimer = function () { live = live.filter(function (r) { return r !== self; }); if (stopT) stopT(); };
+    stopT = workerTimer(this.fps, function () {
       // PC가 버거우면 그리기를 건너뜀(화면·조작이 멈추지 않게) — 녹화는 그대로, 초당 장면 수만 줄어듦
       if (!self.recording()) return;   // 녹화 중이 아니면 그리지 않음(멈춘 녹화기가 PC를 쓰지 않게)
-      if (!duty.ok()) { self.skipped++; return; }
-      var t0 = performance.now(); self.draw(); duty.add(t0, performance.now() - t0);
+      // 예산을 넘으면 쉬되, 가장 오래 못 그린 녹화기 하나는 1초에 한 번 그림(새로 시작한 녹화기가 굶어 빈 파일이 되지 않게)
+      var now = performance.now();
+      if (!duty.ok()) {
+        var me = now - (self.lastDrawn || 0), worst = 0;
+        live.forEach(function (r) { if (r !== self && r.recording()) worst = Math.max(worst, now - (r.lastDrawn || 0)); });
+        if (me < 1000 || me < worst) { self.skipped++; return; }
+      }
+      self.lastDrawn = now; self.draw(); duty.add(now, performance.now() - now);
     });
   }
 

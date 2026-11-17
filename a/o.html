@@ -140,7 +140,7 @@
     <div class="rooms" id="rooms"></div>
     <aside class="side">
       <div class="box op-only hide" id="p-rec">
-        <h3>녹화 <small id="rec-type"></small></h3>
+        <h3>녹화 <span class="tag hide" id="rec-mode"></span> <small id="rec-type"></small></h3>
         <div class="reclive" id="rec-live">준비 중</div>
         <div class="row" style="margin-top:8px"><button class="btn ghost sm" id="b-dir" type="button">저장 폴더</button><span class="small muted" id="rec-dir"></span></div>
         <ul class="files" id="rec-files"></ul>
@@ -183,7 +183,7 @@
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art;
   var sess = null, role = 'ops', room = null, mic = null, listen = 'all', talking = false;
-  var view = null, recOn = false, recs = {}, quad = false, recFiles = [];
+  var view = null, recOn = false, recs = {}, quad = false, recFiles = [], recBackup = false;
   var R0 = UI.param('r');
 
   /* 입장 */
@@ -459,7 +459,7 @@
     var ms = (v.mroster || []).map(function (m) { return { name: m.name + ' (' + A.gname(m.g) + ')', p: byId[m.id] }; });
     people.forEach(function (p) { if (p.role === 'mentor' && !(v.mroster || []).some(function (m) { return m.id === p.id; })) ms.push({ name: p.name, p: p }); });
     var staff = function (r) { return people.filter(function (p) { return p.role === r; }).sort(function (a, b) { return (b.live ? 1 : 0) - (a.live ? 1 : 0) || a.name.localeCompare(b.name, 'ko'); })
-      .map(function (p) { return { name: p.name, p: p, extra: p.id === v.recorder ? '<span class="tag">녹화</span>' : p.talk ? '<span class="tag" style="background:var(--ok)">말하는 중</span>' : '' }; }); };
+      .map(function (p) { return { name: p.name, p: p, extra: p.id === v.recorder ? '<span class="tag">녹화</span>' : p.info && p.info.rec2 && p.live ? '<span class="tag">예비 녹화</span>' : p.talk ? '<span class="tag" style="background:var(--ok)">말하는 중</span>' : '' }; }); };
     var sts = (v.roster || []).map(function (x) { return { name: x.name + ' (' + A.gname(x.g) + ')', p: byId[x.id] }; });
     var html = sec('멘토', 'mentor', ms) + sec('운영진', 'ops', staff('ops')) + sec('연구원', 'research', staff('research')) + sec('학생', 'student', sts);
     $('#who-sum').textContent = '· 멘토 ' + cnt.mentor[0] + ' · 운영 ' + cnt.ops[0] + ' · 연구원 ' + cnt.research[0];
@@ -488,18 +488,31 @@
       if (!REC.autoSaveSupported()) { UI.toast('이 브라우저는 폴더 자동 저장이 안 됩니다. PC 크롬에서 녹화해 주세요.', 5000); this.checked = false; return; }
       var h = await REC.ensureDir(false);
       if (!h) { this.checked = false; UI.toast('녹화 폴더를 골라야 녹화가 시작됩니다'); return; }
-      dirH = h; recOn = true; UI.show('#p-rec', true); $('#rec-dir').textContent = '「' + h.name + '」';
+      // 다른 PC가 이미 녹화 중이면 이 PC는 「예비 녹화」(주 녹화가 끊긴 부분을 나중에 채움)
+      var other = view && view.recorder && view.recorder !== view.me && view.people.some(function (p) { return p.id === view.recorder && p.live; });
+      var bk = other && confirm('다른 PC가 이미 녹화 중입니다.\n\n[확인] 이 PC는 「예비 녹화」로 함께 녹화(권장 — 주 녹화가 끊긴 부분을 나중에 채움)\n[취소] 이 PC를 주 녹화로 바꾸기');
+      dirH = h; UI.show('#p-rec', true); $('#rec-dir').textContent = '「' + h.name + '」';
       REC.Backup.recover(h).then(function (l) { if (l.length) UI.toast('지난 녹화 ' + l.length + '개를 복구했습니다', 6000); });
-      sess.op('recorder', { on: true }); room.lastWant = '';
+      setRecMode(bk);
       if (view) onView(view);
     } else {
       if (!confirm('녹화를 멈추고 저장할까요?')) { this.checked = true; return; }
-      recOn = false; Object.keys(recs).forEach(function (k) { stopRec(k); }); sess.op('recorder', { on: false });
+      recOn = false; Object.keys(recs).forEach(function (k) { stopRec(k); });
+      if (recBackup) { sess.info.rec2 = 0; sess.kick(); } else sess.op('recorder', { on: false });
+      UI.show('#rec-mode', false);
     }
   };
   var dirH = null;
   $('#b-dir').onclick = async function () { var h = await REC.ensureDir(true); if (h) { dirH = h; Object.keys(recs).forEach(function (k) { recs[k].r.setDir(h); }); $('#rec-dir').textContent = '「' + h.name + '」'; } };
-  window.__setRecDir = function (h) { dirH = h; $('#sw-rec').checked = true; recOn = true; UI.show('#p-rec', true); $('#rec-dir').textContent = '(시험)'; sess.op('recorder', { on: true }); room.lastWant = ''; if (view) onView(view); };   // 시험용
+  function setRecMode(bk) {
+    recOn = true; recBackup = !!bk; recLog = [];
+    if (recBackup) { sess.info.rec2 = 1; sess.kick(); } else { sess.info.rec2 = 0; sess.op('recorder', { on: true }); }
+    $('#rec-mode').textContent = recBackup ? '예비 녹화' : '주 녹화'; UI.show('#rec-mode', true);
+    room.lastWant = '';
+  }
+  window.__setRecDir = function (h, bk) { dirH = h; $('#sw-rec').checked = true; UI.show('#p-rec', true); $('#rec-dir').textContent = '(시험)'; setRecMode(bk); if (view) onView(view); };   // 시험용
+  window.__recLog = function () { return recLog; };
+  window.__retire = function (k) { retire(k); };   // 시험용: 이어 녹화(새 파일 먼저 시작 → 앞 파일 멈춤)
   window.__recs = function () { return recs; };
   window.__quad = function (on) { quad = !!on; recSync(); };   // 시험용
 
@@ -708,7 +721,23 @@
     var what = key === 'quad' ? '분반_4분할' + again
       : key === 'all' ? (view.phase === 'group' ? '분반_미배정' + again : rd <= 1 ? '전체_분반전' : '전체_분반후' + (rd > 2 ? rd - 1 : ''))
       : (function () { var g = Number(key.slice(1)); var m = (view.mentorsOf[g] || []).join('·'); return '분반' + g + '_' + A.gname(g) + (m ? '_' + m : '') + again; })();
-    return stamp() + '_미술_' + r + '_' + what;
+    return stamp() + '_미술_' + r + '_' + what + (recBackup ? '_예비PC' : '');
+  }
+  /* 녹화 기록표: 파일마다 시작 시각(서버 기준, 1/1000초) — 「녹화 조각 합치기」가 조각·예비 녹화를 정확한 자리에 이어 붙이는 데 씀 */
+  var recLog = [], logBusy = Promise.resolve();
+  function logRec(name, at) {
+    if (!name || !at) return;
+    var e = recLog.filter(function (x) { return x.at === at; })[0];
+    if (e) { if (e.name === name) return; e.name = name; } else recLog.push({ name: name, at: at });
+    writeLog();
+  }
+  function writeLog() {
+    if (!dirH || !recLog.length) return;
+    var fn = '_녹화기록_' + (sess.r === 'test' ? '리허설' : sess.r + '회차') + '_' + (recBackup ? '예비' : '주') + '_' + String(sess.name).replace(/[\\/:*?"<>|]/g, '') + '.tsv';
+    var body = '파일\t시작(ms)\t구분\n' + recLog.map(function (x) { return x.name + '\t' + Math.round(x.at + (sess.offset || 0)) + '\t' + (recBackup ? '예비' : '주'); }).join('\n') + '\n';
+    logBusy = logBusy.then(async function () {
+      try { var fh = await dirH.getFileHandle(fn, { create: true }), w = await fh.createWritable(); await w.write(body); await w.close(); } catch (e) { console.warn('rec log', e); }
+    });
   }
   function wanted() {   // 지금 녹화해야 할 파일들: key → 묶음 목록
     var v = view, out = {};
@@ -723,7 +752,8 @@
   function recSync() {
     if (!view || !recOn) return;
     var want = wanted(), ph = view.phase + (view.round || '');
-    Object.keys(recs).forEach(function (k) { if (!want[k] || recs[k].ph !== ph) stopRec(k); });
+    // 단계가 바뀌면 새 파일을 먼저 시작하고 앞 파일은 조금 뒤에 멈춤(이음새에 빈틈 없게)
+    Object.keys(recs).forEach(function (k) { if (!want[k] || recs[k].ph !== ph) { var old = recs[k]; delete recs[k]; setTimeout(function () { stopX(old); }, 1500); } });
     Object.keys(want).forEach(function (k) {
       var x = recs[k];
       if (!x) {
@@ -742,15 +772,36 @@
         // 소리 장치가 깨어난 뒤 시작(최대 1초 기다림) — 안 깨어나면 영상만이라도 바로 녹화
         x.starting = true;
         (function (x, k) {
-          var go = function () { if (!x.starting) return; x.starting = false; if (recs[k] !== x || x.r.recording()) return; try { x.r.start(fileName(k), x.r.title); } catch (e) { console.warn(e); } };
+          var go = function () {
+            if (!x.starting) return; x.starting = false; if (recs[k] !== x || x.r.recording()) return;
+            try { x.r.start(fileName(k), x.r.title); var st = x.r.stat; logRec(st.name, st.at); setTimeout(function () { logRec(st.name, st.at); }, 3000); } catch (e) { console.warn(e); }
+          };
           x.r.resume().then(go, go); setTimeout(go, 1000);
         })(x, k);
       }
     });
   }
-  function stopRec(k) { var x = recs[k]; if (!x) return; delete recs[k]; try { x.r.stop(); } catch (e) {} setTimeout(function () { try { x.r.stopTimer(); x.r.ac.close(); } catch (e) {} }, 30000); }
+  function stopRec(k) { var x = recs[k]; if (!x) return; delete recs[k]; stopX(x); }
+  function stopX(x) { if (!x || x.stopped) return; x.stopped = true; x.starting = false; try { x.r.stop(); } catch (e) {} setTimeout(function () { try { x.r.stopTimer(); x.r.ac.close(); } catch (e) {} }, 30000); }
+  // 이어 녹화: 새 파일을 먼저 시작하고, 새 파일에 데이터가 들어오기 시작하면(최대 6초) 앞 파일을 멈춤 → 내용이 비지 않음
+  function retire(k) {
+    var old = recs[k]; if (!old) return;
+    delete recs[k]; recSync();
+    var t0 = Date.now();
+    (function wait() {
+      var n = recs[k], h = n && n.r.health();
+      if ((h && h.bytes > 0) || !recOn || !n) { setTimeout(function () { stopX(old); }, 500); return; }
+      if (Date.now() - t0 > 15000) {   // 새 파일이 15초 넘게 비어 있음 → 앞 파일이 살아 있으면 앞 파일로 계속(새 파일 버림)
+        var oh = old.r.health();
+        if (oh && oh.stall < 3000) { recs[k] = old; stopX(n); } else stopX(old);
+        return;
+      }
+      setTimeout(wait, 300);
+    })();
+  }
   function fileAdded(f) {
-    if (f.empty) return;
+    if (f.empty) { recLog = recLog.filter(function (x) { return x.at !== f.at; }); writeLog(); return; }
+    logRec(f.name, f.at);
     recFiles.unshift(f);
     $('#rec-files').innerHTML = recFiles.slice(0, 30).map(function (x) { return '<li>' + UI.esc(x.name) + ' · ' + UI.mmss(x.sec * 1000) + ' · ' + (x.size / 1048576).toFixed(1) + 'MB' + (x.auto ? ' · 자동 저장' : '') + '</li>'; }).join('');
   }
@@ -763,10 +814,10 @@
     keys.forEach(function (k) {
       var x = recs[k], h = x.r.health();
       if (!h) { if (now - (x.made || now) > 10000) { stopRec(k); setTimeout(recSync, 300); } return; }
-      if ((h.stall > 8000 || h.error) && restarts.length < 3) { restarts.push(now); stopRec(k); setTimeout(recSync, 300); warn = '녹화가 멈춰 새 파일로 다시 시작했습니다'; return; }
+      if ((h.stall > 8000 || h.error) && restarts.length < 3) { restarts.push(now); retire(k); warn = '녹화가 멈춰 새 파일로 이어서 녹화합니다'; return; }
       if (h.stall > 8000 || h.error) bad = '녹화가 계속 멈춥니다! 이 PC를 확인하거나 다른 PC에서 녹화를 켜 주세요';
       // 소리가 막혀 영상만 녹화되던 파일 → 소리가 풀리면 새 파일로(소리 포함)
-      if (!h.audio && x.r.ac.state === 'running') { stopRec(k); setTimeout(recSync, 300); return; }
+      if (!h.audio && x.r.ac.state === 'running') { retire(k); return; }
       if (!h.audio) warn = '소리가 녹음되지 않고 있습니다 — 이 화면을 한 번 클릭해 주세요';
       if (h.sinkFailed) warn = '폴더 쓰기 실패 — 예비 사본으로 계속 녹화 중';
     });
@@ -792,7 +843,7 @@
   // 녹화 PC가 없으면 모든 운영진에게 경고(전체·분반 단계)
   setInterval(function () {
     if (!view) return;
-    var need = ['all', 'group'].indexOf(view.phase) >= 0, none = !view.recorder;
+    var need = ['all', 'group'].indexOf(view.phase) >= 0, none = !view.recorder && !view.people.some(function (p) { return p.info && p.info.rec2 && p.live; });
     UI.show('#recbad', need && none && role === 'ops');
     $('#recbad').textContent = '녹화 PC가 없습니다! 녹화할 PC에서 「이 PC에서 녹화」를 켜 주세요.';
   }, 1500);

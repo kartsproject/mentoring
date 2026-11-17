@@ -181,10 +181,33 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     await waitFor(st['학생가'], () => /전체/.test(document.querySelector('#t-room').textContent), null, 45000, 'back to 전체');
     await waitFor(st['학생가'], () => [...document.querySelectorAll('.tile video')].filter(v => v.readyState >= 2 && v.videoWidth > 0).length >= 4, null, 60000, 'all2 videos');
     log('all2: everyone back, videos:', (await liveTiles(st['학생가'])).length);
+    // 이어 녹화: 새 파일 먼저 시작 → 앞 파일 멈춤(빈틈 없음)
+    await waitFor(ops, () => { const x = window.__recs().all; return x && x.r.stat && x.r.stat.bytes > 0; }, null, 60000, 'all2 recording');
+    const alla = await ops.evaluate(() => (window.__alla = window.__recs().all.r.stat.name));
+    await ops.evaluate(() => window.__retire('all'));
+    try { await waitFor(ops, () => { const x = window.__recs().all; return x && x.r.stat && x.r.stat.name !== window.__alla && x.r.stat.bytes > 0; }, null, 45000, 'all continued in new file'); }
+    catch (e) { log('DIAG', await ops.evaluate(() => JSON.stringify({ recs: Object.entries(window.__recs()).map(([k, x]) => [k, x.starting, x.r.recording(), x.r.stat && x.r.stat.name, x.r.stat && x.r.stat.bytes, x.r.ac.state]), log: window.__recLog() }))); throw e; }
+    log('이어 녹화(전체):', alla, '→', await ops.evaluate(() => window.__recs().all.r.stat.name));
+    // 예비 녹화 PC(두 번째 운영진)
+    const ops2 = await mk('ops2', { width: 1400, height: 900 });
+    await ops2.goto(BASE + '/a/o.html?r=test');
+    await ops2.evaluate(() => { window.MEET_CONFIG.REC_FPS = 8; });
+    await ops2.fill('#g-name', '운영B'); await ops2.fill('#g-code', 'o1234'); await ops2.click('#g-btn');
+    await ops2.waitForSelector('#s-main:not(.hide)');
+    await ops2.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory(), true));
+    await waitFor(ops2, () => { const x = window.__recs().all; return x && x.r.stat && x.r.stat.bytes > 0; }, null, 60000, 'backup recording');
+    log('예비 녹화:', await ops2.evaluate(() => window.__recs().all.r.stat.name + ' · ' + document.querySelector('#rec-mode').textContent));
+    await ops.click('#b-who');
+    await waitFor(ops, () => /예비 녹화/.test(document.querySelector('#who').innerText), null, 20000, 'who shows 예비 녹화');
+    await ops.evaluate(() => document.querySelector('#who').click());
+    log('전체 접속자 보기에 「예비 녹화」 표시');
+    await sleep(4000);
+    await ops2.evaluate(() => { window.confirm = () => true; document.querySelector('#sw-rec').click(); });   // 예비 녹화 끄기(시험 PC 부담 줄임)
     await waitFor(ops, () => Object.values(window.__recs()).some(x => x.r.recording() && x.r.stat && x.r.stat.bytes > 150000), null, 60000, '전체_분반후 has data');
     await sleep(3000);
     await phase('end');
-    await sleep(3000);
+    try { await waitFor(ops, () => !!document.querySelector('#steps button[data-p="closeall"]'), null, 30000, 'closeall button'); }
+    catch (e) { log('DIAG steps:', await ops.evaluate(() => document.querySelector('#steps').innerText + ' | toast:' + (document.querySelector('.toast') || {}).textContent)); await phase('end'); await waitFor(ops, () => !!document.querySelector('#steps button[data-p="closeall"]'), null, 30000, 'closeall button 2'); }
     await phase('closeall');
     await waitFor(st['학생가'], () => /모두 끝났습니다/.test(document.querySelector('#t-move').textContent) && !document.querySelector('#t-move').classList.contains('hide'), null, 30000, 'student closed');
     await waitFor(m1, () => /모두 끝났습니다/.test(document.querySelector('#t-move').textContent), null, 30000, 'mentor closed');
@@ -212,6 +235,24 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     if (files.some(f => /대기/.test(f.n))) throw new Error('should not record 대기 (before start / after end)');
     need.forEach(k => { if (!files.some(f => f.n.includes(k) && f.wh === '1920x1080')) throw new Error('missing recording ' + k); });
     log('recordings OK: 전체_분반전 · 분반1_A조 · 분반2_B조 · (4분할) · 전체_분반후 at 1920x1080, no 대기 files');
+    // 녹화 기록표 + 파일을 꺼내 「녹화 조각 합치기」 시험용으로 저장
+    const OUTREC = '/tmp/artrec'; fs.rmSync(OUTREC, { recursive: true, force: true }); fs.mkdirSync(OUTREC + '/bk', { recursive: true });
+    for (const [pg, sub] of [[ops, ''], [ops2, '/bk']]) {
+      const got = await pg.evaluate(async () => {
+        const d = await navigator.storage.getDirectory(), out = [];
+        for await (const [n, h] of d.entries()) {
+          if (h.kind !== 'file' || !/미술|녹화기록/.test(n) || /crswap/.test(n)) continue;
+          const b = new Uint8Array(await (await h.getFile()).arrayBuffer()); let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode.apply(null, b.subarray(i, i + 32768));
+          out.push([n, btoa(s)]);
+        }
+        return out;
+      });
+      got.forEach(([n, b]) => fs.writeFileSync(OUTREC + sub + '/' + n, Buffer.from(b, 'base64')));
+      log('exported', sub || '(주)', got.map(x => x[0]).join(' | '));
+    }
+    const lg = fs.readdirSync(OUTREC).filter(n => /^_녹화기록/.test(n));
+    if (!lg.length) throw new Error('no 녹화기록 tsv');
+    log('녹화기록표:', lg[0], '\n' + fs.readFileSync(OUTREC + '/' + lg[0], 'utf8'));
     // 녹화 화면 한 장(조별 파일)
     const stats = await (await fetch(BASE + '/__stats')).json();
     log('memo rows:', JSON.stringify(stats.memo.slice(1)), '| sfu calls:', stats.sfuCalls, '| photos:', stats.photos);
