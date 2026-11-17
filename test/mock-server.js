@@ -53,7 +53,7 @@ const Logger = { log: (...a) => console.log('[gs]', ...a) };
 const UrlFetchApp = { fetch: () => { throw new Error('no network in test'); } };
 
 const ctx = vm.createContext({ CacheService, PropertiesService, SpreadsheetApp, ContentService, LockService, Utilities, Logger, UrlFetchApp, JSON, Date, Math, String, Number, Array, Object, Error, encodeURIComponent });
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'apps-script/Code.gs'), 'utf8'), ctx);
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'b/apps-script/Code.gs'), 'utf8'), ctx);
 // 예전 4칸 명단에서 옮겨 담기까지 시험
 sheets['명단'] = mkSheet('명단');
 sheets['명단'].appendRow(['회차', '순서', '시작', '이름']);
@@ -86,11 +86,11 @@ http.createServer((req, res) => {
     return;
   }
   if (url.pathname === '/__stats') { res.end(JSON.stringify({ calls, log: (sheets['기록'] || { rows: [] }).rows, chat: (sheets['채팅'] || { rows: [] }).rows, roster: sheets['명단'].rows })); return; }
-  let p = url.pathname === '/' ? '/index.html' : url.pathname;
+  let p = url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
   const f = path.join(ROOT, p);
   if (!f.startsWith(ROOT) || !fs.existsSync(f)) { res.writeHead(404); return res.end('nf'); }
   let data = fs.readFileSync(f);
-  if (p === '/config.js') data = Buffer.from(String(data).replace(/API: '[^']*'/, `API: 'http://localhost:${PORT}/api'`));
+  if (p.endsWith('/config.js')) data = Buffer.from(String(data).replace(/API: '[^']*'/, `API: 'http://localhost:${PORT}/api'`));
   res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
   res.end(data);
 }).listen(PORT, () => console.log('mock on', PORT));
