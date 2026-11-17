@@ -20,6 +20,11 @@
     return '';
   }
 
+  // 모든 녹화기가 함께 쓰는 그리기 예산: 최근 1초 동안 그리기에 쓴 시간이 0.45초를 넘으면 쉼
+  var duty = { w: [], sum: 0,
+    ok: function () { var n = performance.now(); while (this.w.length && this.w[0][0] < n - 1000) this.sum -= this.w.shift()[1]; return this.sum < 450; },
+    add: function (t, c) { this.w.push([t, c]); this.sum += c; } };
+
   // 백그라운드에서도 덜 느려지는 타이머(워커)
   function workerTimer(fps, fn) {
     var src = 'var t=null;onmessage=function(e){clearInterval(t);if(e.data>0)t=setInterval(function(){postMessage(0)},e.data)}';
@@ -55,7 +60,13 @@
     this.idle = { M: '', S: '' };
     this.srcNodes = {};
     var self = this;
-    this.stopTimer = workerTimer(this.fps, function () { self.draw(); });
+    this.skipped = 0;
+    this.stopTimer = workerTimer(this.fps, function () {
+      // PC가 버거우면 그리기를 건너뜀(화면·조작이 멈추지 않게) — 녹화는 그대로, 초당 장면 수만 줄어듦
+      if (!self.recording()) return;   // 녹화 중이 아니면 그리지 않음(멈춘 녹화기가 PC를 쓰지 않게)
+      if (!duty.ok()) { self.skipped++; return; }
+      var t0 = performance.now(); self.draw(); duty.add(t0, performance.now() - t0);
+    });
   }
 
   Recorder.prototype.supported = function () { return !!this.type; };
@@ -283,6 +294,8 @@
         self.save(f);
       }
       if (bk && f.auto) Backup.remove(fname);   // 폴더에 잘 저장됐으면 예비 사본 지움(아니면 다음 접속 때 복구)
+      // 시작하자마자 멈춰 내용이 없는 파일은 남기지 않음
+      if (!st.bytes && f.auto && self.dir) { try { await self.dir.removeEntry(f.name); f.empty = true; } catch (e) {} if (bk) Backup.remove(fname); }
       self.files.unshift(f);
       // 메모리 보호: 최근 4개만 다시 받기 가능
       self.files.slice(4).forEach(function (x) { if (x.url) URL.revokeObjectURL(x.url); x.blob = null; x.url = null; });

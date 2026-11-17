@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#202226">
+<title>미술 심화 멘토링 · 멘토</title>
+<link rel="stylesheet" href="../b/style.css">
+<link rel="stylesheet" href="art.css">
+<style>
+  .hero { background: var(--band); color: var(--band-tx); padding: 30px 0 90px; position: relative; overflow: hidden; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 0 18px; position: relative; }
+  .hbrand { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; }
+  .hbrand small { display: block; font-size: 12px; color: var(--band-soft); font-weight: 600; }
+  .hbrand b { display: block; font-size: 14.5px; font-weight: 800; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; color: var(--band-soft); }
+  .hero h1 { font-size: clamp(28px, 7vw, 36px); margin: 10px 0 8px; letter-spacing: -.035em; }
+  .hero h1 em { font-style: normal; color: var(--yel); }
+  .hero p { margin: 0; color: var(--band-soft); }
+  .lmain { margin-top: -62px; padding-bottom: 26px; }
+  .lcard { background: var(--paper); border-radius: 18px; padding: 24px 22px; box-shadow: 0 24px 60px -30px rgba(32,34,38,.4); }
+  .lcard h2 { font-size: 20px; margin: 0 0 4px; }
+  .lcard .lead { margin: 0 0 18px; color: var(--gray); font-size: 14.5px; }
+  footer.ft { text-align: center; font-size: 12.5px; color: var(--gray); padding: 4px 18px 30px; line-height: 1.7; }
+  #s-gate, #s-check { min-height: 100%; }
+  #s-check { display: grid; place-items: center; padding: 24px 16px; }
+</style>
+</head>
+<body>
+
+<!-- ① 멘토 입장 -->
+<section id="s-gate" class="gate band">
+  <form class="card" id="f-gate" autocomplete="off">
+    <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>2026 K예술영재 · 미술 온라인 멘토링</div>
+    <h1>멘토 <em>입장</em></h1>
+    <p class="lead">성함과 안내받은 멘토 코드를 입력해 주세요. 회차는 오늘 날짜에 맞춰 자동으로 들어갑니다.</p>
+    <label class="field"><span>성함</span><input id="g-name" maxlength="12" required></label>
+    <label class="field"><span>멘토 코드</span><input id="g-code" type="password" required></label>
+    <div class="autor" id="g-rrow"><span class="autor-l">회차</span><b><i class="fdot"></i>오늘 날짜에 맞춰 자동</b><button class="lnk" type="button" id="g-rpick">직접 입력</button></div>
+    <label class="field hide" id="g-rbox"><span>회차 <small class="muted">(비우면 자동 · 리허설은 test)</small></span><input id="g-room" autocomplete="off"></label>
+    <div class="err" id="g-err" aria-live="polite"></div>
+    <button class="btn full" id="g-btn">다음</button>
+  </form>
+</section>
+
+<!-- ② 카메라·마이크 확인 -->
+<section id="s-check" class="hide">
+  <form class="card" id="f-check">
+    <div class="brand"><i></i>입장 전 · 카메라·마이크 확인</div>
+    <div class="preview"><video id="c-video" autoplay playsinline muted style="transform:scaleX(-1)"></video></div>
+    <label class="field"><span>카메라</span><select id="c-cam"></select></label>
+    <label class="field"><span>마이크 — 말해 보세요. 막대가 움직이면 정상입니다</span><select id="c-mic"></select></label>
+    <div class="meter"><i id="c-meter"></i></div>
+    <ul class="tips">
+      <li>학생 칸을 누르면 <b>그 학생(화면 공유·작품 사진)을 모두에게 크게</b> 보여 줍니다. 다시 누르면 원래대로.</li>
+      <li>학생 칸 위에 마우스를 올리면 「마이크 끄기」「손 내리기」가 나옵니다.</li>
+      <li>단계가 바뀌면(전체 ↔ 조별) 자동으로 해당 방으로 이동합니다.</li>
+    </ul>
+    <div class="err" id="c-err"></div>
+    <button class="btn full" id="c-btn" disabled>입장하기</button>
+  </form>
+</section>
+
+<!-- ③ 멘토링 방 -->
+<div class="aroom hide" id="s-room">
+  <div class="atop">
+    <span class="kmark sm" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>
+    <span class="ttl"><small id="t-sub">미술 심화 멘토링</small><span id="t-me"></span></span>
+    <span class="roomchip all" id="t-room">전체</span>
+    <span class="phasechip" id="t-phase"></span>
+    <span class="sp"></span>
+    <span class="atimer hide" id="t-timer"></span>
+    <span class="conn3" id="t-conn"><i></i><span>연결됨</span></span>
+  </div>
+  <div class="apend hide" id="t-pend"></div>
+  <div class="anotice hide" id="t-notice"><span id="t-notice-tx"></span><button class="x" type="button" id="t-notice-x" aria-label="닫기"></button></div>
+  <div class="astage" id="stage" style="position:relative"></div>
+  <div class="abig hide" id="t-big"><b id="t-big-b"></b><small id="t-big-s"></small></div>
+  <div class="abar">
+    <button class="abtn" type="button" id="b-mic"></button>
+    <button class="abtn" type="button" id="b-cam"></button>
+    <button class="abtn hide" type="button" id="b-hand"></button>
+    <button class="abtn" type="button" id="b-unspot"></button>
+    <button class="abtn" type="button" id="b-share"></button>
+    <button class="abtn leave" type="button" id="b-out"></button>
+  </div>
+  <div class="amenu hide" id="m-share">
+    <button type="button" id="s-screen"><span>화면 공유<small>PC의 작업 화면·포트폴리오 파일 보여 주기</small></span></button>
+    <button type="button" id="s-flip"><span>카메라 바꾸기<small>다른 카메라(실물 자료 비추기)</small></span></button>
+    <button type="button" id="s-photo"><span>자료 사진 올리기<small>참고 이미지 한 장을 올려 보여 주기</small></span></button>
+    <input type="file" id="s-file" accept="image/*" hidden>
+  </div>
+</div>
+<div class="amove hide" id="t-move"><div><h2 id="t-move-h"></h2><p id="t-move-p"></p></div></div>
+
+<script src="config.js"></script>
+<script src="../b/meet.js"></script>
+<script src="sfu.js"></script>
+<script src="art.js"></script>
+<script>
+(function () {
+  var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art, ICON = M.ICON;
+  var R0 = UI.param('r'), sess = null, check = null, cam = null, scr = null, room = null;
+  var lastRoom = null, seenMute = 0, noticeX = 0, backCam = false, entered = false;
+  if (/KAKAOTALK/i.test(navigator.userAgent)) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+
+  function go(id) { ['s-gate', 's-check', 's-room'].forEach(function (s) { UI.show('#' + s, s === id); }); }
+
+  /* ① 멘토 입장 */
+  $('#g-room').value = R0;
+  if (R0) { UI.show('#g-rrow', false); UI.show('#g-rbox', true); }
+  $('#g-rpick').onclick = function () { UI.show('#g-rrow', false); UI.show('#g-rbox', true); $('#g-room').focus(); };
+  try { $('#g-name').value = localStorage.getItem('art_mentor') || ''; } catch (e) {}
+  $('#f-gate').onsubmit = async function (e) {
+    e.preventDefault();
+    var r = $('#g-room').value.replace(/회차|\s/g, '') || 'auto';
+    $('#g-btn').disabled = true; $('#g-err').textContent = '';
+    try {
+      sess = new M.Session({ r: r, role: 'mentor', name: $('#g-name').value.trim(), code: $('#g-code').value.trim(), interval: 1500 });
+      await sess.join();
+      try { localStorage.setItem('art_mentor', sess.name); history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(sess.r)); } catch (e2) {}
+      UI.netbar(sess);
+      toCheck();
+    } catch (err) {
+      $('#g-err').textContent = err.code === 'code' ? '멘토 코드가 맞지 않습니다.' : err.code === 'no_session' ? '시트 「회차」에서 날짜에 맞는 회차를 찾지 못했습니다. 「직접 입력」으로 회차를 넣어 주세요.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')';
+    } finally { $('#g-btn').disabled = false; }
+  };
+
+  /* ② 장치 확인 */
+  async function toCheck() {
+    go('s-check');
+    check = new M.DeviceCheck({ video: $('#c-video'), meter: $('#c-meter'), selCam: $('#c-cam'), selMic: $('#c-mic'), err: $('#c-err') });
+    try { await check.start(); $('#c-btn').disabled = false; }
+    catch (e) { $('#c-err').textContent = M.Media.errText(e); }
+  }
+  $('#f-check').onsubmit = function (e) { e.preventDefault(); enter(); };
+
+  /* ③ 방 */
+  async function enter() {
+    $('#c-btn').disabled = true;
+    check.stopMeterOnly();
+    cam = check.stream;
+    go('s-room'); entered = true; UI.wakeLock();
+    $('#t-me').textContent = '멘토 ' + sess.name;
+    room = new A.Room({ sess: sess, box: $('#stage'), localCam: function () { return cam; }, localScr: function () { return scr; },
+      onTileClick: function (it) {
+        var sp = room.view && room.view.spot && room.view.spot[room.view.myRoom];
+        var same = sp && sp.id === it.id && sp.kind === it.kind;
+        sess.op('spot', same ? {} : { target: it.id, kind: it.kind });
+      },
+      tools: function (it) {
+        if (it.p.role !== 'student' || it.kind !== 'cam') return it.kind === 'photo' ? '<button type="button" data-t="unphoto" data-id="' + it.id + '">사진 내리기</button>' : '';
+        return '<button type="button" data-t="mute" data-id="' + it.id + '">마이크 끄기</button>' + (it.p.hand ? '<button type="button" data-t="lower" data-id="' + it.id + '">손 내리기</button>' : '');
+      },
+      onSfuState: function (st) { $('#t-conn').classList.toggle('off', st !== 'connected'); $('#t-conn span').textContent = st === 'connected' ? '연결됨' : '연결 중…'; if (st === 'failed') reconnect(); } });
+    room.backCam = false;
+    setMic(true);
+    $('#stage').addEventListener('click', function (e) {
+      var b = e.target.closest('.t-tools button'); if (!b) return;
+      e.stopPropagation();
+      if (b.dataset.t === 'mute') { sess.op('mute', { sid: b.dataset.id }); UI.toast('학생 마이크를 껐습니다'); }
+      if (b.dataset.t === 'lower') sess.op('hand', { on: false, sid: b.dataset.id });
+      if (b.dataset.t === 'unphoto') sess.op('unphoto', { sid: b.dataset.id });
+    });
+    sess.on('view', onView);
+    sess.start();
+    await openSfu();
+  }
+  async function openSfu() {
+    try {
+      await room.sfu.open();
+      await room.sfu.publish('cam', cam.getVideoTracks()[0]);
+      await room.sfu.publish('mic', cam.getAudioTracks()[0]);
+      if (scr) await room.sfu.publish('scr', scr.getVideoTracks()[0]);
+    } catch (e) { console.warn('sfu', e); UI.toast('영상 연결에 실패했습니다. 다시 시도합니다…'); setTimeout(reconnect, 3000); }
+  }
+  var reconnecting = false;
+  async function reconnect() { if (reconnecting) return; reconnecting = true; room.lastWant = ''; Object.keys(room.streams).forEach(function (k) { delete room.streams[k]; }); await openSfu(); reconnecting = false; }
+
+  function meP(v) { return (v.people || []).filter(function (p) { return p.id === v.me; })[0] || {}; }
+  function onView(v) {
+    var me = meP(v), myRoom = v.myRoom;
+    // 받을 영상: 내 방 사람들. 멘토·크게 보는 사람은 높은 화질
+    var spot = v.spot && v.spot[myRoom];
+    room.sync(v, function (p) {
+      if ((p.role === 'ops' || p.role === 'research')) return p.room === myRoom ? { mic: true } : null;
+      if (p.room !== myRoom) return null;
+      var hi = p.role === 'mentor' || myRoom !== 'all' || (spot && spot.id === p.id);
+      return { cam: hi ? 'h' : 'l', mic: true, scr: true };
+    });
+    room.render(v);
+    // 방이 바뀜 → 이동 안내, 마이크 자동
+    if (lastRoom !== null && lastRoom !== myRoom) showMove(v);
+    if (lastRoom !== myRoom) room.pin = null;
+    lastRoom = myRoom;
+    // 멘토가 마이크를 끔
+    var sp2 = v.spot && v.spot[myRoom];
+    UI.show('#b-unspot', !!sp2);
+    // 위 표시
+    $('#t-room').textContent = A.roomName(myRoom);
+    $('#t-room').classList.toggle('all', myRoom === 'all');
+    var ment = myRoom !== 'all' ? (v.mentorsOf[myRoom.slice(1)] || []).join('·') : '';
+    $('#t-phase').textContent = A.PH[v.phase] + (ment ? ' · 멘토 ' + ment : '');
+    var hands = (v.people || []).filter(function (p) { return p.hand && p.room === myRoom; }).length;
+    $('#t-me').textContent = '멘토 ' + sess.name + (hands ? ' · 손든 학생 ' + hands + '명' : '');
+    var n = v.notice;
+    UI.show('#t-notice', !!(n && n.at !== noticeX && (n.to === 'all' || n.to === myRoom)));
+    if (n) $('#t-notice-tx').textContent = n.text;
+    tick();
+  }
+  function tick() {
+    var v = sess && sess.view; if (!v) return;
+    var t = A.timerText(v, sess.now());
+    UI.show('#t-big', !!t && !t.pend);
+    if (t && !t.pend) {
+      var nm = A.nextMark(v, sess.now());
+      $('#t-big-b').textContent = UI.mmss(Math.max(0, t.left));
+      $('#t-big-s').textContent = t.soon ? (A.PH[nm.to] || '다음 단계') + ' 1분 전' : nm.label + '까지';
+      $('#t-big').classList.toggle('last', !!t.soon);
+      if (t.soon && tick.warned !== nm.to) { tick.warned = nm.to; try { var ac = new AudioContext(), o = ac.createOscillator(), g = ac.createGain(); o.connect(g); g.connect(ac.destination); o.frequency.value = 880; g.gain.value = .15; o.start(); setTimeout(function () { o.stop(); ac.close(); }, 500); } catch (e) {} }
+    }
+    UI.show('#t-timer', false);   // 멘토는 오른쪽 위 큰 시계로 봄
+    var pend = v.pend;
+    UI.show('#t-pend', !!pend);
+    if (pend) {
+      var left = Math.max(0, Math.ceil((pend.at - sess.now()) / 1000));
+      var mine = pend.to === 'group' ? myGroupText(v) : '';
+      $('#t-pend').innerHTML = UI.esc(A.PH[pend.to]) + ' 시작까지 <b>' + UI.mmss(left * 1000) + '</b>' + (mine ? ' · ' + UI.esc(mine) : '');
+    }
+  }
+  setInterval(tick, 500);
+  function myGroupText(v) {
+    if (!v.myGroup) return '';
+    var ment = (v.mentorsOf[v.myGroup] || []).join('·');
+    return '나는 ' + A.gname(v.myGroup) + (ment ? ' · 멘토 ' + ment : '');
+  }
+  function showMove(v) {
+    var to = v.myRoom, ment = to !== 'all' ? (v.mentorsOf[to.slice(1)] || []).join('·') : '';
+    $('#t-move-h').innerHTML = to === 'all' ? '<em>전체</em>로 모입니다' : '<em>' + A.roomName(to) + '</em>로 이동합니다';
+    var cnt = (v.people || []).filter(function (p) { return p.room === to && p.role === 'student' && p.live; }).length;
+    $('#t-move-p').textContent = to === 'all' ? '전체 멘토링으로 돌아왔습니다.' : '학생 ' + cnt + '명과 조별 멘토링을 시작합니다.';
+    UI.show('#t-move', true);
+    clearTimeout(showMove.t); showMove.t = setTimeout(function () { UI.show('#t-move', false); }, 2600);
+  }
+  $('#t-notice-x').innerHTML = UI.ico('x');
+  $('#t-notice-x').onclick = function () { var n = sess.view && sess.view.notice; if (n) noticeX = n.at; UI.show('#t-notice', false); };
+
+  /* 조작 */
+  function setMic(on) {
+    if (!cam) return;
+    cam.getAudioTracks().forEach(function (t) { t.enabled = on; });
+    var b = $('#b-mic'); b.innerHTML = (on ? ICON.mic : ICON.micOff) + '<span>' + (on ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; b.classList.toggle('off', !on);
+  }
+  function setCam(on) {
+    if (cam) cam.getVideoTracks().forEach(function (t) { t.enabled = on; });
+    var b = $('#b-cam'); b.innerHTML = (on ? ICON.cam : ICON.camOff) + '<span>' + (on ? '카메라 켜짐' : '카메라 꺼짐') + '</span>'; b.classList.toggle('off', !on);
+  }
+  function paintHand(on) { var b = $('#b-hand'); b.innerHTML = UI.ico('hand') + '<span>' + (on ? '손 내리기' : '손들기') + '</span>'; b.classList.toggle('on', on); b.dataset.on = on ? '1' : ''; }
+  $('#b-mic').onclick = function () { var t = cam.getAudioTracks()[0]; setMic(!(t && t.enabled)); };
+  $('#b-cam').onclick = function () { var t = cam.getVideoTracks()[0]; setCam(!(t && t.enabled)); };
+  $('#b-unspot').innerHTML = UI.ico('x') + '<span>크게 보기 끄기</span>';
+  $('#b-unspot').onclick = function () { sess.op('spot', {}); };
+  $('#b-share').innerHTML = UI.ico('win') + '<span>작품 보여주기</span>';
+  $('#b-share').onclick = function (e) { e.stopPropagation(); $('#m-share').classList.toggle('hide'); };
+  document.addEventListener('click', function (e) { if (!e.target.closest('#m-share')) UI.show('#m-share', false); });
+  $('#b-out').innerHTML = UI.ico('out') + '<span>나가기</span>';
+  $('#b-out').onclick = function () { if (!confirm('멘토링에서 나갈까요?')) return; location.href = location.pathname; };
+  setCam(true);
+
+  // 화면 공유
+  UI.show('#s-screen', !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia));
+  $('#s-screen').onclick = async function () {
+    UI.show('#m-share', false);
+    if (scr) { stopScreen(); return; }
+    try {
+      scr = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+      var t = scr.getVideoTracks()[0]; t.onended = stopScreen;
+      await room.sfu.publish('scr', t);
+      $('#s-screen span').firstChild.textContent = '화면 공유 끝내기';
+      room.render(room.view);
+    } catch (e) { scr = null; }
+  };
+  function stopScreen() {
+    if (!scr) return; M.Media.stop(scr); scr = null;
+    room.sfu.unpublish('scr'); $('#s-screen span').firstChild.textContent = '화면 공유';
+    room.render(room.view);
+  }
+  // 후면 카메라
+  $('#s-flip').onclick = async function () {
+    UI.show('#m-share', false);
+    try {
+      var micOn = cam.getAudioTracks()[0] && cam.getAudioTracks()[0].enabled;
+      check.stream = cam; await check.flip(); cam = check.stream; check.stopMeterOnly();
+      backCam = check.facing === 'environment'; room.o.backCam = backCam;
+      cam.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
+      await room.sfu.publish('cam', cam.getVideoTracks()[0]);
+      await room.sfu.publish('mic', cam.getAudioTracks()[0]);
+      room.render(room.view);
+      UI.toast(backCam ? '후면 카메라로 바꿨습니다' : '앞 카메라로 바꿨습니다');
+    } catch (e) { UI.toast('카메라를 바꾸지 못했습니다'); }
+  };
+  // 작품 사진
+  $('#s-photo').onclick = function () { UI.show('#m-share', false); $('#s-file').click(); };
+  $('#s-file').onchange = async function () {
+    var f = this.files[0]; this.value = ''; if (!f) return;
+    UI.toast('사진을 올리는 중입니다…', 3000);
+    try { await A.upload(sess, f); sess.kick(); UI.toast('사진을 올렸습니다. 칸을 누르면 모두에게 크게 보입니다.', 3500); }
+    catch (e) { UI.toast('사진을 올리지 못했습니다. 다시 시도해 주세요.'); }
+  };
+
+})();
+</script>
+</body>
+</html>
