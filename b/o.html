@@ -210,9 +210,15 @@
   .panel .pb { padding: 6px 16px 16px; }
   /* 카메라 칸은 4:3(Ver.2.16) — 남는 공간 가운데에 4:3 두 칸 */
   .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; align-content: center; }
-  .duo { container-type: size; grid-template-columns: repeat(2, minmax(0, min(calc((100cqw - 18px) / 2), calc((100cqh - 12px) * 4 / 3)))); justify-content: center; }
+  .duo { container-type: size; display: grid; place-items: center; grid-template-columns: minmax(0, 1fr); }
+  .duo-in { --tw: min(calc((100cqw - 18px) / 2), calc((100cqh - 12px) * 4 / 3)); display: grid; grid-template-columns: repeat(2, var(--tw)); gap: 6px; justify-content: center; align-content: center; }
+  .duo-in.has-r { --tw: min(calc((100cqw - 18px) / 2), calc((100cqh - 18px) / 1.2375)); }   /* 아래 연구원 줄(칸의 65%)까지 들어가게 */
   .tile { position: relative; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; width: 100%; align-self: center; }
-  @media (max-width: 1000px) { #c-stage > .panel:first-child .duo { flex: none; container-type: normal; grid-template-columns: 1fr 1fr; } }
+  .rrow { grid-column: 1 / -1; display: flex; justify-content: center; gap: 6px; }
+  .rrow:empty { display: none; }
+  .rrow .rpip { width: calc(var(--tw) * .65); flex: none; border-radius: 10px; box-shadow: none; }
+  .rrow .rpip .rpl { font-size: 12.5px; }
+  @media (max-width: 1000px) { #c-stage > .panel:first-child .duo { flex: none; container-type: normal; } .duo-in, .duo-in.has-r { --tw: calc((100vw - 42px) / 2); grid-template-columns: 1fr 1fr; width: 100%; } }
   .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
   .tile .overlay { font-size: 14px; }
   .tile .st2 { position: absolute; right: 10px; top: 10px; z-index: 2; }
@@ -396,7 +402,6 @@
   .cin { padding: 8px 16px 14px; flex: none; }
   body.research .op-only { display: none !important; }
   body:not(.research) .res-only { display: none !important; }
-  #o-rp { width: 24%; min-width: 92px; }
   .rsetup { position: fixed; inset: 0; z-index: 70; background: rgba(18,19,21,.86); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 20px; }
   .rsetup .card { max-width: 480px; }
   .rsetup .lead b { color: var(--ink); }
@@ -472,7 +477,7 @@
     <!-- 화면(영상)·녹화 -->
     <div class="col dk" id="c-stage">
       <section class="panel">
-        <div class="duo">
+        <div class="duo"><div class="duo-in">
           <div class="tile"><video id="v-M" autoplay playsinline></video>
             <div class="overlay" id="o-M"><div>멘토 접속 전</div></div>
             <span class="label" id="l-M">멘토</span><span class="st2" id="st-M"></span></div>
@@ -482,10 +487,11 @@
               <p class="stage-help" id="o-S-h">멘토링 전에 내 카메라·마이크로 멘토와 이야기합니다</p></div></div>
             <span class="label" id="l-S">학생</span><span class="st2" id="st-S"></span>
             <div class="sgrid" id="g-stage"></div>
-            <div class="rpips" id="o-rp"></div>
             <div class="stbar hide" id="st-join"><button class="btn yel sm" id="b-stage2" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg><span>나도 화면 등장</span></button></div>
             </div>
-        </div>
+          <!-- 멘토링실에 들어온 연구원: 멘토·학생 칸 아래, 그 칸의 65% 크기(Ver.2.17) -->
+          <div class="rrow" id="o-rp"></div>
+        </div></div>
         <div class="tbar hide" id="tbar">
           <div class="tb-t"><b id="tb-time">10:00</b><span id="tb-ph">피드백</span></div>
           <div class="tb-prog"><i id="tb-fill"></i><em id="tb-mark"></em></div>
@@ -982,6 +988,7 @@
     });
     if (stageLocal && !room.some(function (x) { return x.key === sess.id; })) { var a1 = stageLocal.getAudioTracks()[0]; room.unshift({ key: sess.id, label: '나 (' + UI.roleName(role) + ')', stream: stageLocal, mirror: true, muted: true, mic: !!(a1 && a1.enabled) }); }
     UI.pips($('#o-rp'), room);
+    $('.duo-in').classList.toggle('has-r', room.length > 0);
     UI.grid($('#g-stage'), stage.map(function (m) {
       if (m.id === sess.id) return { key: m.id, label: '나 (' + UI.roleName(m.role) + ')', stream: stageLocal, mirror: true, muted: true };
       var GL = links.get('view', m.id, 'offer');

@@ -185,6 +185,7 @@ body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
   .card { padding: 24px 20px; border-radius: 16px; }
   .card h1 { font-size: 22px; }
   .pip { bottom: 94px; width: 30%; }
+  .pstack { bottom: 94px; width: 30%; }
   .cbtn { width: 52px; height: 52px; }
 }
 
@@ -298,3 +299,11 @@ body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
 .rpip .rpm { position: absolute; right: 5px; bottom: 5px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(214,69,65,.92); color: #fff; }
 .rpip.talk .rpm { background: #2F8A57; }
 .rpip .rpm svg { width: 12px; height: 12px; }
+
+/* 멘토·학생 화면: 오른쪽 아래 작은 화면 묶음(연구원 + 나, 같은 크기) — Ver.2.17 */
+.pstack { position: absolute; right: 16px; bottom: 100px; z-index: 2; width: 26%; max-width: 260px; min-width: 110px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.pstack .pip { position: relative; right: auto; bottom: auto; width: 100%; max-width: none; min-width: 0; }
+.pstack .rpips { position: static; width: 100%; max-width: none; min-width: 0; gap: 8px; }
+.pstack .rpips:not(.has) { display: none; }
+.pstack .rpip { border-radius: 12px; border-color: rgba(255,255,255,.18); }
+.pip .pl { position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.62); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 5px; }

@@ -252,7 +252,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip:not(.off)'); return c && c.querySelector('video').videoWidth > 0 && c.querySelector('video').srcObject.getAudioTracks().length; }, null, 20000, 'student sees research when mic on');
   await waitFor(mentor, () => !!document.querySelector('#m-rp .rpip.talk'), null, 20000, 'mentor sees research talking');
   log('연구원 스페이스바(마이크 켬) → 학생 화면 왼쪽 위에 연구원 작은 화면 + 소리, 멘토 화면 초록 테두리');
-  await SHOT(sA, 'stu_live_research'); await SHOT(mentor, 'mentor_live_research');
+  await SHOT(sA, 'stu_live_research'); await SHOT(mentor, 'mentor_live_research'); await SHOT(res2, 'research_live_room'); await SHOT(ops, 'ops_live_research');
   await res2.keyboard.up('Space');
   await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 20000, 'student hides research when mic off');
   await waitFor(ops, () => window.__rec().pips.length >= 1, null, 20000, 'recording includes research pip');

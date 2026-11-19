@@ -97,11 +97,11 @@
       <div class="edge hide" id="edge"></div>
       <div class="alert1 hide" id="a1">종료 1분 전</div>
       <div class="sgrid" id="g-stage"></div>
-      <div class="rpips" id="m-rp"></div>
       <div class="overlay" id="o-idle"><div><h2>다음 학생을 기다리는 중입니다</h2><p id="o-next">운영진이 학생을 연결하면 바로 화면이 나타납니다.</p></div></div>
       <div class="overlay hide" id="o-conn"><div><div class="spinner"></div><h2 id="o-conn-t">학생과 연결하는 중</h2><p id="o-conn-s">잠시만 기다려 주세요</p></div></div>
       <span class="label hide" id="v-label"></span>
-      <div class="pip"><video id="v-self" autoplay playsinline muted></video></div>
+      <!-- 오른쪽 아래 작은 화면 묶음: 연구원(멘토링실에 들어왔을 때) + 나 — 같은 크기(Ver.2.17) -->
+      <div class="pstack"><div class="rpips" id="m-rp"></div><div class="pip"><video id="v-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
       <div class="ctrls">
         <button class="cbtn" id="b-mic"></button>
         <button class="cbtn" id="b-cam"></button>
