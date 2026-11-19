@@ -48,6 +48,17 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     await ops.waitForSelector('#s-main:not(.hide)');
     await ops.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));
     log('ops in, recorder on');
+    // 접속 현황: 전화 아이콘 → 학생·보호자 번호 팝업(Ver.1.9), 공지 칸 없음
+    await waitFor(ops, () => !!document.querySelector('#abs [data-tel="S_학생가"]'), null, 15000, 'abs phone icon');
+    await ops.click('#abs [data-tel="S_학생가"]');
+    await waitFor(ops, () => { const p = document.querySelector('#abs [data-tel="S_학생가"] + .abpop'); return p && !p.hidden && /010-1111-2222/.test(p.textContent) && /010-3333-4444/.test(p.textContent); }, null, 5000, 'abs phone popup');
+    await sleep(2000);
+    if (await ops.evaluate(() => document.querySelector('#abs [data-tel="S_학생가"] + .abpop').hidden)) throw new Error('전화 팝업이 다시 그리기로 닫히면 안 됨');
+    await SHOT(ops, 'ops_phone');
+    await ops.click('#abs [data-tel="S_학생가"]');
+    if (await ops.$('#f-notice')) throw new Error('공지 칸은 없어야 함');
+    if (!(await ops.isVisible('#b-rec'))) throw new Error('조작 막대 녹화 버튼');
+    log('접속 현황 전화 아이콘 → 번호 팝업, 공지 칸 없음, 조작 막대 녹화 버튼');
 
     // 멘토 2
     const m1 = await mk('m1'), m2 = await mk('m2');
@@ -153,9 +164,9 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     await sleep(1500); await RECSHOT(ops, 'group');
     await SHOT(st['학생가'], 'stu_group'); await SHOT(m1, 'mentor_group'); await SHOT(ops, 'ops_group');
 
-    // 운영진이 B조 듣기 + 누르고 말하기 → B조 학생에게 들림(talk 표시)
+    // 운영진이 B조 듣기 + 조작 막대 마이크 길게 누르기 → B조 학생에게 들림
     await ops.evaluate(() => document.querySelector('.rp[data-room="g2"] .hear').click());
-    const tb = await ops.$('.rp[data-room="g2"] .talk'); const bx = await tb.boundingBox();
+    const tb = await ops.$('#b-mymic'); const bx = await tb.boundingBox();
     await ops.mouse.move(bx.x + 5, bx.y + 5); await ops.mouse.down();
     await waitFor(st['학생다'], () => [...document.querySelectorAll('audio')].some(a => /^O_/.test(a.dataset.k) && !a.muted), null, 20000, 'ops voice audible in B조');
     await waitFor(st['학생가'], () => ![...document.querySelectorAll('audio')].some(a => /^O_/.test(a.dataset.k) && !a.muted), null, 5000, 'not audible in A조');
@@ -170,10 +181,7 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     // 관찰 메모
     await ops.fill('#memo', '학생다 색 대비 질문'); await ops.click('#b-memo');
     await sleep(1500);
-    // 공지
-    await ops.fill('#n-text', '5분 뒤 전체로 모입니다'); await ops.click('#f-notice button');
-    await waitFor(st['학생다'], () => /5분 뒤/.test(document.querySelector('#t-notice').textContent) && !document.querySelector('#t-notice').classList.contains('hide'), null, 15000, 'notice shown');
-    log('notice shown to students');
+    if (await st['학생다'].$('#t-notice')) throw new Error('학생 화면에 공지 띠가 없어야 함');
     await sleep(6000);   // 조별 녹화 몇 초
 
     // ③ 전체 마무리 → 마침

@@ -26,6 +26,8 @@
   #s-gate, #s-check { min-height: 100%; }
   #s-check { display: grid; place-items: center; padding: 24px 16px; }
 </style>
+<link rel="stylesheet" href="../b/theme.css">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -83,7 +85,6 @@
     <button class="aout" type="button" id="b-out"></button>
   </div>
   <div class="apend hide" id="t-pend"></div>
-  <div class="anotice hide" id="t-notice"><span id="t-notice-tx"></span><button class="x" type="button" id="t-notice-x" aria-label="닫기"></button></div>
   <div class="astage" id="stage"></div>
   <div class="abar">
     <button class="abtn" type="button" id="b-mic"></button>
@@ -108,7 +109,7 @@
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art, ICON = M.ICON;
   var R0 = UI.param('r'), sess = null, check = null, cam = null, scr = null, room = null;
-  var lastRoom = null, seenMute = 0, noticeX = 0, backCam = false, entered = false;
+  var lastRoom = null, seenMute = 0, backCam = false, entered = false;
   $('#g-mail').textContent = C.CONTACT || ''; $('#g-mail').href = 'mailto:' + (C.CONTACT || '');
   if (/KAKAOTALK/i.test(navigator.userAgent)) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
 
@@ -125,6 +126,7 @@
     $('#g-btn').disabled = true; $('#g-err').textContent = '';
     try { await login(name, birth, R0); save(); toCheck(); }
     catch (err) {
+      if (err.code === 'not_time') { $('#g-err').innerHTML = UI.notTime(err.data); return; }
       $('#g-err').textContent = err.code === 'not_in_roster' ? '멘토링 명단에서 찾을 수 없습니다. 이름을 다시 확인해 주세요.'
         : err.code === 'birth' ? '생년월일이 맞지 않습니다. 8자리(예: 20110901)로 다시 입력해 주세요.'
         : err.code === 'no_session' ? '오늘 진행하는 회차를 찾지 못했습니다. 운영진에게 문의해 주세요.'
@@ -214,9 +216,6 @@
     var ment = myRoom !== 'all' ? (v.mentorsOf[myRoom.slice(1)] || []).join('·') : '';
     $('#t-phase').textContent = A.PH[v.phase] + (ment ? ' · 멘토 ' + ment : '');
     paintHand(!!me.hand);
-    var n = v.notice;
-    UI.show('#t-notice', !!(n && n.at !== noticeX && (n.to === 'all' || n.to === myRoom)));
-    if (n) $('#t-notice-tx').textContent = n.text;
     tick();
   }
   function tick() {
@@ -244,8 +243,6 @@
     UI.show('#t-move', true);
     clearTimeout(showMove.t); showMove.t = setTimeout(function () { UI.show('#t-move', false); }, 2600);
   }
-  $('#t-notice-x').innerHTML = UI.ico('x');
-  $('#t-notice-x').onclick = function () { var n = sess.view && sess.view.notice; if (n) noticeX = n.at; UI.show('#t-notice', false); };
 
   /* 조작 */
   function setMic(on) {
@@ -321,7 +318,7 @@
   (async function resume() {
     var s = null; try { s = JSON.parse(sessionStorage.getItem('art_stu') || 'null'); } catch (e) {}
     if (!s || !s.name) return;
-    try { await login(s.name, s.birth, s.r); toCheck(); } catch (e) { try { sessionStorage.removeItem('art_stu'); } catch (e2) {} }
+    try { await login(s.name, s.birth, s.r); toCheck(); } catch (e) { try { sessionStorage.removeItem('art_stu'); } catch (e2) {} if (e.code === 'not_time') $('#g-err').innerHTML = UI.notTime(e.data); }
   })();
 })();
 </script>

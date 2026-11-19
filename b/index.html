@@ -380,24 +380,12 @@
       RULES_SEEN = true; save();
       go('s-check'); startCheck();   // 유의사항 카드 없이 바로 카메라 확인
     } catch (err) {
-      if (err.code === 'not_time') { $('#g-err').innerHTML = notTimeMsg(err.data || {}); return; }
+      if (err.code === 'not_time') { $('#g-err').innerHTML = UI.notTime(err.data); return; }
       $('#g-err').textContent = err.code === 'not_in_roster' ? '멘토링 명단에서 찾을 수 없습니다. 이름을 다시 확인해 주세요.'
         : err.code === 'birth' ? (birth ? '생년월일이 맞지 않습니다. 8자리(예: 20150901)로 다시 입력해 주세요.' : '생년월일 8자리를 입력해 주세요.')
         : '연결에 문제가 있습니다. 잠시 후 다시 시도해 주세요.';
     } finally { $('#g-btn').disabled = false; $('#g-btn').textContent = '다음'; }
   };
-  // 입장 시간 전: 「멘토링 시간이 아닙니다.」 + 들어올 수 있는 날짜·시각
-  function notTimeMsg(d) {
-    var out = '<b>멘토링 시간이 아닙니다.</b>';
-    if (d.date && !d.past) {
-      var y = Number(d.date.slice(0, 4)), mo = Number(d.date.slice(5, 7)), da = Number(d.date.slice(8, 10));
-      var wd = '일월화수목금토'.charAt(new Date(Date.UTC(y, mo - 1, da)).getUTCDay());
-      var md = Number(d.date.slice(5, 7)) + '월 ' + Number(d.date.slice(8, 10)) + '일(' + wd + ')';
-      var op = d.open ? (function (h) { var p = h.split(':'), H = Number(p[0]); return (H < 12 ? '오전 ' : '오후 ') + (H % 12 || 12) + ':' + p[1]; })(d.open) : '';
-      out += '<br>' + md + (op ? ' ' + op + '부터' : '') + ' 입장할 수 있습니다.';
-    }
-    return out;
-  }
   async function login(name, birth, r) {
     sess = new M.Session({ r: r || 'auto', role: 'student', name: name, birth: birth, interval: 2500 });
     await sess.join();

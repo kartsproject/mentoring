@@ -1,5 +1,6 @@
 /**
- * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.3
+ * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.4
+ *  Ver.1.4: 학생은 회차 당일 「시작」 30분 전부터 입장(그 전엔 not_time + 날짜·시각), 한 번 들어온 학생은 그날 다시 입장 가능
  *
  * 하는 일
  *  - 입장(학생: 이름+생년월일, 멘토·운영진·연구원: 코드+이름), 회차는 날짜로 자동
@@ -28,6 +29,7 @@ var TZ = 'Asia/Seoul';
 var SFU_BASE = 'https://rtc.live.cloudflare.com/v1/apps/';
 var PHOTO_DIR = 'K예술영재_미술멘토링_작품사진';
 var PHASES = ['ready', 'all', 'group', 'end'];
+var OPEN_BEFORE_MIN = 30;   // 학생 입장: 회차 당일 「시작」 몇 분 전부터
 
 var ROSTER_HEAD = ['회차', '이름', '생년월일', '조', '학생 연락처', '보호자 연락처'];
 var MENTOR_HEAD = ['회차', '멘토', '조'];
@@ -135,6 +137,18 @@ function data_() {
   cache_().put('data', JSON.stringify(d), 60);
   return d;
 }
+function mins_(hm) { var p = String(hm || '').split(':'); return p.length < 2 ? -1 : Number(p[0]) * 60 + Number(p[1]); }
+function addMin_(hm, d) { var m = mins_(hm); if (m < 0) return ''; m = Math.max(0, m + d); return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2); }
+// 학생이 지금 들어올 수 있는지: 회차 당일 「시작」 30분 전부터. 날짜가 비었거나 리허설(test)이면 언제나
+function studentOpen_(r) {
+  if (r === 'test') return { ok: true };
+  var se = data_().sess[r] || {}, date = se.date || '';
+  if (!date) return { ok: true };
+  var open = se.start ? addMin_(se.start, -OPEN_BEFORE_MIN) : '', td = today_();
+  if (date !== td) return { ok: false, date: date, open: open, past: date < td };
+  if (open && mins_(Utilities.formatDate(new Date(), TZ, 'HH:mm')) < mins_(open)) return { ok: false, date: date, open: open };
+  return { ok: true };
+}
 function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
 function autoRoom_() {
   var se = data_().sess, td = today_();
@@ -165,6 +179,9 @@ function join_(r, req) {
     if (!x && ro.length) return { ok: false, error: 'not_in_roster' };
     if (x && x.birth) { var b = digits_(req.birth); if (!(b === x.birth || (b.length === 6 && x.birth.slice(-6) === b))) return { ok: false, error: 'birth' }; }
     id = 'S_' + name;
+    var came = cache_().get('in|' + r + '|' + id);   // 오늘 이미 들어왔던 학생은 시간과 상관없이 다시 입장
+    if (!came) { var op = studentOpen_(r); if (!op.ok) return { ok: false, error: 'not_time', date: op.date, open: op.open, past: !!op.past }; }
+    cache_().put('in|' + r + '|' + id, '1', TTL);
     me = { g: x ? x.g : 0, test: !ro.length };
   } else if (role === 'mentor' || role === 'ops' || role === 'research') {
     var key = role === 'mentor' ? 'MENTOR_CODE' : role === 'ops' ? 'OPS_CODE' : 'RESEARCH_CODE';

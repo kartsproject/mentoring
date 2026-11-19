@@ -26,6 +26,8 @@
   #s-gate, #s-check { min-height: 100%; }
   #s-check { display: grid; place-items: center; padding: 24px 16px; }
 </style>
+<link rel="stylesheet" href="../b/theme.css">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -76,7 +78,6 @@
     <button class="aout" type="button" id="b-out"></button>
   </div>
   <div class="apend hide" id="t-pend"></div>
-  <div class="anotice hide" id="t-notice"><span id="t-notice-tx"></span><button class="x" type="button" id="t-notice-x" aria-label="닫기"></button></div>
   <div class="astage" id="stage" style="position:relative"></div>
   <div class="abar">
     <button class="abtn" type="button" id="b-mic"></button>
@@ -102,7 +103,7 @@
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art, ICON = M.ICON;
   var R0 = UI.param('r'), sess = null, check = null, cam = null, scr = null, room = null;
-  var lastRoom = null, seenMute = 0, noticeX = 0, backCam = false, entered = false;
+  var lastRoom = null, seenMute = 0, backCam = false, entered = false;
   if (/KAKAOTALK/i.test(navigator.userAgent)) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
 
   function go(id) { ['s-gate', 's-check', 's-room'].forEach(function (s) { UI.show('#' + s, s === id); }); }
@@ -220,9 +221,6 @@
     $('#t-phase').textContent = A.PH[v.phase] + (ment ? ' · 멘토 ' + ment : '');
     var hands = (v.people || []).filter(function (p) { return p.hand && p.room === myRoom; }).length;
     $('#t-me').textContent = '멘토 ' + sess.name + (hands ? ' · 손든 학생 ' + hands + '명' : '');
-    var n = v.notice;
-    UI.show('#t-notice', !!(n && n.at !== noticeX && (n.to === 'all' || n.to === myRoom)));
-    if (n) $('#t-notice-tx').textContent = n.text;
     tick();
   }
   function tick() {
@@ -255,8 +253,6 @@
     UI.show('#t-move', true);
     clearTimeout(showMove.t); showMove.t = setTimeout(function () { UI.show('#t-move', false); }, 2600);
   }
-  $('#t-notice-x').innerHTML = UI.ico('x');
-  $('#t-notice-x').onclick = function () { var n = sess.view && sess.view.notice; if (n) noticeX = n.at; UI.show('#t-notice', false); };
 
   /* 조작 */
   function setMic(on) {

@@ -673,6 +673,18 @@
       Array.from(box.children).forEach(function (c) { if (!keep[c.dataset.k]) { var v = c.querySelector('video'); if (v) v.srcObject = null; c.remove(); } });
       box.classList.toggle('has', items.some(function (it) { return !it.off; }));
     },
+    // 입장 시간 전 안내(무용·미술 학생 공통): 「멘토링 시간이 아닙니다.」 + 들어올 수 있는 날짜·시각
+    notTime: function (d) {
+      d = d || {};
+      var out = '<b>멘토링 시간이 아닙니다.</b>';
+      if (d.date && !d.past) {
+        var y = Number(d.date.slice(0, 4)), mo = Number(d.date.slice(5, 7)), da = Number(d.date.slice(8, 10));
+        var wd = '일월화수목금토'.charAt(new Date(Date.UTC(y, mo - 1, da)).getUTCDay());
+        var op = d.open ? (function (h) { var q = h.split(':'), H = Number(q[0]); return (H < 12 ? '오전 ' : '오후 ') + (H % 12 || 12) + ':' + q[1]; })(d.open) : '';
+        out += '<br>' + mo + '월 ' + da + '일(' + wd + ')' + (op ? ' ' + op + '부터' : '') + ' 입장할 수 있습니다.';
+      }
+      return out;
+    },
     roleName: function (role) { return role === 'research' ? '연구원' : role === 'ops' ? '운영' : role === 'mentor' ? '멘토' : ''; },
     stateText: function (st) {
       return { 'new': '준비', connecting: '연결 중', connected: '연결됨', disconnected: '불안정', failed: '실패', timeout: '시간 초과', closed: '끊김', checking: '연결 중' }[st] || st || '-';

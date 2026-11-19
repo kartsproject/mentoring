@@ -105,6 +105,8 @@
   .wcell .tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--rec); border-radius: 5px; padding: 1px 5px; }
   @media (max-width: 1000px) { .body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; } .side { border-left: 0; } }
 </style>
+<link rel="stylesheet" href="../b/theme.css">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -129,15 +131,22 @@
     <div class="steps op-only" id="steps"></div>
     <span class="tchip" id="h-timer"></span>
     <span class="sp"></span>
-    <button class="hbtn" id="b-mycam" type="button" title="내 카메라를 켜면 지금 듣고 있는 방의 학생·멘토 화면과 녹화에 보입니다"></button>
-    <button class="hbtn" id="b-mymic" type="button" title="켜 두면 누르지 않아도 지금 듣고 있는 방에 내 소리가 들립니다"></button>
-    <label class="switch op-only" title="이 PC에서 전체·분반 영상을 FHD로 녹화합니다"><input type="checkbox" id="sw-rec"><i></i><span>이 PC에서 녹화</span></label>
+    <span class="chip hide" id="h-rec"><i></i><span>녹화 중</span></span>
     <span class="me" id="h-me"></span>
     <button class="btn ghost sm" id="b-out" type="button">나가기</button>
   </header>
   <div class="recbad hide" id="recbad"></div>
   <div class="body">
     <div class="rooms" id="rooms"></div>
+    <!-- 떠 있는 조작 막대(Ver.1.9): 내 카메라 · 내 마이크(누르면 켜기/끄기, 길게 누르거나 스페이스바 = 누르는 동안 말하기) · 녹화 -->
+    <div class="fbar" id="fbar" role="toolbar" aria-label="내 조작">
+      <div class="fb-g">
+        <button class="fb" id="b-mycam" type="button" title="내 카메라를 켜면 지금 듣고 있는 방의 학생·멘토 화면과 녹화에 보입니다"><i class="fc"></i><span class="fl"></span></button>
+        <button class="fb" id="b-mymic" type="button" title="누르면 마이크 계속 켜기/끄기 · 길게 누르거나 스페이스바를 누르고 있는 동안 듣고 있는 방에 말하기"><i class="fc"></i><span class="fl"></span></button>
+        <button class="fb op-only recb" id="b-rec" type="button" title="이 PC에서 전체·분반 영상을 FHD로 녹화합니다"><i class="fc"></i><span class="fl"></span></button>
+      </div>
+      <input type="checkbox" id="sw-rec" hidden>
+    </div>
     <aside class="side">
       <div class="box op-only hide" id="p-rec">
         <h3>녹화 <span class="tag hide" id="rec-mode"></span> <small id="rec-type"></small></h3>
@@ -149,11 +158,6 @@
         <h3>조 배정 <small>학생을 끌어 옮기기</small></h3>
         <div class="board" id="board"></div>
         <div class="col unas" id="col-0" data-g="0"><h4>배정 안 됨</h4></div>
-      </div>
-      <div class="box">
-        <h3>공지 띄우기 <small>학생·멘토 화면 위</small></h3>
-        <form class="row" id="f-notice"><select id="n-to"></select><input id="n-text" maxlength="200" placeholder="예: 5분 뒤 전체로 모입니다"><button class="btn sm" type="submit">띄우기</button></form>
-        <div class="row" style="margin-top:6px"><button class="btn ghost sm" id="b-unnotice" type="button">공지 내리기</button><span class="small muted" id="n-cur"></span></div>
       </div>
       <div class="box">
         <h3>접속 현황 <small id="abs-sum"></small></h3>
@@ -223,7 +227,7 @@
       mic.getAudioTracks().forEach(function (t) { t.enabled = false; });
     } catch (e) { UI.toast('마이크를 켜지 못해 말하기는 쓸 수 없습니다(보기·듣기는 됨).', 5000); }
     if (mic) M.Speak.track(sess.id, mic);
-    paintMyBtns();
+    paintMyBtns(); paintRecBtn();
     await reopen();
     sess.op('visit', { room: 'all' });
   }
@@ -249,7 +253,7 @@
       return { cam: rid, mic: true, scr: true };
     });
     room.view = v; room.applyVolumes();
-    paintHeader(v); paintRooms(); paintBoard(v); paintAbs(v); paintWho(v); paintNotice(v);
+    paintHeader(v); paintRooms(); paintBoard(v); paintAbs(v); paintWho(v);
     if (recOn) recSync();
   }
 
@@ -311,14 +315,9 @@
       if (!el) {
         el = document.createElement('div'); el.className = 'rp dk'; el.dataset.room = rm;
         el.innerHTML = '<div class="rph"><b></b><small></small><span class="sp"></span>' +
-          '<button class="btn ghost sm hear" type="button">' + UI.ico('vol') + '<span>듣기</span></button>' +
-          '<button class="btn ghost sm talk" type="button" title="누르고 있는 동안 이 방에 말하기 (스페이스와 같음)">' + UI.ico('mic') + '<span>누르고 말하기</span></button></div><div class="rpb"></div>';
+          '<button class="hear" type="button" title="이 방 소리 듣기 — 말하기도 이 방으로">' + UI.ico('vol') + '<span>듣기</span></button></div><div class="rpb"></div>';
         box.appendChild(el);
         el.querySelector('.hear').onclick = function () { setListen(rm); };
-        var tb = el.querySelector('.talk');
-        var down = function (e) { e.preventDefault(); setListen(rm); talk(true); tb.classList.add('down'); };
-        var up = function () { talk(false); tb.classList.remove('down'); };
-        tb.addEventListener('pointerdown', down); tb.addEventListener('pointerup', up); tb.addEventListener('pointerleave', up);
       }
       var ppl = v.people.filter(function (p) { return p.room === rm && (p.role === 'student' || p.role === 'mentor') && p.live; })
         .sort(function (a, b) { return (a.role === 'mentor' ? 0 : 1) - (b.role === 'mentor' ? 0 : 1) || a.name.localeCompare(b.name, 'ko'); });
@@ -327,7 +326,8 @@
       el.querySelector('.rph small').textContent = (ment ? '멘토 ' + ment + ' · ' : '') + '학생 ' + ppl.filter(function (p) { return p.role === 'student'; }).length + '명' +
         (ppl.some(function (p) { return p.hand; }) ? ' · 손든 학생 있음' : '');
       el.classList.toggle('hear', listen === rm);
-      el.querySelector('.hear').classList.toggle('on', listen === rm);
+      var hb = el.querySelector('.hear'); hb.classList.toggle('on', listen === rm);
+      hb.innerHTML = UI.ico(listen === rm ? 'vol' : 'volOff') + '<span>' + (listen === rm ? '듣는 중' : '듣기') + '</span>';
       // 칸: 위 멘토(+크게 볼 것) · 아래 학생 — 명단 자리 고정, 들어오지 않은 사람은 검은 칸에 이름
       var sl = A.slots(v, rm, { streams: room.streams, me: v.me, localCam: opsCam });
       // 학생·멘토 화면과 같은 배치로 그림(전체: 멘토 2×2 크게·학생 6×2 작게, 영역 구분 / 분반: 멘토 크게·학생 한 줄)
@@ -362,17 +362,40 @@
   }
   /* 내 카메라·마이크 켜고 끄기(운영진·연구원) — 지금 듣고 있는 방에 보이고 들림 */
   var micOpen = false, opsCam = null;
-  function paintMyBtns() {
-    var c = $('#b-mycam'), m = $('#b-mymic');
-    c.innerHTML = UI.ico('video') + '<span>' + (opsCam ? '카메라 켜짐' : '카메라 꺼짐') + '</span>'; c.classList.toggle('on', !!opsCam);
-    m.innerHTML = UI.ico('mic') + '<span>' + (micOpen ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; m.classList.toggle('on', micOpen);
-    m.disabled = !mic;
+  // 떠 있는 막대의 둥근 버튼 그리기(무용과 같은 모양)
+  function fbSet(sel, icon, label, state) {
+    var b = $(sel), c = b.querySelector('.fc');
+    if (c.dataset.k !== icon) { c.innerHTML = icon; c.dataset.k = icon; }
+    b.querySelector('.fl').textContent = label;
+    ['on', 'off', 'yel'].forEach(function (k) { b.classList.toggle(k, state === k); });
   }
-  $('#b-mymic').onclick = function () {
-    if (!mic) { UI.toast('마이크를 쓸 수 없습니다(브라우저 권한 확인)'); return; }
-    micOpen = !micOpen; talk(talking);
-    UI.toast(micOpen ? A.roomName(listen) + '에 내 소리가 들립니다' : '마이크를 껐습니다(누르고 말하기는 계속 됩니다)');
-  };
+  function paintMyBtns() {
+    var live = talking || micOpen;
+    fbSet('#b-mycam', opsCam ? M.ICON.cam : M.ICON.camOff, opsCam ? '카메라 켜짐' : '카메라 꺼짐', opsCam ? 'on' : '');
+    fbSet('#b-mymic', live ? M.ICON.mic : M.ICON.micOff, talking && !micOpen ? '말하는 중' : micOpen ? '마이크 켜짐' : '마이크 꺼짐', micOpen ? 'on' : '');
+    $('#b-mymic').classList.toggle('down', talking && !micOpen);
+    $('#b-mymic').disabled = !mic;
+  }
+  // 마이크 버튼: 누르면 계속 켜기/끄기, 길게(0.3초) 누르고 있으면 그동안만 말하기
+  (function () {
+    var b = $('#b-mymic'), t = null, holding = false, armed = false;
+    b.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || b.disabled) return;
+      armed = true; holding = false;
+      t = setTimeout(function () { holding = true; talk(true); }, 300);
+      try { b.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    var end = function (e) {
+      clearTimeout(t);
+      if (holding) { holding = false; talk(false); }
+      else if (armed && e.type === 'pointerup') {
+        if (!mic) { UI.toast('마이크를 쓸 수 없습니다(브라우저 권한 확인)'); }
+        else { micOpen = !micOpen; talk(false); UI.toast(micOpen ? A.roomName(listen) + '에 내 소리가 들립니다' : '마이크를 껐습니다(스페이스바를 누르는 동안은 말할 수 있습니다)'); }
+      }
+      armed = false;
+    };
+    b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
+  })();
   $('#b-mycam').onclick = async function () {
     var b = this; b.disabled = true;
     try {
@@ -388,13 +411,11 @@
   };
   window.addEventListener('keydown', function (e) {
     if (e.code !== 'Space' || e.repeat || /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
-    e.preventDefault(); talk(true);
-    var b = document.querySelector('.rp.hear .talk'); if (b) b.classList.add('down');
+    e.preventDefault(); if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();
+    talk(true);
   });
-  window.addEventListener('keyup', function (e) {
-    if (e.code !== 'Space') return;
-    talk(false); UI.$$('.talk.down').forEach(function (b) { b.classList.remove('down'); });
-  });
+  window.addEventListener('keyup', function (e) { if (e.code === 'Space' && talking) talk(false); });
+  window.addEventListener('blur', function () { if (talking) talk(false); });
 
   /* 조 배정판 */
   function paintBoard(v) {
@@ -421,25 +442,28 @@
     sess.op('assign', { sid: dragSid, g: Number(col.dataset.g) || 0 }); dragSid = '';
   });
 
-  /* 공지 */
-  function paintNotice(v) {
-    var opts = '<option value="all">전체</option>' + (v.groups || []).map(function (g) { return '<option value="g' + g + '">' + A.gname(g) + '</option>'; }).join('');
-    if ($('#n-to').dataset.sig !== opts) { var cur = $('#n-to').value; $('#n-to').innerHTML = opts; $('#n-to').dataset.sig = opts; if (cur) $('#n-to').value = cur; }
-    $('#n-cur').textContent = v.notice ? '지금: ' + v.notice.text + ' (' + A.roomName(v.notice.to) + ')' : '';
-  }
-  $('#f-notice').onsubmit = function (e) { e.preventDefault(); var t = $('#n-text').value.trim(); if (!t) return; sess.op('notice', { text: t, to: $('#n-to').value }); $('#n-text').value = ''; };
-  $('#b-unnotice').onclick = function () { sess.op('notice', { text: '' }); };
-
   /* 접속 현황(미접속 학생 연락처) */
+  // 들어오지 않은 학생 줄: 상태 알약 + 오른쪽 전화 아이콘(누르면 학생·보호자 번호 팝업, 번호를 누르면 전화) — Ver.1.9
+  var absOpen = '';
   function paintAbs(v) {
     var off = v.roster.filter(function (x) { return !x.live; });
     $('#abs-sum').textContent = '학생 ' + (v.roster.length - off.length) + '/' + v.roster.length + ' 접속';
-    var tel = function (n) { return n ? '<a href="tel:' + n.replace(/[^\d+]/g, '') + '">' + UI.esc(n) + '</a>' : '<span class="muted">없음</span>'; };
-    $('#abs').innerHTML = off.length ? off.map(function (x) {
-      return '<div><b>' + UI.esc(x.name) + '</b><span class="muted">' + A.gname(x.g) + (x.joined ? ' · 연결 끊김' : ' · 미접속') + '</span>' +
-        (role === 'ops' ? '<span>학생 ' + tel(x.sPhone) + '</span><span>보호자 ' + tel(x.pPhone) + '</span>' : '') + '</div>';
+    var tel = function (lb, n) { return n ? '<a class="wpc" href="tel:' + n.replace(/[^\d+]/g, '') + '">' + UI.ico('phone') + '<small>' + lb + '</small><b>' + UI.esc(n) + '</b></a>' : ''; };
+    var html = off.length ? off.map(function (x) {
+      var ph = role === 'ops' ? tel('학생', x.sPhone) + tel('보호자', x.pPhone) : '';
+      return '<div class="abr' + (x.joined ? ' gone' : '') + '"><b>' + UI.esc(x.name) + '</b><span class="abg">' + A.gname(x.g) + '</span>' +
+        '<span class="abst">' + (x.joined ? '연결 끊김' : '미접속') + '</span>' +
+        (ph ? '<button class="abtel" type="button" data-tel="' + UI.esc(x.id) + '" title="연락처 보기">' + UI.ico('phone') + '</button><div class="abpop"' + (absOpen === x.id ? '' : ' hidden') + '>' + ph + '</div>' : '') + '</div>';
     }).join('') : '<div class="muted">모든 학생이 접속해 있습니다</div>';
+    if ($('#abs').dataset.h !== html) { $('#abs').innerHTML = html; $('#abs').dataset.h = html; }
   }
+  $('#abs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tel]'); if (!b) return;
+    absOpen = absOpen === b.dataset.tel ? '' : b.dataset.tel;
+    UI.$$('#abs .abpop').forEach(function (p) { p.hidden = p.previousElementSibling !== b || !absOpen; });
+    $('#abs').dataset.h = '';
+  });
+  document.addEventListener('click', function (e) { if (absOpen && !e.target.closest('#abs .abr')) { absOpen = ''; UI.$$('#abs .abpop').forEach(function (p) { p.hidden = true; }); $('#abs').dataset.h = ''; } });
 
   /* 전체 접속자 팝업: 멘토·운영진·연구원·학생 누가 들어와 있는지 */
   function paintWho(v) {
@@ -503,6 +527,15 @@
     }
   };
   var dirH = null;
+  $('#b-rec').onclick = function () { this.blur(); var sw = $('#sw-rec'); sw.checked = !sw.checked; sw.onchange(); };
+  function paintRecBtn() {
+    var on = recOn && Object.keys(recs).length > 0, ready = recOn && !on;
+    var label = !recOn ? '녹화 켜기' : on ? (recBackup ? '예비 녹화 중' : '녹화 중') : '녹화 대기';
+    fbSet('#b-rec', UI.ico('rec'), label, on ? 'off' : ready ? 'yel' : '');
+    $('#b-rec').title = !recOn ? '이 PC에서 녹화 켜기 — 「멘토링 시작」부터 「마침」까지 자동으로 단계별 파일 저장' : '누르면 이 PC의 녹화를 끕니다(저장)';
+    UI.show('#h-rec', on); $('#h-rec span').textContent = recBackup ? '예비 녹화 중' : '녹화 중';
+  }
+  setInterval(paintRecBtn, 1000);
   $('#b-dir').onclick = async function () { var h = await REC.ensureDir(true); if (h) { dirH = h; Object.keys(recs).forEach(function (k) { recs[k].r.setDir(h); }); $('#rec-dir').textContent = '「' + h.name + '」'; } };
   function setRecMode(bk) {
     recOn = true; recBackup = !!bk; recLog = [];
