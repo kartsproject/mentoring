@@ -24,6 +24,9 @@
     this.onChange = o.onChange || function () {};
     this.onMuteReq = o.onMute || function () {};
     this.canMute = !!o.canMute;
+    this.roster = !!o.roster;            // (운영 화면) 명단 전체를 칸으로 — 접속 안 한 학생은 정보 칸
+    this.flags = o.flags || null;        // () → { 학생 id: { due, late, … } }
+    this.onAct = o.onAct || function () {};
     this.on = false; this.sfu = null; this.view = null; this.lastWant = ''; this.err = '';
     this.rt = {};             // 사람 id → { cam, mic } 받은 트랙
     this.tiles = {};          // 사람 id → 칸 요소
@@ -35,6 +38,11 @@
     var self = this;
     this.ro = window.ResizeObserver ? new ResizeObserver(function () { self.fit(); }) : null;
     if (this.ro && this.el) this.ro.observe(this.el);
+    if (this.el) this.el.addEventListener('click', function (e) {
+      var r = e.target.closest('[data-ring]'); if (r) { e.stopPropagation(); self.ring(r.dataset.ring, r); return; }
+      var m = e.target.closest('[data-more]'); if (m) { var mn = m.parentNode.querySelector('.wmenu'); if (mn) mn.hidden = !mn.hidden; return; }
+      var b = e.target.closest('button[data-a]'); if (b) { var mm = b.closest('.wmenu'); if (mm) mm.hidden = true; self.onAct(b.dataset.a, b.dataset.id, b); }
+    });
   }
 
   WaitRoom.prototype.start = async function () {
@@ -130,39 +138,101 @@
     this.render();
   };
 
-  // 대기실 사람들 순서: 운영진·연구원 → 나 → 다른 학생(들어온 순서)
+  // 대기실 사람들: 위 = 운영진·연구원, 아래 = 학생(운영 화면은 명단 전체 — 접속 안 한 학생은 정보 칸)
   WaitRoom.prototype.people = function () {
-    var v = this.view || {}, me = this.sess.id, list = (v.wr || []).slice();
+    var v = this.view || {}, me = this.sess.id, list = (v.wr || []).slice(), self = this;
     // 운영진·연구원은 카메라를 켰거나 마이크를 쓴 사람만 칸으로(창만 열어 둔 사람은 칸 없음)
-    var staff = list.filter(function (p) { return p.role !== 'student' && p.id !== me && (p.tr.cam || p.tr.mic); });
-    var stu = list.filter(function (p) { return p.role === 'student' && p.id !== me; }).sort(function (a, b) { return a.at - b.at; });
-    var out = staff.map(function (p) { return { p: p }; });
-    if (this.on && (this.role === 'student' || this.cam || this.mic)) out.splice(staff.length, 0, { p: { id: me, name: this.sess.name, role: this.role }, me: true });
-    return out.concat(stu.map(function (p) { return { p: p }; }));
+    var staff = list.filter(function (p) { return p.role !== 'student' && p.id !== me && (p.tr.cam || p.tr.mic); })
+      .map(function (p) { return { p: p, zone: 'top', cam: true }; });
+    var meIt = null;
+    if (this.on && (this.role === 'student' || this.cam || this.mic)) meIt = { p: { id: me, name: this.sess.name, role: this.role }, me: true, zone: this.role === 'student' ? 'bot' : 'top' };
+    if (meIt && meIt.zone === 'top') staff.push(meIt);
+    var inWr = {}; list.forEach(function (p) { if (p.role === 'student') inWr[p.id] = p; });
+    var stu = [];
+    if (this.roster && v.students) {
+      v.students.forEach(function (x) {
+        if (x.extra && !x.live && !inWr[x.id]) return;
+        stu.push({ p: inWr[x.id] || { id: x.id, name: x.name, role: 'student' }, st: x, cam: !!inWr[x.id] && self.on, zone: 'bot' });
+      });
+    } else {
+      if (meIt && meIt.zone === 'bot') stu.push(meIt);
+      list.filter(function (p) { return p.role === 'student' && p.id !== me; }).sort(function (a, b) { return a.at - b.at; })
+        .forEach(function (p) { stu.push({ p: p, cam: true, zone: 'bot' }); });
+    }
+    return staff.concat(stu);
+  };
+
+  function hm(t) { return t ? new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' }) : ''; }
+  function ago(t, now) { if (!t) return '미접속'; var s = Math.round((now - t) / 1000); return s < 60 ? s + '초 전 나감' : Math.round(s / 60) + '분 전 나감'; }
+  var BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>';
+
+  // (운영 화면) 학생 칸 아래 줄·정보 칸 내용
+  WaitRoom.prototype.stuHtml = function (x, cam, f) {
+    var v = this.view || {}, ops = this.canMute, cur = v.cur && v.cur.id === x.id;
+    var when = (x.time ? x.time + (x.end ? '–' + x.end : '') : '');
+    var start = ops && !cur ? '<button class="wa' + (f.due ? ' due' : '') + '" type="button" data-a="call" data-id="' + x.id + '">시작</button>' : '';
+    if (cam) {
+      return '<div class="wbt"><b>' + (x.no ? x.no + '번' : 'T') + '</b><span>' + UI.esc(when ? '멘토링 ' + when : '') + '</span>' +
+        (ops ? '<button class="wring" type="button" data-ring="' + x.id + '" title="학생에게 알림 소리(띵동)">' + BELL + '<span>알림</span></button>' : '') + start +
+        (ops ? '<button class="wa more" type="button" data-more="' + x.id + '" title="ZOOM·재점검">⋯</button>' : '') +
+        '<div class="wmenu" hidden><button type="button" data-a="zoom" data-id="' + x.id + '">' + (x.zoom ? 'ZOOM 해제' : 'ZOOM 안내') + '</button>' +
+        (x.test ? '<button type="button" data-a="untest" data-id="' + x.id + '">연결 재점검</button>' : '') + '</div></div>';
+    }
+    var now = this.sess.now(), stt, cls;
+    if (cur) { stt = '멘토링실에서 진행 중'; cls = 'cur'; }
+    else if (x.done) { stt = '완료 ' + hm(x.done); cls = 'done'; }
+    else if (x.zoom) { stt = 'ZOOM 안내 중'; cls = 'zoom'; }
+    else if (x.live) { stt = '접속 중 · 화상 연결 중'; cls = 'on'; }
+    else { stt = ago(x.seenAt, now); cls = 'off'; }
+    var acts = '';
+    if (ops) {
+      if (cur) acts += '<button class="wa end" type="button" data-a="end" data-id="' + x.id + '">종료</button>';
+      else if (x.done) acts += '<button class="wa" type="button" data-a="undone" data-id="' + x.id + '">완료 취소</button>';
+      else acts += start;
+      if (!x.done) acts += '<button class="wa" type="button" data-a="zoom" data-id="' + x.id + '">' + (x.zoom ? 'ZOOM 해제' : 'ZOOM') + '</button>';
+      if (x.test && !x.done) acts += '<button class="wa" type="button" data-a="untest" data-id="' + x.id + '">재점검</button>';
+    }
+    var ph = '';
+    if (ops && !x.done && !cur) {
+      var one = function (lb, n) { return n ? '<a href="tel:' + String(n).replace(/\D/g, '') + '">' + lb + ' ' + UI.esc(n) + '</a>' : ''; };
+      ph = one('학생', x.sPhone) + one('보호자', x.pPhone);
+      ph = ph ? '<div class="wph2">' + ph + '</div>' : '';
+    }
+    return '<div class="wi ' + cls + '"><div class="wih"><b>' + (x.extra ? 'T' : x.no) + '</b><span class="wn">' + UI.esc(x.name) + '</span></div>' +
+      '<div class="wst">' + (f.late ? '대기실 접속 시각 지남 · ' : '') + UI.esc(stt) + '</div>' +
+      (x.extra ? '' : '<div class="wtm">대기실 ' + UI.esc(x.wait || '-') + ' · 멘토링 ' + UI.esc(when || '-') + '</div>') + ph +
+      (acts ? '<div class="wact">' + acts + '</div>' : '') + '</div>';
   };
 
   WaitRoom.prototype.render = function () {
     var el = this.el; if (!el) return;
     var self = this, items = this.people(), seen = {};
-    if (!this.on) {
+    if (!this.on && !this.roster) {
       el.classList.add('wempty');
       el.innerHTML = '<div class="wmsg">' + UI.esc(this.err || (this.wantOn ? '대기실 화상 연결 중…' : '대기실 화상 꺼짐')) + '</div>';
-      this.tiles = {}; this.onChange(0); return;
+      this.tiles = {}; this.zones = null; this.onChange(0); return;
     }
-    if (el.classList.contains('wempty')) { el.classList.remove('wempty'); el.innerHTML = ''; }
-    items.forEach(function (it, idx) {
-      var p = it.p, t = self.tiles[p.id];
+    if (!this.zones || !el.contains(this.zones.top)) {
+      el.classList.remove('wempty'); el.innerHTML = '<div class="wz top"></div><div class="wz bot"></div><div class="wmsg2" hidden></div>';
+      this.zones = { top: el.querySelector('.wz.top'), bot: el.querySelector('.wz.bot'), msg: el.querySelector('.wmsg2') };
+      this.tiles = {};
+    }
+    this.zones.msg.hidden = this.on || !this.err; this.zones.msg.textContent = this.on ? '' : (this.err || '');
+    var F = this.flags ? this.flags() : {}, idx = { top: 0, bot: 0 };
+    items.forEach(function (it) {
+      var p = it.p, t = self.tiles[p.id], z = self.zones[it.zone];
       if (!t) {
-        t = document.createElement('div'); t.className = 'wt';
-        t.innerHTML = '<video autoplay playsinline muted></video><div class="wph"></div><span class="wnm"></span><span class="wmo" hidden>' + MIC_OFF + '</span>' +
+        t = document.createElement('div'); t.className = 'wt'; t.dataset.id = p.id;
+        t.innerHTML = '<video autoplay playsinline muted></video><div class="wph"></div><div class="wix"></div><span class="wnm"></span><span class="wmo" hidden>' + MIC_OFF + '</span>' +
           (self.canMute && !it.me && p.role === 'student' ? '<button class="wmute" type="button" title="이 학생 마이크 끄기">' + MIC_OFF + '<span>마이크 끄기</span></button>' : '');
         var mb = t.querySelector('.wmute');
         if (mb) mb.onclick = function (e) { e.stopPropagation(); self.mute(p.id, mb); };
         self.tiles[p.id] = t;
       }
       seen[p.id] = 1;
-      if (el.children[idx] !== t) el.insertBefore(t, el.children[idx] || null);
-      var vid = t.querySelector('video'), stream = null, hasCam = false, micOn = true;
+      var i = idx[it.zone]++;
+      if (t.parentNode !== z || z.children[i] !== t) z.insertBefore(t, z.children[i] || null);
+      var vid = t.querySelector('video'), stream = null, hasCam = false, micOn = true, cam = it.me || it.cam;
       if (it.me) {
         var L = self.role === 'student' ? self.getLocal() : null;
         var tr = [];
@@ -170,10 +240,11 @@
         var vt = tr.filter(function (x) { return x.kind === 'video'; })[0], at = tr.filter(function (x) { return x.kind === 'audio'; })[0];
         hasCam = !!(vt && vt.enabled && vt.readyState === 'live');
         micOn = !!(at && at.enabled);
-        stream = t.__s && t.__sig === tr.map(function (x) { return x.id; }).join() ? t.__s : new MediaStream(tr);
-        t.__sig = tr.map(function (x) { return x.id; }).join();
+        var sg = tr.map(function (x) { return x.id; }).join();
+        stream = t.__s && t.__sig === sg ? t.__s : new MediaStream(tr);
+        t.__sig = sg;
         t.classList.add('me');
-      } else {
+      } else if (cam) {
         var r = self.rt[p.id] || {}, arr = [];
         if (r.cam) arr.push(r.cam); if (r.mic) arr.push(r.mic);
         var sig = arr.map(function (x) { return x.id; }).join();
@@ -182,22 +253,33 @@
         hasCam = !!(r.cam && p.tr && p.tr.cam);
         micOn = p.role === 'student' ? p.mic !== false : !!p.talk;
         self.playAudio(p.id, r.mic || null);
-      }
+      } else { t.__sig = ''; self.playAudio(p.id, null); }
       t.__s = stream;
       if (vid.srcObject !== stream) UI.attach(vid, stream);
-      t.classList.toggle('nocam', !hasCam);
+      var info = !!(it.st && !cam);
+      t.classList.toggle('info', info);
+      t.classList.toggle('nocam', !info && !hasCam);
       t.classList.toggle('staff', p.role !== 'student');
+      var f = it.st ? (F[p.id] || {}) : {};
+      t.classList.toggle('late', !!f.late);
+      t.classList.toggle('due', !!f.due);
+      t.classList.toggle('cur', !!(it.st && self.view && self.view.cur && self.view.cur.id === p.id));
+      t.classList.toggle('done', !!(it.st && it.st.done));
       t.querySelector('.wph').textContent = (p.name || '').slice(-2);
       t.querySelector('.wnm').textContent = (p.role === 'ops' ? '운영진 ' : p.role === 'research' ? '연구원 ' : '') + (p.name || '') + (it.me ? ' (나)' : '');
-      t.querySelector('.wmo').hidden = micOn;
+      t.querySelector('.wmo').hidden = info || micOn;
+      var mb2 = t.querySelector('.wmute'); if (mb2) mb2.hidden = !cam;
+      var x = t.querySelector('.wix'), h = it.st ? self.stuHtml(it.st, cam, f) : '';
+      if (x.__h !== h) { var open = !!x.querySelector('.wmenu:not([hidden])'); x.innerHTML = h; x.__h = h; if (open) { var m = x.querySelector('.wmenu'); if (m) m.hidden = false; } }
     });
     Object.keys(this.tiles).forEach(function (id) {
       if (seen[id]) return;
       self.tiles[id].remove(); delete self.tiles[id];
       if (self.audios[id]) { self.audios[id].remove(); delete self.audios[id]; }
     });
+    this.zones.top.hidden = !idx.top;
     this.fit();
-    this.onChange(items.length);
+    this.onChange(items.filter(function (it) { return it.cam || it.me || !it.st; }).length);
   };
   WaitRoom.prototype.playAudio = function (id, track) {
     var a = this.audios[id];
@@ -213,18 +295,25 @@
     Object.keys(this.audios).forEach(function (k) { var a = self.audios[k]; a.muted = !self.listen; if (self.listen) { var pr = a.play(); if (pr && pr.catch) pr.catch(function () {}); } });
   };
 
-  // 칸 크기: 상자에 가장 크게 들어가도록 열 수를 고름(4:3)
-  WaitRoom.prototype.fit = function () {
-    var el = this.el; if (!el) return;
-    var n = Object.keys(this.tiles).length; if (!n) return;
-    var W = el.clientWidth, H = el.clientHeight, gap = 6, best = 1, bestW = 0;
+  // 칸 크기: 위(운영진)·아래(학생) 영역마다 가장 크게 들어가도록 열 수를 고름(4:3)
+  function fitZone(z, n, W, H) {
+    if (!n) return;
+    var gap = 6, best = 1, bestW = 0;
     for (var c = 1; c <= n; c++) {
       var rows = Math.ceil(n / c), w = (W - gap * (c - 1)) / c, h = w * 3 / 4;
       if (H > 40 && rows * h + gap * (rows - 1) > H) { w = ((H - gap * (rows - 1)) / rows) * 4 / 3; }
       if (w > bestW) { bestW = w; best = c; }
     }
-    el.style.setProperty('--wc', best);
-    el.style.setProperty('--ww', Math.floor(bestW) + 'px');
+    z.style.setProperty('--wc', best);
+    z.style.setProperty('--ww', Math.floor(bestW) + 'px');
+  }
+  WaitRoom.prototype.fit = function () {
+    var el = this.el, Z = this.zones; if (!el || !Z) return;
+    var nt = Z.top.children.length, nb = Z.bot.children.length, W = el.clientWidth, H = el.clientHeight;
+    var ht = nt ? Math.max(90, Math.min(Math.round(H * (nb ? 0.3 : 1)), nb ? 260 : H)) : 0;
+    Z.top.style.height = nt ? ht + 'px' : '';
+    fitZone(Z.top, nt, W, ht);
+    fitZone(Z.bot, nb, W, H - ht - (nt ? 8 : 0));
   };
 
   /* ── 운영진·연구원: 말하기·마이크 켜 두기·카메라 ── */
@@ -261,6 +350,12 @@
       this.cam.getTracks().forEach(function (t) { t.stop(); }); this.cam = null;
     }
     this.render(); return true;
+  };
+  // 학생 호출: 학생 화면에 「띵동」 소리
+  WaitRoom.prototype.ring = async function (sid, btn) {
+    if (btn) { btn.disabled = true; setTimeout(function () { btn.disabled = false; }, 2500); }
+    var j = await call(this.sess, { a: 'wr', cmd: 'ring', sid: sid }).catch(function () { return null; });
+    UI.toast(j && j.ok ? '학생에게 알림(띵동)을 보냈습니다' : '알림을 보내지 못했습니다');
   };
   WaitRoom.prototype.mute = async function (sid, btn) {
     if (btn) { if (!(btn.dataset.armed && Date.now() - Number(btn.dataset.armed) < 3000)) { btn.dataset.armed = Date.now(); btn.classList.add('arm'); btn.querySelector('span').textContent = '한 번 더'; setTimeout(function () { btn.classList.remove('arm'); btn.querySelector('span').textContent = '마이크 끄기'; delete btn.dataset.armed; }, 3000); return; } }

@@ -67,12 +67,25 @@
       if (now >= st) out.push({ type: 'due', x: x, at: st });
       else if (x.live && x.id === nextId) out.push({ type: 'prep', x: x, at: st });
       else if (now >= st - 60000) out.push({ type: 'soon', x: x, at: st });
-      if (!x.live && wt && now >= wt && !self.ABS_ACK[(self.SIM_OFF ? 'sim|' : '') + self.o.sess.r + '|' + x.id]) out.push({ type: 'absent', x: x, at: wt });
     });
     var rank = { due: 0, absent: 1, prep: 2, soon: 3 };
     return out.sort(function (a, b) { return rank[a.type] - rank[b.type] || (a.x.no || 0) - (b.x.no || 0); });
   };
 
+  // 대기실 접속 시각이 지났는데 접속하지 않은 학생(대기실 칸 테두리 빨강 — 예전 「미접속」 알림 대신)
+  Room.prototype.lateOf = function (x) {
+    var v = this.view, now = this.clock(), d = this.day();
+    if (!v || kstDay(now) !== d || x.extra || x.live || x.zoom || this.statusOf(x) !== 'waiting') return false;
+    var wt = kst(d, x.wait);
+    return !!(wt && now >= wt);
+  };
+  Room.prototype.flagMap = function () {
+    var F = {}, self = this;
+    if (!this.view) return F;
+    this.alertsOf().forEach(function (a) { (F[a.x.id] = F[a.x.id] || {})[a.type] = true; });
+    this.view.students.forEach(function (x) { if (self.lateOf(x)) (F[x.id] = F[x.id] || {}).late = true; });
+    return F;
+  };
   function ago(t, now) { if (!t) return '미접속'; var s = Math.round((now - t) / 1000); return s < 60 ? s + '초 전' : Math.round(s / 60) + '분 전'; }
   Room.prototype.phonesHtml = function (x, warn) {
     if (!this.staff()) return '';

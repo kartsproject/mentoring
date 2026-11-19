@@ -344,7 +344,7 @@
   var PREFIX = C.PREFIX || '';
   var R0 = UI.param('r');                 // 리허설 등 회차를 주소로 지정할 때만(평소에는 명단에서 자동)
   var TITLE = '무용분야 심화 멘토링 대기실';
-  var sess = null, links = null, dc = null, local = null, ac = null, wr = null, ended = false;
+  var sess = null, links = null, dc = null, local = null, ac = null, wr = null, ended = false, ringSeen = null;
   var screen = '', lastCurAt = 0, zoomGone = false, stopWaitMeter = null, lastV = null, PENDING = [], pid = 0, RULES_SEEN = false, ME = null;
 
   // 카카오톡 안 브라우저는 카메라가 안 되는 경우가 많아 기본 브라우저로 다시 엽니다
@@ -524,6 +524,9 @@
 
     $('#onlineCnt').textContent = (v.online ? '지금 ' + v.online + '명 접속 중' : '');
     if (wr) { wr.want(screen !== 's-live' && !v.called && !v.zoomUrl && !zoomGone); wr.sync(v); }
+    // 운영진 호출(알림 버튼) → 띵동
+    if (ringSeen == null) ringSeen = v.ringAt || 0;
+    else if ((v.ringAt || 0) > ringSeen) { ringSeen = v.ringAt; dingdong(); }
     if (v.called) {
       if (screen !== 's-live') {
         if (wr) wr.want(false);
@@ -604,6 +607,26 @@
     clearInterval(alertCalled.t);
     alertCalled.t = setInterval(function () { document.title = (n++ % 2) ? TITLE : '🔔 멘토링이 시작되었어요!'; if (n > 20) { clearInterval(alertCalled.t); document.title = TITLE; } }, 800);
     if ($('#rules').classList.contains('on')) closeRules();
+  }
+  // 운영진이 부를 때: 「띵동」 두 번 + 진동 + 안내
+  function dingdong() {
+    audioReady();
+    try { navigator.vibrate && navigator.vibrate([250, 120, 250]); } catch (e) {}
+    if (ac) try {
+      ac.resume();
+      [[0, 1319], [0.42, 1047], [1.2, 1319], [1.62, 1047]].forEach(function (x) {
+        [1, 2.01].forEach(function (h, k) {   // 종소리처럼 배음을 살짝 섞음
+          var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + x[0];
+          o.type = 'sine'; o.frequency.value = x[1] * h; o.connect(g); g.connect(ac.destination);
+          g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(k ? .06 : .35, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + .9);
+          o.start(t); o.stop(t + .95);
+        });
+      });
+    } catch (e) {}
+    UI.toast('🔔 운영진이 부르고 있어요. 화면을 봐 주세요!', 5000);
+    var n = 0; clearInterval(dingdong.t);
+    dingdong.t = setInterval(function () { document.title = (n++ % 2) ? TITLE : '🔔 운영진 호출'; if (n > 10) { clearInterval(dingdong.t); document.title = TITLE; } }, 700);
+    window.__rings = (window.__rings || 0) + 1;
   }
   function nudge() { try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch (e) {} beep([0]); }
 

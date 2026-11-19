@@ -49,23 +49,27 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 30000, 'recorder took host');
   log('ops 운영A in: folder set → recording from login (대기), host taken');
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
-  await waitFor(ops, () => document.querySelectorAll('#list .st').length >= 4, null, 15000, 'roster cards');
-  await waitFor(ops, () => /학생가/.test(document.querySelector('#alerts').textContent) && document.querySelector('.al.absent'), null, 15000, 'absent alert');
+  await waitFor(ops, () => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length >= 4, null, 15000, 'roster tiles');
+  // 대기실 접속 시각이 지난 미접속 학생 → 칸 테두리 빨강(예전 「미접속」 팝업 대신)
+  await waitFor(ops, () => { const t = document.querySelector('#w-grid .wt[data-id="S_학생가"]'); return t && t.classList.contains('late') && t.classList.contains('info'); }, null, 15000, 'late tile');
+  if (await ops.evaluate(() => !!document.querySelector('.al.absent'))) throw new Error('미접속 팝업은 없어야 함');
+  log('학생가: 대기실 접속 시각 지남 → 빨간 테두리 정보 칸(팝업 없음)');
   await SHOT(ops, 'ops_popups');
   log('top popup alerts:', await ops.evaluate(() => [...document.querySelectorAll('#alerts .al')].map(e => e.className).join(' | ')));
   await sleep(13000);
   const left = await ops.evaluate(() => [...document.querySelectorAll('#alerts .al')].filter(e => /absent|due/.test(e.className)).length);
   log('after 13s, absent/due popups left:', left);
   if (left) throw new Error('popups should disappear');
-  log('ops cards:', await ops.evaluate(() => document.querySelectorAll('#list .st').length), '/ alerts:', (await text(ops, '#alerts')).slice(0, 80));
-  if (!/010-1111-2222/.test(await text(ops, '#list'))) throw new Error('phones not shown');
+  log('ops roster tiles:', await ops.evaluate(() => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length), '/ cards hidden:', await ops.evaluate(() => getComputedStyle(document.querySelector('#c-list')).display));
+  if (!/010-1111-2222/.test(await text(ops, '#w-grid'))) throw new Error('phones not shown on not-connected tile');
+  await SHOT(ops, 'ops_half');
   log('phones shown on cards');
 
   // 대기실 창 따로 띄우기(같은 로그인 이어받기)
   const [panel] = await Promise.all([ops.context().waitForEvent('page'), ops.click('#b-room')]);
   panel.on('pageerror', e => console.log('[panel pageerror]', e.message));
   await panel.waitForSelector('#s-main:not(.hide)', { timeout: 20000 });
-  await waitFor(panel, () => document.querySelectorAll('#list .st').length >= 4 && document.body.classList.contains('pmode'), null, 15000, 'panel list');
+  await waitFor(panel, () => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length >= 4 && document.body.classList.contains('pmode'), null, 15000, 'panel list');
   log('waiting-room panel window opened & auto-logged in:', await text(panel, '#h-title'));
   await waitFor(ops, () => document.body.classList.contains('split') && document.querySelector('#c-list').offsetParent === null && document.querySelector('#c-stage').getBoundingClientRect().width > innerWidth * 0.9, null, 5000, 'main window full-width video');
   log('main window: waiting room moved out → video uses full width:', await ops.evaluate(() => Math.round(document.querySelector('#c-stage').getBoundingClientRect().width) + '/' + innerWidth));
@@ -156,16 +160,20 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(sA, () => document.querySelector('#w-test').textContent.includes('완료'), null, 40000, 'test A');
   await waitFor(sA, () => document.querySelector('#w-warm').textContent.includes('준비 완료'), null, 40000, 'A warm');
   log('student A tested & prewarmed; status:', (await text(sA, '#status')).replace(/\s+/g, ' ').slice(0, 40));
-  await waitFor(ops, () => document.querySelector('#list .st.due'), null, 15000, 'due card');
-  if (await ops.evaluate(() => document.documentElement.scrollHeight > innerHeight + 2 || document.querySelector('#list').scrollHeight > document.querySelector('#list').clientHeight + 2)) throw new Error('student list does not fit on screen');
-  log('student list fits on screen (no scroll)');
-  log('ops due alert shown for 학생가');
+  await waitFor(panel, () => document.querySelector('#w-grid .wt.due[data-id="S_학생가"] .wa.due'), null, 15000, 'due tile');
+  // 접속한 학생 칸: 아래에 멘토링 시간 + 알림(띵동) 버튼
+  const bar = await panel.evaluate(() => (document.querySelector('#w-grid .wt[data-id="S_학생다"] .wbt') || {}).textContent || '');
+  if (!/멘토링 \d/.test(bar) || !/알림/.test(bar)) throw new Error('connected tile should show mentoring time + 알림: ' + bar);
+  await panel.click('#w-grid .wt[data-id="S_학생다"] [data-ring]');
+  await waitFor(sC, () => (window.__rings || 0) >= 1, null, 20000, 'student C rung');
+  log('connected tile bar:', bar.replace(/\s+/g, ' '), '→ 알림 → student C 띵동');
+  log('ops due tile (시작 깜빡임) for 학생가');
   await ops.screenshot({ path: path.join(OUT, '3_ops_waiting.png') });
   await panel.screenshot({ path: path.join(OUT, '3_panel.png') });
 
   // 대기실 창에서 시작 → 녹화 창이 녹화
   const t0 = Date.now();
-  await panel.click('#list .st[data-id="S_학생가"] button[data-a="call"]');
+  await panel.click('#w-grid .wt[data-id="S_학생가"] button[data-a="call"]');
   await waitFor(sA, () => !document.querySelector('#s-live').classList.contains('hide') && document.querySelector('#l-remote').videoWidth > 0, null, 30000, 'A live');
   log('started from panel window → student A live after', Date.now() - t0, 'ms');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
@@ -174,7 +182,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
   await SHOT(ops, 'ops_split');
   await panel.close();
-  await waitFor(ops, () => !document.body.classList.contains('split') && document.querySelector('#c-list').offsetParent !== null, null, 5000, 'panel closed → list back');
+  await waitFor(ops, () => !document.body.classList.contains('split') && document.querySelector('#c-chat').offsetParent !== null, null, 5000, 'panel closed → waiting room back');
   log('panel window closed → waiting room back in main window');
   await sleep(4000);
 

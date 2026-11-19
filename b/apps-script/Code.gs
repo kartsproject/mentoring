@@ -1,5 +1,5 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.2
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.3
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
@@ -393,7 +393,7 @@ function view_(r, s, id, role, now) {
       done: !!s.done[id],
       test: s.test[id] || null,
       zoomUrl: s.zoom[id] ? s.zoomUrl : '',
-      wr: wr, wmuteAt: (s.parts[id] && s.parts[id].wmuteAt) || 0
+      wr: wr, wmuteAt: (s.parts[id] && s.parts[id].wmuteAt) || 0, ringAt: (s.parts[id] && s.parts[id].ringAt) || 0
     };
   }
 
@@ -587,6 +587,7 @@ function op_(r, req) {
 /* ───────────── 대기실 화상 ─────────────
  *  cmd pub : 내가 대기실에 올린 영상·소리 이름 등록(sfu 세션, tr {cam, mic}) — 비우면 대기실 화상에서 나감
  *  cmd mute: (운영진) 학생 마이크 끄기 요청
+ *  cmd ring: (운영진) 학생 호출 — 학생 화면에 「띵동」 소리
  */
 function wr_(r, req) {
   var id = auth_(r, req), cmd = String(req.cmd || '');
@@ -597,10 +598,12 @@ function wr_(r, req) {
       var sfu = String(req.sfu || '').slice(0, 64), tr = {};
       ['cam', 'mic'].forEach(function (k) { if (req.tr && req.tr[k]) tr[k] = String(req.tr[k]).slice(0, 64); });
       me.wr = sfu ? { sfu: sfu, tr: tr, at: (me.wr && me.wr.sfu === sfu && me.wr.at) || Date.now() } : null;
-    } else if (cmd === 'mute') {
+    } else if (cmd === 'mute' || cmd === 'ring') {
       if (me.role !== 'ops') throw new Error('forbidden');
       var t = s.parts[String(req.sid || '')];
-      if (t) t.wmuteAt = Date.now();
+      if (!t) return { ok: false, error: 'not_here' };
+      if (cmd === 'mute') t.wmuteAt = Date.now();
+      else { t.ringAt = Date.now(); log_(r, '학생 호출', t.name, me.name); }
     } else return { ok: false, error: 'bad_cmd' };
     putState_(r, s);
     return { ok: true };

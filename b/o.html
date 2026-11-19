@@ -71,7 +71,8 @@
   .mtabs button.alert { background: var(--red-lt); color: var(--red); animation: blink 1.2s infinite; }
   .unread { background: var(--rec); color: #fff; font-size: 11.5px; font-weight: 800; border-radius: 999px; min-width: 20px; height: 20px; display: inline-grid; place-items: center; padding: 0 6px; }
   .unread[hidden] { display: none; }
-  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px minmax(400px, 32vw); }   /* 멘토링실 넓게 · 학생 420 · 대기실 화상 */
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }   /* 왼쪽 멘토링실 · 오른쪽 대기실(반반) */
+  #c-list { display: none !important; }   /* 학생 카드는 없앰 — 대기실 칸이 대신(Ver.2.8) */
   .col { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
   #c-stage { background: var(--k0); color: var(--k-tx); overflow-y: auto; padding: 12px; gap: 10px; }
   #c-stage > .panel:first-child { flex: 1 0 auto; min-height: 0; display: flex; flex-direction: column; }
@@ -83,23 +84,16 @@
   .colh { display: flex; align-items: baseline; gap: 8px; margin: 0 2px 12px; }
   .colh b { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
   .colh small { color: var(--gray); font-size: 12.5px; }
-  body.pmode .body { grid-template-columns: 420px minmax(0, 1fr); }
+  body.pmode .body { grid-template-columns: minmax(0, 1fr); }
   body.pmode #c-stage, body.pmode .stage-only { display: none !important; }
-  @media (max-width: 1500px) {
-    body:not(.pmode) .body { grid-template-columns: minmax(0, 1fr) 420px; }
-    body:not(.pmode) .mtabs { display: flex; }
-    body:not(.pmode) .mtabs .t-stage { display: none; }
-    body:not(.pmode) #c-list, body:not(.pmode) #c-chat { grid-column: 2; grid-row: 1; }
-    body:not(.pmode).t-chat #c-list { display: none; }
-    body:not(.pmode):not(.t-chat) #c-chat { display: none; }
-  }
+  .mtabs .t-list { display: none !important; }
   @media (max-width: 1000px) {
     body:not(.pmode) .body, body.pmode .body { display: block; position: relative; }
     .mtabs { display: flex !important; }
     body:not(.pmode) .mtabs .t-stage { display: flex; }
     body.pmode .mtabs .t-stage { display: none; }
     .col { height: 100%; }
-    body:not(.t-stage) #c-stage, body:not(.t-list) #c-list, body:not(.t-chat) #c-chat { display: none !important; }
+    body:not(.t-stage) #c-stage, body:not(.t-chat) #c-chat { display: none !important; }
     header.top { padding: 8px 10px; gap: 6px; }
     header.top h1 small, .conn2 span, #simBtn, #guideBtn, .vsep { display: none; }
   }
@@ -121,7 +115,16 @@
   .wb svg { width: 14px; height: 14px; }
   .wb.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
   .wb.down { background: var(--rec); border-color: var(--rec); color: #fff; }
-  #c-chat .wbox { flex: 1; min-height: 0; margin: 10px; }
+  #c-chat .wbox { flex: 1; min-height: 0; margin: 10px; position: relative; }
+  #c-chat .setwrap { position: absolute; right: 8px; top: 42px; z-index: 20; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 50px); overflow: auto; background: var(--paper); color: var(--ink); border-radius: 12px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  #c-chat .setwrap.hide { display: none; }
+  #c-chat .bcbox { padding: 8px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
+  #c-chat .bcbox h3 { grid-column: 1 / 3; margin: 0; font-size: 13px; }
+  #c-chat .bcbox h3 .btn { padding: 3px 9px; font-size: 12px; }
+  #c-chat .bcbox form { grid-column: 1 / 3; }
+  #c-chat .bcbox input { height: 34px; font-size: 13.5px; }
+  #c-chat .bcbox .bclist { grid-column: 1 / 3; max-height: 2.6em; overflow: auto; font-size: 12px; }
+  #b-set.on { background: var(--yel); color: var(--ink); border-color: var(--yel); }
   #c-chat .wbox .wgrid { flex: 1; }
   #c-chat [hidden] { display: none !important; }
   body.wr-off .wbox { display: none; }
@@ -430,21 +433,9 @@
 
     <!-- 학생(대기실 운영) -->
     <div class="col" id="c-list">
-      <div class="colh"><b>학생 · 대기실</b><span class="ctimer hide" id="colTimer"></span><button class="btn ghost sm" id="b-set" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정·ZOOM</span></button></div>
+      <div class="colh"><b>학생 · 대기실</b><span class="ctimer hide" id="colTimer"></span></div>
       <div class="sum" id="sum"></div>
       <div id="list"></div>
-      <div class="setwrap hide" id="setwrap">
-      <div class="setbox op-only">
-        <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>예비 ZOOM 링크</h4>
-        <div class="row"><input id="z-url" placeholder="https://zoom.us/j/... (암호 포함 초대 링크)"><button class="btn sm" id="b-zoom" type="button">저장</button></div>
-        <p class="help" style="color:var(--muted2)">연결이 안 되는 학생 카드의 [ZOOM]을 누르면 그 학생 화면에 ZOOM 입장 버튼이 뜹니다.</p>
-      </div>
-      <div class="setbox">
-        <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.7 3.3-5.5 6.5-5.5s5.8 1.8 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.5 5.2"/></svg>접속 중인 운영진·연구원</h4>
-        <dl class="kv" id="ops-list"></dl>
-        <div class="op-only" style="margin-top:10px"><button class="btn ghost sm" id="b-reset" type="button">회차 초기화(진행·채팅·공지, 리허설 후)</button></div>
-      </div>
-      </div>
     </div>
 
     <!-- 채팅·공지 -->
@@ -455,11 +446,25 @@
         <div class="bclist" id="bcList"></div>
       </div>
       <section class="wbox" id="wbox">
-        <div class="wbh"><b><i></i>대기실 화상</b><small id="w-cnt"></small><span class="sp"></span>
+        <div class="wbh"><b><i></i>대기실</b><small id="w-cnt"></small><span class="sp"></span>
           <button class="wb" type="button" id="w-listen" title="대기실 학생들의 소리를 이 창에서 듣습니다"></button>
           <button class="wb" type="button" id="w-ptt" title="누르고 있는 동안 대기실 전체에 말합니다">누르고 말하기</button>
           <button class="wb" type="button" id="w-open" title="켜 두면 누르지 않아도 대기실에 내 소리가 들립니다"></button>
-          <button class="wb" type="button" id="w-camb" title="대기실 화면에 내 카메라를 보입니다"></button></div>
+          <button class="wb" type="button" id="w-camb" title="대기실 화면에 내 카메라를 보입니다"></button>
+          <button class="wb" id="b-set" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정·ZOOM</span></button></div>
+      <div class="setwrap hide" id="setwrap">
+      <div class="setbox op-only">
+        <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>예비 ZOOM 링크</h4>
+        <div class="row"><input id="z-url" placeholder="https://zoom.us/j/... (암호 포함 초대 링크)"><button class="btn sm" id="b-zoom" type="button">저장</button></div>
+        <p class="help" style="color:var(--muted2)">연결이 안 되는 학생 칸의 [ZOOM]을 누르면 그 학생 화면에 ZOOM 입장 버튼이 뜹니다.</p>
+      </div>
+      <div class="setbox">
+        <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.7 3.3-5.5 6.5-5.5s5.8 1.8 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.5 5.2"/></svg>접속 중인 운영진·연구원</h4>
+        <dl class="kv" id="ops-list"></dl>
+        <div class="op-only" style="margin-top:10px"><button class="btn ghost sm" id="b-reset" type="button">회차 초기화(진행·채팅·공지, 리허설 후)</button></div>
+      </div>
+      </div>
+
         <div class="wgrid" id="w-grid"></div>
       </section>
       <div class="chead" hidden><b>대기실 채팅</b><span style="color:var(--muted2);font-size:13px" id="cheadSub"></span>
@@ -560,7 +565,7 @@
     IS_REC = want && window.MeetRecorder.autoSaveSupported();
     if (want && !IS_REC) setTimeout(function () { UI.toast('이 브라우저는 폴더 자동 저장이 안 돼 이 창에서는 녹화하지 않습니다. 녹화는 PC 크롬에서 해 주세요.', 6000); }, 800);
     if (IS_REC) { $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화'); $('#sw-host').parentNode.querySelector('span').textContent = '연결 점검 맡기'; $('#sw-auto').parentNode.querySelector('span').textContent = '자동 녹화(멘토링 아닌 시간도 「대기」 파일로)'; }
-    setTab(PANEL ? 'list' : (innerWidth <= 1000 ? 'stage' : 'list'));
+    setTab(PANEL ? 'chat' : (innerWidth <= 1000 ? 'stage' : 'chat'));
     room = new window.MeetRoom({
       sess: sess, role: role, title: TITLE,
       onAction: onAction,
@@ -574,8 +579,9 @@
     });
     room.audioReady(); room.askNotify();
     // 대기실 화상: 대기실이 보이는 창에서만(녹화 창은 대기실을 새 창으로 빼면 받지 않음 — 녹화 PC 부담 줄임)
-    wr = new M.WaitRoom({ sess: sess, el: $('#w-grid'), role: 'staff', canMute: role === 'ops', listen: false,
-      onChange: function (n) { $('#w-cnt').textContent = n ? n + '명' : ''; } });
+    wr = new M.WaitRoom({ sess: sess, el: $('#w-grid'), role: 'staff', canMute: role === 'ops', listen: false, roster: true,
+      flags: function () { return room ? room.flagMap() : {}; },
+      onAct: function (a, id, b) { onAction(a, id, b); } });
     paintWr();
     if (!PANEL) {
       links = new M.Links(sess, {
@@ -687,7 +693,11 @@
       autoRecord();
       paintRecWarn();
     } else sess.info = { n: M.NONCE, panel: true };
-    if (wr) { sess.info.wtalk = wr.talking || wr.openMic; wr.want(PANEL || !split); wr.sync(v); }
+    if (wr) {
+      sess.info.wtalk = wr.talking || wr.openMic; wr.want(PANEL || !split); wr.sync(v);
+      var real = v.students.filter(function (x) { return !x.extra; });
+      $('#w-cnt').textContent = '접속 ' + real.filter(function (x) { return x.live; }).length + ' / ' + real.length + '명 · 완료 ' + real.filter(function (x) { return x.done; }).length;
+    }
     room.render(v);
     paintSide();
   }
