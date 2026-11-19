@@ -233,9 +233,11 @@ body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
 /* 운영 화면 대기실: 명단 칸(접속 안 한 학생 = 정보) · 멘토링 시간 · 알림(띵동) (Ver.2.8) */
 .wt.info { background: var(--k2); }
 .wt.info video, .wt.info .wph, .wt.info .wnm { display: none; }
-.wt.late { box-shadow: 0 0 0 3px #E5484D, 0 0 16px rgba(229,72,77,.45); }
+/* 테두리는 칸 안쪽에 그림(가장자리 칸이 잘리지 않게, Ver.2.11) */
+.wt.late::after, .wt.cur::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 6; }
+.wt.late::after { box-shadow: inset 0 0 0 3px #E5484D, inset 0 0 14px rgba(229,72,77,.55); }
 .wt.late .wi .wst { color: #FF8A8E; }
-.wt.cur { box-shadow: 0 0 0 3px var(--yel); }
+.wt.cur::after { box-shadow: inset 0 0 0 3px var(--yel); }
 .wt.done { opacity: .55; }
 .wix { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .wix > * { pointer-events: auto; }
@@ -270,7 +272,7 @@ body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
 .wt:has(.wbt) .spk { bottom: 34px; }
 .wt.info .wmute { display: none !important; }
 
-/* Ver.2.10: 학생 한 줄 5명 — 칸이 작을 때(노트북 반쪽 화면 등) 글자·버튼을 줄여 다 보이게 */
+/* Ver.2.10~: 학생 한 줄 4명 — 칸이 작을 때(노트북 반쪽 화면 등) 글자·버튼을 줄여 다 보이게 */
 .wz.bot .wt { container-type: inline-size; }
 @container (max-width: 175px) {
   .wi { padding: 5px 6px; gap: 1px; font-size: 10.5px; line-height: 1.3; }

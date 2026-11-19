@@ -163,7 +163,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(sA, () => !document.querySelector('#w-mic').classList.contains('off'), null, 20000, 'A unmuted');
   log('학생 마이크 모두 끄기 → A·C 꺼짐(학생이 켜지 못함) → 모두 켜기 → 다시 켜짐');
   const lay = await panel.evaluate(() => { const z = document.querySelector('#w-grid .wz.bot'), t = document.querySelector('#w-grid .wz.top'); return { cols: getComputedStyle(z).gridTemplateColumns.split(' ').length, topRows: new Set([...t.children].map(c => Math.round(c.getBoundingClientRect().top))).size }; });
-  if (lay.cols !== Math.min(5, await panel.evaluate(() => document.querySelectorAll('#w-grid .wz.bot .wt').length)) || lay.topRows > 1) throw new Error('layout: ' + JSON.stringify(lay));
+  if (lay.cols !== Math.min(4, await panel.evaluate(() => document.querySelectorAll('#w-grid .wz.bot .wt').length)) || lay.topRows > 1) throw new Error('layout: ' + JSON.stringify(lay));
   log('대기실 배치: 학생 한 줄 ' + lay.cols + '명, 운영진 ' + lay.topRows + '줄');
 
   // 대기실 채팅·공지

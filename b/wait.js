@@ -307,7 +307,7 @@
     z.style.setProperty('--wc', best);
     z.style.setProperty('--ww', Math.floor(bestW) + 'px');
   }
-  // 위 운영진·연구원은 가로 한 줄로만, 아래 학생은 한 줄에 5명씩(좁은 휴대폰 화면은 크기에 맞춰 자동)
+  // 위 운영진·연구원은 가로 한 줄로만, 아래 학생은 한 줄에 4명씩(12명이면 4명 × 3줄)(좁은 휴대폰 화면은 크기에 맞춰 자동)
   function setZone(z, c, w) { z.style.setProperty('--wc', c); z.style.setProperty('--ww', Math.max(40, Math.floor(w)) + 'px'); }
   WaitRoom.prototype.fit = function () {
     var el = this.el, Z = this.zones; if (!el || !Z) return;
@@ -323,7 +323,7 @@
     if (!nb) return;
     var hb = H - topH - (nt ? 8 : 0);
     if (W < 520) { fitZone(Z.bot, nb, W, hb); return; }
-    var c = Math.min(5, nb), rows = Math.ceil(nb / c), w = (W - gap * (c - 1)) / c;
+    var c = Math.min(4, nb), rows = Math.ceil(nb / c), w = (W - gap * (c - 1)) / c;
     if (hb > 40 && rows * w * 3 / 4 + gap * (rows - 1) > hb) w = ((hb - gap * (rows - 1)) / rows) * 4 / 3;
     setZone(Z.bot, c, w);
   };
