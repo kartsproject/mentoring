@@ -111,6 +111,18 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res.close();
 
   // 학생 A: 이름+생년월일 → 유의사항 → 카메라 → 대기실
+  // 학생 입장 시간: 멘토링 당일 첫 학생 시작 30분 전부터 — 3회차(12/6) 학생은 지금 들어올 수 없음
+  {
+    const sx = await mk('stuEarly', { width: 390, height: 760 });
+    await sx.goto(BASE + '/b/');
+    await sx.fill('#g-name', '홍길동'); await sx.fill('#g-birth', '20140505'); await sx.check('#g-agree'); await sx.click('#g-btn');
+    await waitFor(sx, () => /멘토링 시간이 아닙니다/.test(document.querySelector('#g-err').textContent), null, 15000, 'not mentoring time');
+    const msg = await text(sx, '#g-err');
+    if (!/12월 6일\(일\)/.test(msg) || !/오후 5:00부터/.test(msg)) throw new Error('입장 시간 안내 문구: ' + msg);
+    log('입장 시간 전 학생 →', msg);
+    await SHOT(sx, 'stu_not_time');
+    await sx.context().close();
+  }
   async function studentIn(p, name, birth, wrongFirst) {
     await p.goto(BASE + '/b/');
     if (wrongFirst) await SHOT(p, 'stu_gate');

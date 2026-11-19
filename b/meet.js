@@ -45,7 +45,7 @@
   Session.prototype.join = function () {
     var self = this;
     return api({ a: 'join', r: this.r, role: this.role, name: this.name, code: this.code, birth: this.birth, panel: this.panel }).then(function (j) {
-      if (!j.ok) { var e = new Error(j.error); e.code = j.error; throw e; }
+      if (!j.ok) { var e = new Error(j.error); e.code = j.error; e.data = j; throw e; }
       self.id = j.id; self.tok = j.tok; self.ice = j.ice; self.name = j.name; if (j.pid) self.pid = j.pid;
       if (j.r) self.r = j.r;
       self.me = j.me || null;
@@ -791,6 +791,41 @@
       auto: function (videoSel, hostSel) { autos.push({ v: videoSel, h: hostSel }); if (!timer) timer = setInterval(loop, 140); },
       mark: mark, ICON: ICON_SPK
     };
+  })();
+
+  /* ───────── 휴대폰 키보드가 입력 칸을 가리지 않게(모든 화면 공통) ─────────
+   * 키보드가 올라오면 그만큼 아래 여백을 만들어 스크롤할 수 있게 하고, 입력 중인 칸을 보이는 영역 가운데로 옮김 */
+  (function keyboardSafe() {
+    var vv = window.visualViewport;
+    var isField = function (el) { return el && (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|file)$/i.test(el.type) || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'); };
+    try {
+      var st = document.createElement('style');
+      st.textContent = 'body.kb-open{padding-bottom:var(--kb,0px)!important}';
+      (document.head || document.documentElement).appendChild(st);
+    } catch (e) {}
+    function kbH() { return vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0; }
+    function show(el) {
+      if (!isField(el) || !document.body.contains(el)) return;
+      var r = el.getBoundingClientRect();
+      var top = vv ? vv.offsetTop : 0, bottom = top + (vv ? vv.height : window.innerHeight);
+      var box = el.closest('label, .field') || el, rb = box.getBoundingClientRect();
+      if (rb.bottom > bottom - 12 || r.top < top + 8) {
+        try { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { box.scrollIntoView(); }
+      }
+    }
+    function apply() {
+      var h = kbH(), open = h > 80 && isField(document.activeElement);
+      document.documentElement.style.setProperty('--kb', (open ? h : 0) + 'px');
+      if (document.body) document.body.classList.toggle('kb-open', open);
+      if (open) show(document.activeElement);
+    }
+    if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', function () { if (document.body && document.body.classList.contains('kb-open')) apply(); }); }
+    window.addEventListener('resize', apply);
+    document.addEventListener('focusin', function (e) {
+      if (!isField(e.target)) return;
+      [120, 350, 700].forEach(function (t) { setTimeout(function () { apply(); show(e.target); }, t); });   // 키보드가 올라오는 동안 몇 번 확인
+    });
+    document.addEventListener('focusout', function () { setTimeout(apply, 200); });
   })();
 
   window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck, Speak: Speak };

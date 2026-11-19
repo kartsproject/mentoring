@@ -1,5 +1,5 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.5
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.6
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
@@ -9,6 +9,7 @@
  *  - 대기실 화상(Ver.2.2): Cloudflare Realtime SFU 연결 요청을 앱 비밀키로 대신 보냄(비밀키는 브라우저에 가지 않음)
  *  - 시트 「명단」「회차」 읽기, 「기록」「채팅」 남기기
  *  - (Ver.2.5) 연구원 멘토링실 참여: 멘토링 중에도 멘토링실에 남아 카메라·마이크로 함께함(학생에게는 마이크를 켰을 때만 보임)
+ *  - (Ver.2.6) 학생 입장 시간: 멘토링 당일, 그 회차 첫 학생 멘토링 시작 30분 전부터(리허설 test는 언제나)
  *
  * 비밀값은 코드에 넣지 않습니다. [프로젝트 설정 > 스크립트 속성]에 넣습니다.
  *  MENTOR_CODE        멘토 접속 코드
@@ -31,6 +32,7 @@ var STAGE_MAX = 3;         // 멘토링실에 함께 들어갈 수 있는 연구
 var CHAT_MAX = 300;        // 회차별 채팅 보관 개수(화면용, 전체 기록은 시트 「채팅」)
 var BC_MAX = 10;           // 상단 고정 공지 보관 개수
 var SLOT_MIN = 10;         // 1인 멘토링 시간(분) — 「멘토링 시간」에 끝 시각이 없을 때 사용
+var OPEN_BEFORE_MIN = 30;  // 학생 입장: 멘토링 당일 첫 학생 멘토링 시작 몇 분 전부터
 var TZ = 'Asia/Seoul';
 var SFU_BASE = 'https://rtc.live.cloudflare.com/v1/apps/';
 
@@ -149,6 +151,21 @@ function addMin_(hm, m) {
   return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2);
 }
 function roomOf_(v) { return String(v || '').replace(/회차/, '').trim(); }
+function mins_(hm) { var p = String(hm || '').split(':'); return p.length < 2 ? -1 : Number(p[0]) * 60 + Number(p[1]); }
+
+// 학생이 지금 들어올 수 있는지: 멘토링 당일, 첫 학생 멘토링 시작 30분 전부터. 날짜가 비었거나 리허설(test)이면 언제나
+function studentOpen_(r) {
+  if (r === 'test') return { ok: true };
+  var se = sessions_()[r] || {}, date = se.date || '';
+  if (!date) return { ok: true };
+  var first = '';
+  roster_(r).forEach(function (x) { if (x.time && (!first || mins_(x.time) < mins_(first))) first = x.time; });
+  var open = first ? addMin_(first, -OPEN_BEFORE_MIN) : '';
+  var td = today_();
+  if (date !== td) return { ok: false, date: date, open: open, past: date < td };
+  if (open && mins_(Utilities.formatDate(new Date(), TZ, 'HH:mm')) < mins_(open)) return { ok: false, date: date, open: open };
+  return { ok: true };
+}
 
 function ss_() { try { return SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { return null; } }
 
@@ -300,6 +317,13 @@ function join_(r, req) {
       me = { no: pick.x.no, wait: pick.x.wait, time: pick.x.time, end: pick.x.end, date: s0.date || '', mentor: s0.mentor || '', test: r === 'test' };
     }
     if (r === 'auto') return { ok: false, error: 'not_in_roster' };
+    // 입장 시간 확인(이미 들어와 있던 학생의 재접속은 그대로 허용)
+    var prev = getState_(r).parts['S_' + nm];
+    var cameToday = prev && prev.joinedAt && Utilities.formatDate(new Date(prev.joinedAt), TZ, 'yyyy-MM-dd') === today_();
+    if (!cameToday) {
+      var op = studentOpen_(r);
+      if (!op.ok) return { ok: false, error: 'not_time', date: op.date, open: op.open, past: !!op.past };
+    }
     id = 'S_' + nm;
     name = nm;
   } else {
