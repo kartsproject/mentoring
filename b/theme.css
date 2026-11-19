@@ -93,14 +93,6 @@ body.lw .apill::before { transform: translateX(100%); }
 .chip.ok, .dk .chip.ok, body.dark .chip.ok { background: rgba(48,209,88,.16); color: var(--kgreen); }
 
 /* 대기실 */
-#c-chat .bcbox { background: transparent; color: var(--kt); border-bottom: 1px solid var(--kh); padding: 16px 18px 14px; }
-#c-chat .bcbox h3 { color: var(--kt); font-weight: 600; font-size: 13px; }
-#c-chat .bcbox h3 small { color: var(--kt2); font-weight: 500; }
-#c-chat .bcbox input { background: var(--kc2); border: 1px solid transparent; color: var(--kt); border-radius: 12px; }
-#c-chat .bcbox input:focus { border-color: var(--kblue); box-shadow: 0 0 0 4px rgba(41,151,255,.2); }
-#c-chat .bcbox .btn.coral { background: var(--kblue) !important; }
-#c-chat .bcbox .btn.ghost { background: rgba(255,255,255,.1); color: var(--kt); }
-#c-chat .bcbox .bclist, #c-chat .bcbox .bclist * { color: var(--kt2) !important; }
 #c-chat .wbox { background: transparent; margin: 8px 12px; padding: 6px; }
 .wbh b { font-weight: 700; font-size: 21px; letter-spacing: -.03em; }
 .wbh b i { background: var(--kgreen); box-shadow: none; }
@@ -240,11 +232,7 @@ body:has(#s-gate.on), body:has(#s-check.on), body:has(.gate:not(.hide)) { backgr
 .rsetup { background: rgba(0,0,0,.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .rsetup .rs-dir { background: var(--kc2); color: var(--kt2); border-radius: 14px; }
 .card .note, .card p { color: var(--kt2); } .card .note b, .card p b, .card .lead b { color: var(--kt); }
-.card video, .card .vprev { border-radius: 18px; }
-#rules { background: #000; }
-.rbar i.on { background: var(--kblue); }
-.rnav button { border-radius: 980px; font-weight: 600; }
-.rnav .next.go { background: var(--kblue); color: #fff; }
+.card video { border-radius: 18px; }
 .card .check, .lcard .check { background: var(--kc2); border-radius: 16px; }
 .card .check input, .lcard .check input { accent-color: var(--kblue); }
 .autor { background: var(--kc2) !important; color: var(--kt) !important; border: 0 !important; border-radius: 14px !important; }

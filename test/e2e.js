@@ -218,7 +218,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   // 대기실 채팅·공지
   if (await sA.evaluate(() => { const c = document.querySelector('.chat'); return !!(c && c.offsetParent); })) throw new Error('채팅은 없어야 함');
   if (await panel.$('#bcForm') || await ops.$('#bcForm')) throw new Error('상단 고정 공지는 없어야 함');
-  if (!(await sA.evaluate(() => document.querySelector('#bc').hidden))) throw new Error('학생 화면에 공지 칸이 보이면 안 됨');
+  if (await sA.$('#bc') || await sA.$('#rules') || await sA.$('#msgs')) throw new Error('학생 화면에 공지·유의사항·채팅 칸이 없어야 함');
   log('no chat, no pinned notice (Ver.2.18)');
   await sA.screenshot({ path: path.join(OUT, '2_student_chat.png') });
 

@@ -34,7 +34,6 @@ a { color: inherit; }
 .muted { color: var(--gray); }
 body.dark .muted, .dk .muted { color: var(--k-soft); }
 .small { font-size: 13px; }
-.num, .tnum { font-variant-numeric: tabular-nums; }
 
 /* 아이콘(ICON.* — 글자 크기에 맞춤) */
 .i { width: 1.1em; height: 1.1em; flex: none; vertical-align: -.18em; }
@@ -132,13 +131,12 @@ body.dark .chip, .dk .chip { background: rgba(255,255,255,.09); color: var(--k-s
 .chip.warn { background: var(--warn-lt); color: var(--warn); }
 .chip.bad { background: var(--red-lt); color: var(--red); }
 .chip.on { background: var(--rec); color: #fff; }
-.chip.teal, .chip.yel { background: var(--yel-lt); color: var(--yel-ink); }
+.chip.yel { background: var(--yel-lt); color: var(--yel-ink); }
 body.dark .chip.ok, .dk .chip.ok { background: rgba(47,138,87,.22); color: #7FD3A3; }
 body.dark .chip.warn, .dk .chip.warn { background: rgba(242,194,48,.16); color: var(--yel); }
 body.dark .chip.bad, .dk .chip.bad { background: rgba(217,68,58,.2); color: #FF9C93; }
-body.dark .chip.teal, .dk .chip.teal, body.dark .chip.yel, .dk .chip.yel { background: rgba(242,194,48,.16); color: var(--yel); }
+body.dark .chip.yel, .dk .chip.yel { background: rgba(242,194,48,.16); color: var(--yel); }
 body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
 .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rec); display: inline-block; animation: blink 1.2s infinite; }
 @keyframes blink { 50% { opacity: .25; } }
 
@@ -250,8 +248,6 @@ body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
 .wi.on .wst { color: #7FD3A3; }
 .wi.cur .wst { color: var(--yel); }
 .wi .wtm { color: var(--k-soft); }
-.wi .wph2 { display: flex; flex-direction: column; gap: 1px; }
-.wi .wph2 a { color: #9CC7FF; text-decoration: none; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wi .wact { margin-top: auto; display: flex; gap: 4px; flex-wrap: wrap; }
 .wa { border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06); color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 11.5px; font-weight: 800; cursor: pointer; white-space: nowrap; }
 .wa:hover { background: rgba(255,255,255,.14); }

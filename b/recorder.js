@@ -45,8 +45,7 @@
     this.canvas.width = this.W; this.canvas.height = this.H;
     this.ctx = this.canvas.getContext('2d');
     this.tiles = { M: { video: null, label: '' }, S: { video: null, label: '' } };
-    this.group = [];      // 멘토링 전 화면 등장(연구원·운영진) — 있으면 오른쪽에 나눠 그림
-    this.pips = [];       // 멘토링실의 연구원 — 학생 칸 왼쪽 위에 작게(소리 포함)
+    this.pips = [];       // 멘토링실의 연구원·운영진 — 학생 칸 왼쪽 위에 작게(소리 포함)
     this.idleText = '';   // 오른쪽이 비었을 때 보일 글(예: 멘토링 대기 중)
     this.title = '';
     this.type = pickType();
@@ -101,13 +100,6 @@
     }
   };
 
-  // 멘토링 전 화면 등장한 사람들: [{key, video, label, stream}]
-  Recorder.prototype.setGroup = function (items) {
-    var self = this, keep = {};
-    this.group = (items || []).slice(0, 3).map(function (it) { keep['G:' + it.key] = 1; return { video: it.video, label: it.label || '' }; });
-    (items || []).slice(0, 3).forEach(function (it) { self.mixAudio('G:' + it.key, it.stream); });
-    Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('G:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
-  };
   // 멘토링실의 연구원: [{key, video, label, stream, mic}] — 학생 칸 왼쪽 위 작은 화면 + 소리
   Recorder.prototype.setPips = function (items) {
     var self = this, keep = {};
@@ -129,39 +121,11 @@
     }
   };
 
-  /* 여러 사람 배치(미술): sections = [{ title, items: [{ key, video|img, label, big, stream }], idle }]
-   * 한 묶음이면 화면 전체, 여러 묶음(4분할 등)이면 나눠 그림. 소리는 모든 items의 stream을 섞음 */
+  /* 녹음할 소리 묶음(미술: 화면은 painter로 직접 그림) — audio = [{ key, stream }] */
   Recorder.prototype.setLayout = function (sections, audio) {
     var self = this, keep = {};
-    this.layout = sections;
-    var all = (audio || []).slice();
-    (sections || []).forEach(function (sec) { (sec.items || []).forEach(function (it) { all.push(it); }); });
-    all.forEach(function (it) { if (it.stream && !keep['L:' + it.key]) { keep['L:' + it.key] = 1; self.mixAudio('L:' + it.key, it.stream); } });
+    (audio || []).forEach(function (it) { if (it.stream && !keep['L:' + it.key]) { keep['L:' + it.key] = 1; self.mixAudio('L:' + it.key, it.stream); } });
     Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('L:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
-  };
-  Recorder.prototype.drawSection = function (sec, x, y, w, h) {
-    var c = this.ctx, k = this.k, gap = Math.round(6 * k), self = this;
-    if (sec.title) {
-      var th = Math.round(30 * k);
-      c.fillStyle = '#24272B'; c.fillRect(x, y, w, th);
-      c.fillStyle = '#F3F1EC'; c.font = '700 ' + Math.round(16 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
-      c.fillText(sec.title, x + 10 * k, y + th / 2);
-      y += th; h -= th;
-    }
-    var items = sec.items || [];
-    if (!items.length) { this.drawTile({ video: null }, x, y, w, h, '', sec.idle || '대기 중'); return; }
-    var big = items.filter(function (it) { return it.big; })[0];
-    if (big && items.length > 1) {
-      var rest = items.filter(function (it) { return it !== big; }), bw = Math.round(w * 0.74);
-      this.drawTile(big, x, y, bw - gap, h, '');
-      var n = rest.length, ch = Math.min((h - gap * (n - 1)) / n, (w - bw) * 0.75);
-      rest.forEach(function (it, i) { self.drawTile(it, x + bw, y + i * (ch + gap), w - bw, ch, ''); });
-      return;
-    }
-    var cnt = items.length, cols = Math.ceil(Math.sqrt(cnt)), rows = Math.ceil(cnt / cols);
-    if (cnt === 2) { cols = 2; rows = 1; }
-    var cw = (w - gap * (cols - 1)) / cols, rh = (h - gap * (rows - 1)) / rows;
-    items.forEach(function (it, i) { self.drawTile(it, x + (i % cols) * (cw + gap), y + Math.floor(i / cols) * (rh + gap), cw, rh, ''); });
   };
 
   Recorder.prototype.draw = function () {
@@ -169,20 +133,9 @@
     if (this.painter) { try { this.painter(c, W, H); } catch (e) { console.warn('painter', e); } return; }   // 화면 구성을 직접 그리는 경우(미술)
     c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
     var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
-    if (this.layout) {
-      var L = this.layout, self = this;
-      if (L.length <= 1) this.drawSection(L[0] || { items: [] }, 0, top, W, th);
-      else {
-        var cols = 2, rows = Math.ceil(L.length / 2), sw = (W - gap) / cols, sh = (th - gap * (rows - 1)) / rows;
-        L.forEach(function (sec, i) { self.drawSection(sec, (i % cols) * (sw + gap), top + Math.floor(i / cols) * (sh + gap), sw, sh); });
-      }
-    } else
     this.drawTile(this.tiles.M, 0, top, tw, th, '멘토', this.idle.M);
-    if (this.group.length) {
-      var n = this.group.length, gh = (th - gap * (n - 1)) / n, self = this;
-      this.group.forEach(function (g, i) { self.drawTile(g, tw + gap, top + i * (gh + gap), tw, gh, ''); });
-    } else if (!this.layout) this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
-    if (this.pips.length && !this.layout) {
+    this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
+    if (this.pips.length) {
       var pw = Math.round(tw * 0.24), phh = Math.round(pw * 0.75), px = tw + gap + Math.round(14 * k), self2 = this;
       this.pips.forEach(function (p, i) {
         var py = top + Math.round(14 * k) + i * (phh + Math.round(8 * k));

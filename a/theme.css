@@ -148,7 +148,6 @@ header.top .btn.ghost#b-out { border: 0; background: rgba(255,255,255,.1); borde
 .abtn:hover svg { background: rgba(255,255,255,.28); }
 .abtn.off svg { background: var(--kred); }
 .abtn.on svg { background: #FFD60A; color: #000; }
-.abtn.leave { color: var(--kt2); }
 .amenu { bottom: 124px; background: rgba(44,44,46,.97); color: var(--kt); border: 1px solid rgba(255,255,255,.14); border-radius: 20px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 .amenu button { color: var(--kt); border-radius: 14px; }
 .amenu button:hover { background: rgba(255,255,255,.08); }

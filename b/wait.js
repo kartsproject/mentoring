@@ -8,14 +8,8 @@
   var M = window.Meet, UI = M.UI;
   var MIC_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9v2a3 3 0 0 0 5 2.2M15 10V5a3 3 0 0 0-5.7-1.3"/><path d="M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11 5.7M12 18v3M3 3l18 18"/></svg>';
 
-  // 관문 호출(인증이 풀렸으면 다시 들어가서 한 번 더)
-  async function call(sess, body) {
-    var b = Object.assign({ r: sess.r, id: sess.id, tok: sess.tok }, body);
-    if (sess.call) return sess.call(b);   // 망이 잠깐 끊기거나 서버가 바쁘면 다시 시도
-    var j = await M.api(b);
-    if (!j.ok && j.error === 'auth') { await sess.rejoin(); b.id = sess.id; b.tok = sess.tok; j = await M.api(b); }
-    return j;
-  }
+  // 관문 호출: 인증이 풀렸으면 다시 들어가고, 망이 잠깐 끊기거나 서버가 바쁘면 다시 시도(Session.call)
+  function call(sess, body) { return sess.call(Object.assign({ r: sess.r, id: sess.id, tok: sess.tok }, body)); }
 
   /* o: { sess, el(칸을 그릴 곳), role 'student'|'staff', getLocal(학생: 카메라·마이크 스트림), listen(소리 켬), onMute(학생: 운영진이 마이크 끔), onChange } */
   function WaitRoom(o) {

@@ -154,12 +154,6 @@
     if (bcSig !== ch.bcSig) { ch.bc = c.bc || []; ch.bcSig = bcSig; changed = true; }
     if (changed) this.emit('chat', ch);
   };
-  Session.prototype.say = async function (text) {
-    var body = { a: 'chat', r: this.r, id: this.id, tok: this.tok, text: text, since: this.chat.last, gv: this.chat.gv };
-    var j = await this.call(body);
-    if (j.ok && j.chat) this.mergeChat(j.chat);
-    return j;
-  };
   Session.prototype.start = function () {
     if (this.running) return;
     this.running = true; this.loop();
