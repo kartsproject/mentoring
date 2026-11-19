@@ -59,6 +59,14 @@ const liveTiles = p => p.evaluate(() => [...document.querySelectorAll('.tile vid
     if (await ops.$('#f-notice')) throw new Error('공지 칸은 없어야 함');
     if (!(await ops.isVisible('#b-rec'))) throw new Error('조작 막대 녹화 버튼');
     log('접속 현황 전화 아이콘 → 번호 팝업, 공지 칸 없음, 조작 막대 녹화 버튼');
+    // 학생 입장 시간(Code.gs Ver.1.4): 2회차(11월 21일 10:00 시작) → 그날 9:30 전에는 「멘토링 시간이 아닙니다」
+    { const sx = await mk('notime', { width: 420, height: 860 });
+      await sx.goto(BASE + '/a/?r=2');
+      await sx.fill('#g-name', '홍길동'); await sx.fill('#g-birth', '20140505'); await sx.check('#g-agree'); await sx.click('#g-btn');
+      const t = await waitFor(sx, () => { const e = document.querySelector('#g-err').textContent; return /멘토링 시간이 아닙니다/.test(e) && e; }, null, 15000, 'art not_time');
+      if (!/11월 21일\(토\) 오전 9:30부터/.test(t)) throw new Error('입장 가능 시각 안내: ' + t);
+      await SHOT(sx, 'stu_not_time'); await sx.context().close();
+      log('학생 입장 시간 전 →', t); }
 
     // 멘토 2
     const m1 = await mk('m1'), m2 = await mk('m2');
