@@ -123,6 +123,38 @@
   .wbh b i { width: 7px; height: 7px; border-radius: 50%; background: #6FD39B; box-shadow: 0 0 0 3px rgba(111,211,155,.2); }
   .wbh small { color: var(--k-soft); font-size: 12px; font-weight: 600; }
   .wbh .sp { flex: 1; }
+  /* 아래 컨트롤 바 */
+  .cbar { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: #141618; color: #E9E7E2; border-top: 1px solid rgba(255,255,255,.1); }
+  .cbar > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 9px 14px; min-width: 0; }
+  .cbar .cb-r { border-left: 1px solid rgba(255,255,255,.12); justify-content: flex-end; }
+  .cbar .cb-t { font-size: 12px; font-weight: 800; color: #8E9298; letter-spacing: .02em; margin-right: 4px; }
+  .cbar .cb-r .cb-t { margin-right: auto; }
+  .cb-btn { display: inline-flex; align-items: center; gap: 5px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,.18); background: #24272B; color: #F3F1EC; font: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer; white-space: nowrap; user-select: none; -webkit-user-select: none; touch-action: none; }
+  @media (max-width: 1500px) { .cbar .cb-t, .cbar .stctl #h-talk { display: none; } .cbar > div { padding: 8px 10px; gap: 5px; } }
+  .cb-btn:hover { background: #2E3236; }
+  .cb-btn svg { width: 16px; height: 16px; }
+  .cb-btn.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
+  .cb-btn.down { background: var(--rec); border-color: var(--rec); color: #fff; }
+  .cb-btn.warn { background: #B5413D; border-color: #B5413D; color: #fff; }
+  .cb-btn.yel { background: var(--yel); border-color: var(--yel); color: var(--ink); }
+  .cb-btn.coral { background: #B5413D; border-color: #B5413D; color: #fff; }
+  .cb-btn kbd { font: 700 10.5px/1 inherit; padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,.35); opacity: .85; }
+  .cbar .stctl { display: contents; }
+  .cbar .stctl.hide { display: none; }
+  .cbar .stctl #h-talk { margin-right: 2px; background: #24272B; color: #E9E7E2; border: 1px solid rgba(255,255,255,.14); }
+  .cbar .stctl #h-talk.live { background: var(--rec); color: #fff; }
+  .cbar .stctl #h-talk.ok { background: #2F8A57; color: #fff; }
+  body.split:not(.pmode) .cbar, body.pmode .cbar { grid-template-columns: minmax(0, 1fr); }
+  body.split:not(.pmode) .cb-r, body.pmode .cb-l { display: none; }
+  body.pmode .cb-r { border-left: 0; }
+  body:not(.research) .cb-l .cb-t::after { content: " · 보기"; font-weight: 600; }
+  @media (max-width: 1000px) { .cbar { grid-template-columns: minmax(0, 1fr); } .cbar .cb-r { border-left: 0; border-top: 1px solid rgba(255,255,255,.1); justify-content: flex-start; } .cbar .cb-r .cb-t { margin-right: 4px; } }
+  /* 듣는 쪽이 아닌 반대편은 어둡게(Ver.2.16) */
+  #c-stage, #c-chat { position: relative; }
+  body.lw #c-stage::after, body:not(.lw) #c-chat::after { content: ""; position: absolute; inset: 0; background: rgba(8,9,10,.5); pointer-events: none; z-index: 25; transition: opacity .2s; }
+  body.split #c-stage::after, body.split #c-chat::after, body.pmode #c-chat::after { display: none; }
+  body:not(.lw) .aband { background: linear-gradient(90deg, var(--k0) 50%, #7B7975 50%); }
+  body.lw .aband { background: linear-gradient(90deg, #0E0F10 50%, var(--paper) 50%); }
   .wb { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 7px; border: 1px solid rgba(255,255,255,.18); background: transparent; color: var(--k-tx); font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap; user-select: none; -webkit-user-select: none; touch-action: none; }
   .wb svg { width: 14px; height: 14px; }
   .wb.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
@@ -132,7 +164,7 @@
   .wb.down kbd { border-color: rgba(255,255,255,.7); }
   #c-chat .wbox { flex: 1; min-height: 0; margin: 10px; position: relative; }
   #alerts { display: none !important; }   /* 알림 팝업은 쓰지 않음(Ver.2.9) — 대기실 칸 테두리·[시작] 깜빡임으로 */
-  #c-chat .setwrap { position: absolute; right: 8px; top: 42px; z-index: 20; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 50px); overflow: auto; background: var(--paper); color: var(--ink); border-radius: 12px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
+  #c-chat .setwrap { position: absolute; right: 8px; bottom: 8px; z-index: 20; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 50px); overflow: auto; background: var(--paper); color: var(--ink); border-radius: 12px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
   #c-chat .setwrap.hide { display: none; }
   #c-chat .bcbox { padding: 8px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
   #c-chat .bcbox h3 { grid-column: 1 / 3; margin: 0; font-size: 13px; }
@@ -149,9 +181,11 @@
   .panel { background: var(--k1); border: 1px solid var(--k-line); border-radius: 14px; }
   .panel h3 { margin: 0; padding: 14px 16px 6px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   .panel .pb { padding: 6px 16px 16px; }
-  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; }
-  .tile { position: relative; background: #000; border-radius: 10px; overflow: hidden; min-height: 240px; }
-  @media (max-width: 1000px) { .tile { aspect-ratio: 9/8; min-height: 0; } #c-stage > .panel:first-child .duo { flex: none; } }
+  /* 카메라 칸은 4:3(Ver.2.16) — 남는 공간 가운데에 4:3 두 칸 */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; align-content: center; }
+  .duo { container-type: size; grid-template-columns: repeat(2, minmax(0, min(calc((100cqw - 18px) / 2), calc((100cqh - 12px) * 4 / 3)))); justify-content: center; }
+  .tile { position: relative; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; width: 100%; align-self: center; }
+  @media (max-width: 1000px) { #c-stage > .panel:first-child .duo { flex: none; container-type: normal; grid-template-columns: 1fr 1fr; } }
   .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
   .tile .overlay { font-size: 14px; }
   .tile .st2 { position: absolute; right: 10px; top: 10px; z-index: 2; }
@@ -415,13 +449,6 @@
           <div class="tb-prog"><i id="tb-fill"></i><em id="tb-mark"></em></div>
           <span class="tb-el" id="tb-el">진행 00:00</span>
         </div>
-        <div class="stctl hide" id="st-ctrls">
-          <span id="h-talk" class="chip"><span class="dot"></span><span>마이크 켜짐</span></span>
-          <button class="btn ghost sm" id="b-smic" type="button">마이크 끄기</button>
-          <button class="btn sm" id="b-ptt" type="button" title="누르고 있는 동안 말하기 (키보드 스페이스와 같음)">누르고 말하기</button>
-          <button class="btn ghost sm" id="b-scam" type="button">카메라 끄기</button>
-          <button class="btn coral sm" id="b-stoff" type="button">멘토링실에서 나가기</button>
-        </div>
         <div class="nextbar hide" id="nextbar">
           <div class="mini"><video id="v-N" autoplay playsinline muted></video><span class="label" id="l-N"></span></div>
           <div class="small" id="n-info"></div>
@@ -430,7 +457,6 @@
           <span class="nm" id="c-name">대기</span>
           <span class="chip hide" id="c-ms"></span>
           <span class="sp"></span>
-          <button class="btn yel sm res-only" id="b-join" type="button" title="내 카메라를 켜고 멘토링실에 들어갑니다. 멘토에게 작게 보이고, 마이크를 켜면 멘토·학생에게 들립니다(학생에게는 마이크를 켰을 때만 보임)."><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg><span>멘토링실 들어가기</span></button>
           <button class="btn coral sm hide op-only" id="b-end" type="button">이 학생 종료</button>
           <button class="btn sm op-only" id="b-next" type="button">다음 학생 시작</button>
         </div>
@@ -471,11 +497,7 @@
       </div>
       <section class="wbox" id="wbox">
         <div class="wbh"><b><i></i>대기실</b><small id="w-cnt"></small><span class="sp"></span>
-          <button class="wb" type="button" id="w-ptt" title="누르고 있는 동안(또는 키보드 스페이스바를 누르고 있는 동안) 대기실 전체에 말합니다">누르고 말하기 <kbd>Space</kbd></button>
-          <button class="wb" type="button" id="w-open" title="켜 두면 누르지 않아도 대기실에 내 소리가 들립니다"></button>
-          <button class="wb op-only" type="button" id="w-mall" title="대기실에 있는 학생 마이크를 한꺼번에 끄거나 켭니다"></button>
-          <button class="wb" type="button" id="w-camb" title="대기실 화면에 내 카메라를 보입니다"></button>
-          <button class="wb" id="b-set" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정·ZOOM</span></button></div>
+</div>
       <div class="setwrap hide" id="setwrap">
       <div class="setbox op-only">
         <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>예비 ZOOM 링크</h4>
@@ -505,6 +527,27 @@
       <form class="cin op-only" id="chatForm" hidden><input id="chatText" maxlength="300" placeholder="채팅방 전체에 보낼 메시지 (학생 이름을 누르면 @이름이 붙습니다)"><button class="btn sm" type="submit">보내기</button></form>
     </div>
   </main>
+  <!-- 아래 컨트롤 바: 왼쪽 = 멘토링실(연구원 참여), 오른쪽 = 대기실(내 마이크·카메라·설정) — Ver.2.16 -->
+  <footer class="cbar" id="cbar">
+    <div class="cb-l" id="cb-l"><span class="cb-t">멘토링실</span>
+      <button class="cb-btn yel res-only" id="b-join" type="button" title="내 카메라를 켜고 멘토링실에 들어갑니다. 멘토에게 작게 보이고, 마이크를 켜면 멘토·학생에게 들립니다(학생에게는 마이크를 켰을 때만 보임)."><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg><span>멘토링 참여하기</span></button>
+      <div class="stctl hide" id="st-ctrls">
+          <span id="h-talk" class="chip"><span class="dot"></span><span>마이크 켜짐</span></span>
+          <button class="cb-btn" id="b-smic" type="button">마이크 끄기</button>
+          <button class="cb-btn" id="b-ptt" type="button" title="누르고 있는 동안 멘토링실에 말하기 (키보드 스페이스바와 같음)">누르고 말하기 <kbd>Space</kbd></button>
+          <button class="cb-btn" id="b-scam" type="button">카메라 끄기</button>
+          <button class="cb-btn coral" id="b-stoff" type="button">멘토링실에서 나가기</button>
+        </div>
+    </div>
+    <div class="cb-r" id="cb-r"><span class="cb-t">대기실</span>
+      <button class="cb-btn" type="button" id="w-ptt" title="누르고 있는 동안(또는 키보드 스페이스바를 누르고 있는 동안) 대기실 전체에 말합니다">누르고 말하기 <kbd>Space</kbd></button>
+      <button class="cb-btn" type="button" id="w-open" title="켜 두면 누르지 않아도 대기실에 내 소리가 들립니다"></button>
+      <button class="cb-btn op-only" type="button" id="w-mall" title="대기실에 있는 학생 마이크를 한꺼번에 끄거나 켭니다"></button>
+      <button class="cb-btn" type="button" id="w-camb" title="대기실 화면에 내 카메라를 보입니다"></button>
+      <button class="cb-btn" id="b-set" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정·ZOOM</span></button>
+    </div>
+  </footer>
+
 </div>
 
 <div class="alerts" id="alerts" aria-live="polite"></div>
@@ -751,6 +794,7 @@
     });
     $('#w-open').innerHTML = '<span>' + (wr.openMic ? '마이크 켜 둠' : '마이크 켜 두기') + '</span>'; $('#w-open').classList.toggle('on', wr.openMic);
     $('#w-camb').innerHTML = '<span>' + (wr.cam ? '내 카메라 켜짐' : '내 카메라') + '</span>'; $('#w-camb').classList.toggle('on', !!wr.cam);
+    document.body.classList.toggle('lw', !!wr.listen);   // 듣는 쪽이 아닌 반대편 어둡게
     var am = !!(view && view.wallMute && view.wallMute.on);
     $('#w-mall').innerHTML = UI.ico(am ? 'micOff' : 'mic') + '<span>' + (am ? '학생 마이크 모두 켜기' : '학생 마이크 모두 끄기') + '</span>';
     $('#w-mall').classList.toggle('warn', am); $('#w-mall').dataset.on = am ? '1' : '';
@@ -1134,14 +1178,15 @@
     UI.show('#st-join', false);
     UI.show('#st-ctrls', !!stageLocal);
     UI.show('#b-join', !stageLocal);
+    var wk = $('#w-ptt kbd'); if (wk) wk.hidden = !!stageLocal;   // 멘토링실에 들어가 있으면 스페이스바는 멘토링실 말하기
     if (stageLocal) {
       var at = stageLocal.getAudioTracks()[0], vt = stageLocal.getVideoTracks()[0], talking = !!(at && at.enabled);
-      $('#b-smic').textContent = pttMode ? '마이크 켜기(계속)' : '마이크 끄기';
+      $('#b-smic').textContent = pttMode ? '마이크 계속 켜기' : '마이크 끄기';
       UI.show('#b-ptt', pttMode);
       var ht = $('#h-talk');
       ht.classList.toggle('live', talking && pttMode);
       ht.classList.toggle('ok', talking && !pttMode);
-      ht.querySelector('span:last-child').textContent = talking ? (pttMode ? '멘토링실에 말하는 중' : '멘토링실 마이크 켜짐') : '멘토링실 마이크 꺼짐 · 스페이스바를 누르고 말하기';
+      ht.querySelector('span:last-child').textContent = talking ? (pttMode ? '말하는 중' : '마이크 켜짐') : '마이크 꺼짐';
       $('#b-scam').textContent = vt && vt.enabled ? '카메라 끄기' : '카메라 켜기';
       $('#b-scam').classList.toggle('coral', !(vt && vt.enabled));
     }

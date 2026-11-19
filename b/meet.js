@@ -492,7 +492,8 @@
   var Media = {
     get: function (o) {
       o = o || {};
-      var video = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } };
+      var video = CFG.CAM_43 ? { width: { ideal: 960 }, height: { ideal: 720 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30, max: 30 } }   // 4:3(무용)
+        : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } };
       if (o.videoId) video.deviceId = { exact: o.videoId }; else video.facingMode = o.facing || 'user';
       var audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
       if (o.audioId) audio.deviceId = { exact: o.audioId };

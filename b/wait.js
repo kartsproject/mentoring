@@ -377,7 +377,7 @@
   };
   WaitRoom.prototype.setCam = async function (on) {
     if (on && !this.cam) {
-      try { this.cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 24 } }, audio: false }); }
+      try { this.cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 720 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 24, max: 24 } }, audio: false }); }
       catch (e) { UI.toast('카메라를 켜지 못했습니다'); return false; }
       if (this.sfu && this.sfu.sid) await this.sfu.publish('cam', this.cam.getVideoTracks()[0]);
     } else if (!on && this.cam) {
