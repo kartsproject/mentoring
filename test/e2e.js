@@ -178,6 +178,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   const lay = await panel.evaluate(() => { const z = document.querySelector('#w-grid .wz.bot'), t = document.querySelector('#w-grid .wz.top'); return { cols: getComputedStyle(z).gridTemplateColumns.split(' ').length, topRows: new Set([...t.children].map(c => Math.round(c.getBoundingClientRect().top))).size }; });
   if (lay.cols !== Math.min(4, await panel.evaluate(() => document.querySelectorAll('#w-grid .wz.bot .wt').length)) || lay.topRows > 1) throw new Error('layout: ' + JSON.stringify(lay));
   log('대기실 배치: 학생 한 줄 ' + lay.cols + '명, 운영진 ' + lay.topRows + '줄');
+  // 대기실 소리 켬 ↔ 멘토링실 소리 끔(대기실 창 → 녹화 창에도 반영)
+  await panel.click('#w-listen');
+  await waitFor(ops, () => { const a = window.__audio(); return !a.mentoring && a.vM; }, null, 5000, 'mentoring muted when waiting on');
+  if (!(await panel.evaluate(() => window.__audio().waiting))) throw new Error('waiting room sound should be on');
+  await panel.click('#w-listen');
+  await waitFor(ops, () => { const a = window.__audio(); return a.mentoring && !a.vM; }, null, 5000, 'mentoring sound back');
+  if (await panel.evaluate(() => window.__audio().waiting)) throw new Error('waiting room sound should be off');
+  log('대기실 소리 켬 → 녹화 창 멘토링실 소리 꺼짐, 대기실 소리 끔 → 멘토링실 소리 켜짐');
 
   // 대기실 채팅·공지
   if (await sA.evaluate(() => { const c = document.querySelector('.chat'); return !!(c && c.offsetParent); })) throw new Error('채팅은 없어야 함');

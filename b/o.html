@@ -451,7 +451,7 @@
       </div>
       <section class="wbox" id="wbox">
         <div class="wbh"><b><i></i>대기실</b><small id="w-cnt"></small><span class="sp"></span>
-          <button class="wb" type="button" id="w-listen" title="대기실 학생들의 소리를 이 창에서 듣습니다"></button>
+          <button class="wb" type="button" id="w-listen" title="켜면 대기실 소리가 들리고 멘토링실 소리는 꺼집니다. 끄면 멘토링실 소리가 다시 들립니다."></button>
           <button class="wb" type="button" id="w-ptt" title="누르고 있는 동안(또는 키보드 스페이스바를 누르고 있는 동안) 대기실 전체에 말합니다">누르고 말하기 <kbd>Space</kbd></button>
           <button class="wb" type="button" id="w-open" title="켜 두면 누르지 않아도 대기실에 내 소리가 들립니다"></button>
           <button class="wb op-only" type="button" id="w-mall" title="대기실에 있는 학생 마이크를 한꺼번에 끄거나 켭니다"></button>
@@ -722,7 +722,24 @@
     $('#w-mall').classList.toggle('warn', am); $('#w-mall').dataset.on = am ? '1' : '';
   }
   $('#w-mall').onclick = async function () { var b = this; b.disabled = true; await wr.muteAll(!b.dataset.on); b.disabled = false; };
-  $('#w-listen').onclick = function () { wr.setListen(!wr.listen); paintWr(); };
+  // 소리 하나만: 대기실 소리 켬 → 멘토링실 소리 끔 / 대기실 소리 끔 → 멘토링실 소리 켬(녹화 소리와는 무관)
+  // 녹화 창과 대기실 창을 나눠 쓸 때도 두 창이 함께 바뀜(같은 PC·브라우저)
+  var audioBC = null; try { audioBC = new BroadcastChannel('karts-room-audio'); } catch (e) {}
+  function applyRoomAudio(waiting, fromOther) {
+    if (wr) wr.setListen(waiting);
+    soundOn = !waiting;
+    $('#b-sound').textContent = soundOn ? '영상 소리 켬' : '영상 소리 끔';
+    $('#v-M').muted = $('#v-S').muted = !soundOn;
+    if (view && !PANEL) paintStage();
+    paintWr();
+    if (!fromOther && audioBC) try { audioBC.postMessage({ r: r, waiting: !!waiting }); } catch (e) {}
+  }
+  if (audioBC) audioBC.onmessage = function (e) { if (e.data && e.data.r === r) applyRoomAudio(!!e.data.waiting, true); };
+  window.__audio = function () { return { waiting: !!(wr && wr.listen), mentoring: soundOn, vM: $('#v-M').muted }; };   // 시험용
+  $('#w-listen').onclick = function () {
+    var on = !wr.listen; applyRoomAudio(on);
+    UI.toast(on ? '대기실 소리를 켜고 멘토링실 소리를 껐습니다' : '멘토링실 소리를 켜고 대기실 소리를 껐습니다', 2500);
+  };
   $('#w-open').onclick = async function () { await wr.setOpenMic(!wr.openMic); paintWr(); UI.toast(wr.openMic ? '대기실에 내 소리가 들립니다' : '대기실 마이크를 껐습니다'); };
   $('#w-camb').onclick = async function () { this.disabled = true; await wr.setCam(!wr.cam); this.disabled = false; paintWr(); };
   (function () {
@@ -970,11 +987,7 @@
     sess.chat.gv = -1;   // 채팅 다시 받기
     UI.toast(j.ok ? '회차를 초기화했습니다' : '초기화하지 못했습니다');
   };
-  $('#b-sound').onclick = function () {
-    soundOn = !soundOn;
-    this.textContent = soundOn ? '영상 소리 켬' : '영상 소리 끔';
-    $('#v-M').muted = $('#v-S').muted = !soundOn;
-  };
+  $('#b-sound').onclick = function () { applyRoomAudio(soundOn); };   // 멘토링실 소리를 끄면 대기실 소리가 켜짐
   function goOut() {
     try { sessionStorage.removeItem('meet_ops_login'); } catch (e) {}
     location.href = location.pathname + (r ? '?r=' + encodeURIComponent(r) : '') + (PANEL ? (r ? '&' : '?') + 'mode=room' : '');
