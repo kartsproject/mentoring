@@ -106,7 +106,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   if (await res.isVisible('#p-rec') || await res.isVisible('#chatForm')) throw new Error('research should not see recording/chat send');
   await sleep(1200); await SHOT(res, 'research_empty');
   if (await res.isVisible('#b-stage')) throw new Error('화면 등장 버튼은 없어야 함(멘토링실은 멘토·학생만)');
-  log('research: no 화면 등장 (멘토링실 = 멘토 + 진행 중 학생만)');
+  if (!(await res.isVisible('#b-join'))) throw new Error('연구원: 멘토링실 들어가기 버튼');
+  log('research: 큰 화면 등장 없음, 「멘토링실 들어가기」 버튼 있음');
   await res.close();
 
   // 학생 A: 이름+생년월일 → 유의사항 → 카메라 → 대기실
@@ -179,10 +180,10 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   if (lay.cols !== Math.min(4, await panel.evaluate(() => document.querySelectorAll('#w-grid .wz.bot .wt').length)) || lay.topRows > 1) throw new Error('layout: ' + JSON.stringify(lay));
   log('대기실 배치: 학생 한 줄 ' + lay.cols + '명, 운영진 ' + lay.topRows + '줄');
   // 대기실 소리 켬 ↔ 멘토링실 소리 끔(대기실 창 → 녹화 창에도 반영)
-  await panel.click('#w-listen');
+  await panel.click('#apill button[data-s="w"]');
   await waitFor(ops, () => { const a = window.__audio(); return !a.mentoring && a.vM; }, null, 5000, 'mentoring muted when waiting on');
   if (!(await panel.evaluate(() => window.__audio().waiting))) throw new Error('waiting room sound should be on');
-  await panel.click('#w-listen');
+  await panel.click('#apill button[data-s="m"]');
   await waitFor(ops, () => { const a = window.__audio(); return a.mentoring && !a.vM; }, null, 5000, 'mentoring sound back');
   if (await panel.evaluate(() => window.__audio().waiting)) throw new Error('waiting room sound should be off');
   log('대기실 소리 켬 → 녹화 창 멘토링실 소리 꺼짐, 대기실 소리 끔 → 멘토링실 소리 켜짐');
@@ -224,6 +225,30 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(ops, () => window.__rec().recording() && /학생가/.test(window.__rec().health().name), null, 20000, 'student file');
   if (!(await ops.evaluate(() => document.querySelector('#b-rec-stop').disabled))) throw new Error('멘토링 중에는 녹화 중지 불가여야 함');
   log('recording started on host window (대기 녹화 꺼져 있어도 멘토링은 자동 녹화, 중지 버튼 잠김):', await ops.evaluate(() => window.__rec().health().name));
+  // 연구원 멘토링실 참여(멘토링 중): 멘토 화면에 작게, 마이크 켜면 학생 화면에 작게 + 소리, 녹화에도
+  const res2 = await mk('research2');
+  await res2.goto(BASE + '/b/o.html?r=test');
+  await res2.click('.seg label:nth-child(2)');
+  await res2.fill('#g-name', '연구원B'); await res2.fill('#g-code', 'r1234'); await res2.click('#g-btn');
+  await res2.waitForSelector('#s-main:not(.hide)');
+  await res2.click('#b-join');
+  await waitFor(res2, () => !document.querySelector('#st-ctrls').classList.contains('hide'), null, 15000, 'research joined room');
+  await waitFor(mentor, () => { const v = document.querySelector('#m-rp .rpip video'); return v && v.videoWidth > 0; }, null, 40000, 'mentor sees research pip');
+  log('연구원 멘토링실 들어감 → 멘토 화면 왼쪽 위 작은 화면(멘토 본인 화면과 함께)');
+  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 30000, 'student has hidden research pip');
+  await res2.keyboard.down('Space');
+  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip:not(.off)'); return c && c.querySelector('video').videoWidth > 0 && c.querySelector('video').srcObject.getAudioTracks().length; }, null, 20000, 'student sees research when mic on');
+  await waitFor(mentor, () => !!document.querySelector('#m-rp .rpip.talk'), null, 20000, 'mentor sees research talking');
+  log('연구원 스페이스바(마이크 켬) → 학생 화면 왼쪽 위에 연구원 작은 화면 + 소리, 멘토 화면 초록 테두리');
+  await SHOT(sA, 'stu_live_research'); await SHOT(mentor, 'mentor_live_research');
+  await res2.keyboard.up('Space');
+  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 20000, 'student hides research when mic off');
+  await waitFor(ops, () => window.__rec().pips.length >= 1, null, 20000, 'recording includes research pip');
+  log('마이크 끔 → 학생 화면에서 숨김, 녹화에는 연구원 작은 화면·소리 포함');
+  await res2.click('#b-stoff');
+  await waitFor(mentor, () => !document.querySelector('#m-rp .rpip'), null, 20000, 'research left room');
+  await res2.context().close();   // 시험 PC 부담 줄이기
+  log('연구원 「멘토링실에서 나가기」 → 멘토 화면에서 사라짐');
   if (process.env.SHOTS) { await SHOT(ops, 'ops_popup_start'); await ops.evaluate(() => { window.__tShift = 9 * 60000 + 5000; }); await sleep(1200); await SHOT(ops, 'ops_last1min'); await SHOT(panel, 'panel_last1min'); await ops.evaluate(() => { window.__tShift = 0; }); await ops.setViewportSize({ width: 1920, height: 1080 }); await sleep(1500); await SHOT(ops, 'ops_1920'); await ops.setViewportSize({ width: 1600, height: 950 }); }
   if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
   await SHOT(ops, 'ops_split');

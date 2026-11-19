@@ -95,7 +95,7 @@
       if (st.id === endedId && !st.done) return Object.assign({}, st, { done: Date.now() });
       return st;
     });
-    if (ov.cur) { q.stage = []; if (q.next && q.next.id === ov.cur.id) q.next = null; }
+    if (ov.cur && q.next && q.next.id === ov.cur.id) q.next = null;   // 멘토링실의 연구원(stage)은 멘토링 중에도 그대로
     return q;
   };
   Session.prototype.flush = async function () {
@@ -215,11 +215,13 @@
    * kind: 'ms'   멘토↔학생 (멘토가 먼저 연결 요청, 양방향)
    *       'view' 운영진 관람 (운영진이 요청, 운영진은 받기만)
    *       'test' 연결 점검 (녹화 담당 운영진이 요청, 데이터만)
+   *       'rs'   연구원 → 멘토링 중인 학생 (연구원이 요청, 연구원 영상·음성만 보냄)
    */
   function Links(sess, o) {
     this.s = sess;
     this.map = new Map();
     this.getLocal = o.getLocal || function () { return null; };
+    this.localFor = o.localFor || null;   // 연결 종류별로 다른 내 영상·음성을 보낼 때(연구원 → 학생)
     this.onRemote = o.onRemote || function () {};
     this.onChange = o.onChange || function () {};
     this.onData = o.onData || function () {};
@@ -245,6 +247,7 @@
     return this.map.get(this.key(kind, peer, 'offer')) || this.map.get(this.key(kind, peer, 'answer'));
   };
   Links.prototype.all = function () { return Array.from(this.map.values()); };
+  Links.prototype.local = function (kind) { return this.localFor ? this.localFor(kind) : this.getLocal(); };
   Links.prototype.byCid = function (cid) { return this.all().find(function (L) { return L.cid === cid; }); };
 
   Links.prototype.make = function (kind, peer, cid, role, peerNonce) {
@@ -310,15 +313,22 @@
     var L = this.make(kind, peer, rid(), 'offer', peerNonce);
     var pc = L.pc;
     if (kind === 'ms') {
-      var ls = this.getLocal();
+      var ls = this.local(kind);
       if (ls) ls.getTracks().forEach(function (t) { pc.addTrack(t, ls); });
       else { pc.addTransceiver('audio'); pc.addTransceiver('video'); }
+      this.applyOne(L);
+    } else if (kind === 'rs') {   // 보내기만
+      var rs = this.local(kind);
+      ['audio', 'video'].forEach(function (k) {
+        var t = rs && rs.getTracks().find(function (x) { return x.kind === k; });
+        pc.addTransceiver(t || k, { direction: 'sendonly', streams: rs ? [rs] : [] });
+      });
       this.applyOne(L);
     } else if (kind === 'view') {
       pc.addTransceiver('audio', { direction: 'recvonly' });
       pc.addTransceiver('video', { direction: 'recvonly' });
     }
-    if (kind === 'ms' || kind === 'view') {
+    if (kind === 'ms' || kind === 'view' || kind === 'rs') {
       L.dc = pc.createDataChannel('c');   // 빠른 신호용 통로
       this.wireDc(L);
     } else {
@@ -345,7 +355,7 @@
       await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
       if (this.pendC[m.cid]) { this.addCands(L, this.pendC[m.cid]); delete this.pendC[m.cid]; }
       if (m.kind === 'ms' || m.kind === 'view') {
-        var ls = this.getLocal();
+        var ls = this.local(m.kind);
         if (ls) ls.getTracks().forEach(function (t) { pc.addTrack(t, ls); });
         else { pc.getTransceivers().forEach(function (tr) { try { tr.direction = 'sendrecv'; } catch (e) {} }); }
         this.applyOne(L);
@@ -424,8 +434,9 @@
   // 보내기 정책 적용: 미리 연결(대기) 중에는 트랙을 비워 두었다가, 차례가 되면 즉시 채움(재연결 없음)
   Links.prototype.applyOne = function (L) {
     if (L.kind === 'test') return;
+    if (L.kind === 'rs' && L.role === 'answer') return;   // 학생은 연구원에게 보내지 않음
     var on = this.policy ? !!this.policy(L) : true;
-    var stream = this.getLocal();
+    var stream = this.local(L.kind);
     L.sending = on;
     L.pc.getTransceivers().forEach(function (tr) {
       if (!tr.sender || tr.stopped) return;
@@ -439,8 +450,9 @@
 
   // 카메라 전환 등 내 트랙이 바뀌면 모든 연결에 반영
   Links.prototype.replaceLocal = function (stream) {
+    var self = this;
     this.all().forEach(function (L) {
-      if (L.kind === 'test' || !stream || L.sending === false) return;
+      if (L.kind === 'test' || L.kind === 'rs' || !stream || L.sending === false) { if (L.kind === 'rs' && L.role === 'offer') self.applyOne(L); return; }
       L.pc.getTransceivers().forEach(function (tr) {
         if (!tr.sender || !(tr.currentDirection === 'sendrecv' || tr.currentDirection === 'sendonly' || tr.sender.track)) return;
         var kind = tr.receiver && tr.receiver.track ? tr.receiver.track.kind : (tr.sender.track && tr.sender.track.kind);
@@ -606,6 +618,33 @@
         cell.querySelector('.label').textContent = it.label || '';
       });
       Array.from(box.children).forEach(function (c) { if (!keep[c.dataset.k]) { var v = c.querySelector('video'); if (v) v.srcObject = null; c.remove(); } });
+    },
+    // 작은 화면 묶음(멘토링실의 연구원): items [{key, label, stream, muted, mirror, off(안 보이게 — 소리는 그대로)}]
+    pips: function (box, items) {
+      if (!box) return;
+      var keep = {};
+      items.forEach(function (it, idx) {
+        keep[it.key] = 1;
+        var cell = box.querySelector('[data-k="' + it.key + '"]');
+        if (!cell) {
+          cell = document.createElement('div');
+          cell.className = 'rpip'; cell.dataset.k = it.key;
+          cell.innerHTML = '<video autoplay playsinline></video><span class="rpl"></span><span class="rpm"></span>';
+          box.appendChild(cell);
+        }
+        cell.style.order = idx;
+        var v = cell.querySelector('video');
+        v.muted = !!it.muted;
+        v.classList.toggle('mirror', !!it.mirror);
+        UI.attach(v, it.stream || null);
+        cell.classList.toggle('off', !!it.off);
+        cell.classList.toggle('nov', !(it.stream && it.stream.getVideoTracks().length));
+        cell.classList.toggle('talk', !!it.mic);
+        cell.querySelector('.rpl').textContent = it.label || '';
+        cell.querySelector('.rpm').innerHTML = it.mic ? ICON.mic : ICON.micOff;
+      });
+      Array.from(box.children).forEach(function (c) { if (!keep[c.dataset.k]) { var v = c.querySelector('video'); if (v) v.srcObject = null; c.remove(); } });
+      box.classList.toggle('has', items.some(function (it) { return !it.off; }));
     },
     roleName: function (role) { return role === 'research' ? '연구원' : role === 'ops' ? '운영' : role === 'mentor' ? '멘토' : ''; },
     stateText: function (st) {

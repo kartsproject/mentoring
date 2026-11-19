@@ -46,6 +46,7 @@
     this.ctx = this.canvas.getContext('2d');
     this.tiles = { M: { video: null, label: '' }, S: { video: null, label: '' } };
     this.group = [];      // 멘토링 전 화면 등장(연구원·운영진) — 있으면 오른쪽에 나눠 그림
+    this.pips = [];       // 멘토링실의 연구원 — 학생 칸 왼쪽 위에 작게(소리 포함)
     this.idleText = '';   // 오른쪽이 비었을 때 보일 글(예: 멘토링 대기 중)
     this.title = '';
     this.type = pickType();
@@ -106,6 +107,13 @@
     this.group = (items || []).slice(0, 3).map(function (it) { keep['G:' + it.key] = 1; return { video: it.video, label: it.label || '' }; });
     (items || []).slice(0, 3).forEach(function (it) { self.mixAudio('G:' + it.key, it.stream); });
     Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('G:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
+  };
+  // 멘토링실의 연구원: [{key, video, label, stream, mic}] — 학생 칸 왼쪽 위 작은 화면 + 소리
+  Recorder.prototype.setPips = function (items) {
+    var self = this, keep = {};
+    this.pips = (items || []).slice(0, 3).map(function (it) { keep['P:' + it.key] = 1; return { video: it.video, label: it.label || '', mic: !!it.mic }; });
+    (items || []).slice(0, 3).forEach(function (it) { self.mixAudio('P:' + it.key, it.stream); });
+    Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('P:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
   };
   Recorder.prototype.mixAudio = function (key, stream) {
     var at = stream && stream.getAudioTracks()[0];
@@ -174,6 +182,18 @@
       var n = this.group.length, gh = (th - gap * (n - 1)) / n, self = this;
       this.group.forEach(function (g, i) { self.drawTile(g, tw + gap, top + i * (gh + gap), tw, gh, ''); });
     } else if (!this.layout) this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
+    if (this.pips.length && !this.layout) {
+      var pw = Math.round(tw * 0.24), phh = Math.round(pw * 0.75), px = tw + gap + Math.round(14 * k), self2 = this;
+      this.pips.forEach(function (p, i) {
+        var py = top + Math.round(14 * k) + i * (phh + Math.round(8 * k));
+        c.fillStyle = p.mic ? '#3DDC84' : 'rgba(255,255,255,.35)'; c.fillRect(px - 2, py - 2, pw + 4, phh + 4);
+        self2.drawTile({ video: p.video, label: '' }, px, py, pw, phh, '', '');
+        c.font = '700 ' + Math.round(12 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
+        var lw = Math.min(pw - 8 * k, c.measureText(p.label).width + 12 * k);
+        c.fillStyle = 'rgba(18,19,21,.75)'; c.fillRect(px + 4 * k, py + phh - 22 * k, lw, 18 * k);
+        c.fillStyle = '#fff'; c.fillText(p.label, px + 10 * k, py + phh - 13 * k);
+      });
+    }
     // 상단 표시줄
     c.fillStyle = '#1A1C1F'; c.fillRect(0, 0, W, top);
     ['#4F8AC9', '#D0628A', '#D46C3C', '#4E9B55'].forEach(function (col, i) { c.fillStyle = col; c.fillRect(i * W / 4, top - Math.round(3 * k), W / 4, Math.round(3 * k)); });   // 분야 색 띠

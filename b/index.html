@@ -314,6 +314,7 @@
     <video class="main" id="l-remote" autoplay playsinline></video>
     <div class="overlay" id="l-wait"><div><div class="spinner"></div><h2>멘토와 연결하는 중</h2><p>잠시만 기다려 주세요</p></div></div>
     <span class="label" id="l-rlabel">멘토</span>
+    <div class="rpips" id="l-rp"></div>
     <div class="ready-banner hide" id="l-banner">멘토링이 시작되었습니다</div>
     <div class="pip"><video id="l-self" autoplay playsinline muted></video></div>
     <div class="ctrls">
@@ -393,7 +394,11 @@
       $('#conn').classList.toggle('off', !ok);
       $('#conn').querySelector('span').textContent = ok ? '실시간 연결됨' : '연결 확인 중…';
     });
-    sess.on('ev', function (m) { if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev }); else sess.kick(); });
+    sess.on('ev', function (m) {
+      if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev });
+      else if (m.k === 'rmic') { RMIC[m.from] = { on: !!m.on, at: Date.now() }; renderLive(); }   // 연구원 마이크 켬·끔(바로 반영)
+      else sess.kick();
+    });
     renderSched();
     sess.start();   // 유의사항을 보는 동안에도 '접속 중'으로 표시
   }
@@ -688,12 +693,21 @@
   ['pointerdown', 'mousedown'].forEach(function (t) { $('#sendBtn').addEventListener(t, function (e) { if (document.activeElement === $('#text')) e.preventDefault(); }, { passive: false }); });
 
   /* ⑤ 멘토링 화면 */
+  var RMIC = {};
   function renderLive() {
-    if (screen !== 's-live') return;
+    if (screen !== 's-live') { UI.pips($('#l-rp'), []); return; }
     var L = links.get('ms', 'M');
     var ok = L && L.state === 'connected' && L.stream.getVideoTracks().length;
     UI.show('#l-wait', !ok);
     if (L) UI.attach($('#l-remote'), L.stream);
+    // 멘토링실의 연구원: 마이크를 켰을 때만 왼쪽 위에 작게(소리는 연구원이 말할 때만 들림)
+    var room = (lastV && lastV.called && lastV.room) || [];
+    UI.pips($('#l-rp'), room.map(function (m) {
+      var RL = links.get('rs', m.id), ev = RMIC[m.id];
+      var mic = ev && Date.now() - ev.at < 6000 ? ev.on : !!m.mic;
+      var st = RL && RL.state === 'connected' ? RL.stream : null;
+      return { key: m.id, label: UI.roleName(m.role) + ' ' + m.name, stream: st, mic: mic, off: !mic || !st };
+    }));
   }
   function tick() {
     if (screen !== 's-live' || !lastCurAt) return;
@@ -701,7 +715,7 @@
     var el = sess.now() - lastCurAt;
     var tm = $('#l-timer');
     tm.textContent = UI.mmss(slot - el);
-    tm.className = 'timer' + (el > slot ? ' over' : el > fb ? ' q' : '');
+    tm.className = 'timer' + (el > fb ? ' q' : '');   // 2분 남으면 노랑(시간 초과도 노랑)
     $('#l-title').textContent = el > fb && el <= slot ? '질의응답 시간' : '멘토링 중';
   }
 

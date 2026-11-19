@@ -285,3 +285,16 @@ body.dark .chip.on, .dk .chip.on { background: var(--rec); color: #fff; }
   .wring { padding: 3px 5px; }
   .wring span { display: none; }
 }
+
+/* 멘토링실의 연구원 — 작은 화면(멘토·학생·운영 화면 공통, Ver.2.15) */
+.rpips { position: absolute; left: 14px; top: 14px; z-index: 4; display: flex; flex-direction: column; gap: 8px; width: 17%; min-width: 104px; max-width: 210px; pointer-events: none; }
+.rpip { position: relative; aspect-ratio: 4/3; border-radius: 10px; overflow: hidden; background: #0B0C0D; border: 1px solid rgba(255,255,255,.22); box-shadow: 0 8px 22px rgba(0,0,0,.45); }
+.rpip video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rpip video.mirror { transform: scaleX(-1); }
+.rpip.off { position: absolute; width: 1px; height: 1px; opacity: 0; border: 0; box-shadow: none; }   /* 안 보이게(소리는 그대로) */
+.rpip.nov video { visibility: hidden; }
+.rpip.talk { border-color: #3DDC84; box-shadow: 0 0 0 2px #3DDC84, 0 8px 22px rgba(0,0,0,.45); }
+.rpip .rpl { position: absolute; left: 5px; bottom: 5px; right: 30px; background: rgba(0,0,0,.62); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rpip .rpm { position: absolute; right: 5px; bottom: 5px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(214,69,65,.92); color: #fff; }
+.rpip.talk .rpm { background: #2F8A57; }
+.rpip .rpm svg { width: 12px; height: 12px; }

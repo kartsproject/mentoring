@@ -1,13 +1,14 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.4
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.5
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
- *  - 회차별 진행 상태(현재 학생, 완료, ZOOM 전환, 화면 등장) 보관
+ *  - 회차별 진행 상태(현재 학생, 완료, ZOOM 전환, 멘토링실 참여) 보관
  *  - 대기실: 학생 본인 확인(이름+생년월일), 대기실 채팅, 상단 고정 공지
  *  - Cloudflare TURN 임시 접속증 발급(스크립트 속성에 키가 있을 때만)
  *  - 대기실 화상(Ver.2.2): Cloudflare Realtime SFU 연결 요청을 앱 비밀키로 대신 보냄(비밀키는 브라우저에 가지 않음)
  *  - 시트 「명단」「회차」 읽기, 「기록」「채팅」 남기기
+ *  - (Ver.2.5) 연구원 멘토링실 참여: 멘토링 중에도 멘토링실에 남아 카메라·마이크로 함께함(학생에게는 마이크를 켰을 때만 보임)
  *
  * 비밀값은 코드에 넣지 않습니다. [프로젝트 설정 > 스크립트 속성]에 넣습니다.
  *  MENTOR_CODE        멘토 접속 코드
@@ -26,7 +27,7 @@
 var TTL = 21600;           // 캐시 보관 6시간(최대값)
 var SEEN_LIVE_MS = 12000;  // 이 시간 안에 신호가 있으면 '접속 중'
 var MB_MAX = 60;           // 메시지함 최대 개수
-var STAGE_MAX = 3;         // 멘토링 전 화면에 함께 등장할 수 있는 연구원·운영진 수
+var STAGE_MAX = 3;         // 멘토링실에 함께 들어갈 수 있는 연구원(·운영진) 수
 var CHAT_MAX = 300;        // 회차별 채팅 보관 개수(화면용, 전체 기록은 시트 「채팅」)
 var BC_MAX = 10;           // 상단 고정 공지 보관 개수
 var SLOT_MIN = 10;         // 1인 멘토링 시간(분) — 「멘토링 시간」에 끝 시각이 없을 때 사용
@@ -329,9 +330,10 @@ function view_(r, s, id, role, now) {
   var live = function (i) { return !!(seen[i] && now - seen[i].t < SEEN_LIVE_MS); };
   // 영상을 받는 운영진·연구원(대기실 창은 영상을 받지 않음)
   var ops = Object.keys(s.parts).filter(function (i) { return isStaff_(s.parts[i].role) && !s.parts[i].panel && live(i); });
-  var stage = s.cur ? [] : Object.keys(s.stage).filter(function (i) { return s.parts[i] && live(i); })
+  // 멘토링실에 들어온 연구원(·운영진): 멘토링 중에도 유지(Ver.2.5)
+  var stage = Object.keys(s.stage).filter(function (i) { return s.parts[i] && live(i); })
     .sort(function (a, b) { return s.stage[a] - s.stage[b]; })
-    .map(function (i) { return { id: i, name: s.parts[i].name, role: s.parts[i].role, info: seen[i] ? seen[i].info : null }; });
+    .map(function (i) { var inf = seen[i] ? seen[i].info : null; return { id: i, name: s.parts[i].name, role: s.parts[i].role, info: inf, mic: !!(inf && inf.mic) }; });
   var cur = s.cur ? { id: s.cur.id, name: s.cur.name, no: s.cur.no, at: s.cur.at, live: live(s.cur.id) } : null;
   var se = sessions_()[r] || { r: r, date: '', mentor: '', brk: 0 };
 
@@ -393,6 +395,8 @@ function view_(r, s, id, role, now) {
       done: !!s.done[id],
       test: s.test[id] || null,
       zoomUrl: s.zoom[id] ? s.zoomUrl : '',
+      // 멘토링 중인 학생에게: 멘토링실에 있는 연구원(마이크를 켰을 때만 학생 화면에 보임)
+      room: (s.cur && s.cur.id === id) ? stage.map(function (m) { return { id: m.id, name: m.name, role: m.role, mic: m.mic, n: m.info && m.info.n || '' }; }) : [],
       wr: wr, wallMute: s.wallMute || null, wmuteAt: (s.parts[id] && s.parts[id].wmuteAt) || 0, ringAt: (s.parts[id] && s.parts[id].ringAt) || 0
     };
   }
@@ -487,13 +491,12 @@ function op_(r, req) {
     var s = getState_(r);
     var me = s.parts[id];
     if (!me || !isStaff_(me.role)) throw new Error('forbidden');
-    if (me.role === 'research' && cmd !== 'stage') throw new Error('forbidden'); // 연구원은 화면 등장만
+    if (me.role === 'research' && cmd !== 'stage') throw new Error('forbidden'); // 연구원은 멘토링실 참여만
     name = me.name;
     var now = Date.now();
     switch (cmd) {
       case 'stage':
         if (req.on) {
-          if (s.cur) return { ok: false, error: 'busy' };
           var seenNow = seenMap_(r, s);
           Object.keys(s.stage).forEach(function (i) {   // 나간 사람 정리
             if (i !== id && !(seenNow[i] && now - seenNow[i].t < SEEN_LIVE_MS)) delete s.stage[i];
@@ -513,7 +516,6 @@ function op_(r, req) {
         var at = Number(req.at);                          // 운영 화면이 즉시 알린 시작 시각(타이머 일치)
         if (!(at && Math.abs(at - now) < 15000)) at = now;
         s.cur = { id: sid, name: nm, no: no, at: at };
-        s.stage = {};   // 멘토링이 시작되면 연구원·운영진은 화면에서 내려감
         delete s.done[sid];
         delete s.zoom[sid];
         log_(r, '시작', nm, '');
