@@ -35,6 +35,25 @@
     return function () { w.postMessage(0); w.terminate(); };
   }
 
+  /* 영상 프레임을 트랙에서 직접 받음(MediaStreamTrackProcessor)
+   * — 녹화 창이 다른 창(대기실 창 등)에 가려지거나 다른 탭을 봐도 녹화 영상이 멈추지 않게. 지원하지 않는 브라우저는 <video>로 그림 */
+  function makeTap(track) {
+    if (!track || typeof window.MediaStreamTrackProcessor !== 'function') return null;
+    try {
+      var clone = track.clone(), reader = new window.MediaStreamTrackProcessor({ track: clone }).readable.getReader();
+      var t = { src: track.id, frame: null, at: 0, dead: false,
+        stop: function () { this.dead = true; try { reader.cancel(); } catch (e) {} try { clone.stop(); } catch (e) {} if (this.frame) { try { this.frame.close(); } catch (e) {} this.frame = null; } } };
+      (function pump() {
+        reader.read().then(function (r) {
+          if (r.done || t.dead) { if (r.value) r.value.close(); return; }
+          if (t.frame) t.frame.close();
+          t.frame = r.value; t.at = Date.now(); pump();
+        }).catch(function () {});
+      })();
+      return t;
+    } catch (e) { return null; }
+  }
+
   function Recorder(o) {
     o = o || {};
     // 녹화 파일 해상도: FHD(1920×1080) 기본 — 창 크기와 무관하게 이 크기로 그려 저장
@@ -60,11 +79,12 @@
     try { var cs = this.ac.createConstantSource(); cs.offset.value = 0; cs.connect(this.dest); cs.start(); } catch (e) {}
     this.idle = { M: '', S: '' };
     this.srcNodes = {};
+    this.taps = {};
     var self = this;
     this.skipped = 0;
     live.push(this);
     var stopT = null;
-    this.stopTimer = function () { live = live.filter(function (r) { return r !== self; }); if (stopT) stopT(); };
+    this.stopTimer = function () { live = live.filter(function (r) { return r !== self; }); if (stopT) stopT(); Object.keys(self.taps).forEach(function (k) { self.taps[k].stop(); }); self.taps = {}; };
     stopT = workerTimer(this.fps, function () {
       // PC가 버거우면 그리기를 건너뜀(화면·조작이 멈추지 않게) — 녹화는 그대로, 초당 장면 수만 줄어듦
       if (!self.recording()) return;   // 녹화 중이 아니면 그리지 않음(멈춘 녹화기가 PC를 쓰지 않게)
@@ -83,10 +103,17 @@
   Recorder.prototype.ext = function () { return /mp4/.test(this.type) ? 'mp4' : 'webm'; };
   Recorder.prototype.resume = function () { if (this.ac.state !== 'running') return this.ac.resume(); return Promise.resolve(); };
 
+  // 영상 트랙 → 프레임 받기(같은 트랙이면 그대로, 바뀌면 새로)
+  Recorder.prototype.tapFor = function (key, stream) {
+    var tr = stream && stream.getVideoTracks()[0], t = this.taps[key];
+    if (t && (!tr || t.src !== tr.id || tr.readyState === 'ended')) { t.stop(); delete this.taps[key]; t = null; }
+    if (!t && tr && tr.readyState === 'live') { t = makeTap(tr); if (t) this.taps[key] = t; }
+    return t;
+  };
   // key: 'M' | 'S'
   Recorder.prototype.setTile = function (key, video, label, stream) {
     var t = this.tiles[key];
-    t.video = video; t.label = label || '';
+    t.video = video; t.label = label || ''; t.tap = this.tapFor('T:' + key, stream);
     var at = stream && stream.getAudioTracks()[0];
     var cur = this.srcNodes[key];
     if (cur && cur.trackId === (at && at.id)) return;
@@ -103,7 +130,8 @@
   // 멘토링실의 연구원: [{key, video, label, stream, mic}] — 학생 칸 왼쪽 위 작은 화면 + 소리
   Recorder.prototype.setPips = function (items) {
     var self = this, keep = {};
-    this.pips = (items || []).slice(0, 3).map(function (it) { keep['P:' + it.key] = 1; return { video: it.video, label: it.label || '', mic: !!it.mic }; });
+    this.pips = (items || []).slice(0, 3).map(function (it) { keep['P:' + it.key] = 1; return { video: it.video, label: it.label || '', mic: !!it.mic, tap: self.tapFor('P:' + it.key, it.stream) }; });
+    Object.keys(this.taps).forEach(function (k) { if (k.indexOf('P:') === 0 && !keep[k]) { self.taps[k].stop(); delete self.taps[k]; } });
     (items || []).slice(0, 3).forEach(function (it) { self.mixAudio('P:' + it.key, it.stream); });
     Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('P:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
   };
@@ -140,7 +168,7 @@
       this.pips.forEach(function (p, i) {
         var py = top + Math.round(14 * k) + i * (phh + Math.round(8 * k));
         c.fillStyle = p.mic ? '#3DDC84' : 'rgba(255,255,255,.35)'; c.fillRect(px - 2, py - 2, pw + 4, phh + 4);
-        self2.drawTile({ video: p.video, label: '' }, px, py, pw, phh, '', '');
+        self2.drawTile({ video: p.video, tap: p.tap, label: '' }, px, py, pw, phh, '', '');
         c.font = '700 ' + Math.round(12 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
         var lw = Math.min(pw - 8 * k, c.measureText(p.label).width + 12 * k);
         c.fillStyle = 'rgba(18,19,21,.75)'; c.fillRect(px + 4 * k, py + phh - 22 * k, lw, 18 * k);
@@ -161,9 +189,10 @@
 
   Recorder.prototype.drawTile = function (t, x, y, w, h, fallback, idle) {
     var c = this.ctx, v = t.video || t.img, k = this.k;
+    if (t.tap && t.tap.frame && Date.now() - t.tap.at < 5000) v = t.tap.frame;   // 트랙에서 바로 받은 최신 프레임(창이 가려져도 움직임)
     c.fillStyle = '#000'; c.fillRect(x, y, w, h);
-    var vw = v ? (v.videoWidth || v.naturalWidth || 0) : 0, vh = v ? (v.videoHeight || v.naturalHeight || 0) : 0;
-    var ok = v && vw > 0 && (v.tagName === 'IMG' ? v.complete : v.readyState >= 2);
+    var vw = v ? (v.displayWidth || v.videoWidth || v.naturalWidth || 0) : 0, vh = v ? (v.displayHeight || v.videoHeight || v.naturalHeight || 0) : 0;
+    var ok = v && vw > 0 && (v.displayWidth ? true : v.tagName === 'IMG' ? v.complete : v.readyState >= 2);
     if (ok) {
       var s = Math.min(w / vw, h / vh);
       var dw = vw * s, dh = vh * s;

@@ -303,3 +303,7 @@ body:has(#s-gate.on), body:has(#s-check.on), body:has(.gate:not(.hide)) { backgr
 .fb:hover .fc { background: rgba(255,255,255,.28); }
 .fb .fl { color: #F5F5F7; font-weight: 600; font-size: 12px; }
 .fb .fc svg { width: 25px; height: 25px; }
+
+/* 멘토링을 마친 뒤 안내 화면도 검정 무대 */
+body:has(#s-end.on) { background: #000; }
+#s-end .big { background: var(--kgreen) !important; color: #000 !important; }

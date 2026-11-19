@@ -252,6 +252,9 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await ops.click('.recb:visible'); await sleep(800);
   if (!(await ops.evaluate(() => window.__rec().recording()))) throw new Error('멘토링 중 녹화 버튼을 눌러도 녹화는 계속되어야 함');
   log('recording started on host window (대기 녹화 꺼져 있어도 멘토링은 자동 녹화, 중지 버튼 잠김):', await ops.evaluate(() => window.__rec().health().name));
+  // 녹화 영상은 트랙에서 바로 받음(녹화 창이 가려져도 멈추지 않게) — Ver.2.19
+  await waitFor(ops, () => { const t = window.__rec().taps; return t['T:M'] && t['T:S'] && t['T:S'].frame && Date.now() - t['T:S'].at < 3000; }, null, 20000, 'recorder taps');
+  log('녹화기: 멘토·학생 영상을 트랙에서 직접 받음(창이 가려져도 녹화 영상 유지)');
   // 연구원 멘토링실 참여(멘토링 중): 멘토 화면에 작게, 마이크 켜면 학생 화면에 작게 + 소리, 녹화에도
   const res2 = await mk('research2');
   await res2.goto(BASE + '/b/o.html?r=test');
