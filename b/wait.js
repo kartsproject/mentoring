@@ -141,11 +141,11 @@
   // 대기실 사람들: 위 = 운영진·연구원, 아래 = 학생(운영 화면은 명단 전체 — 접속 안 한 학생은 정보 칸)
   WaitRoom.prototype.people = function () {
     var v = this.view || {}, me = this.sess.id, list = (v.wr || []).slice(), self = this;
-    // 운영진·연구원은 카메라를 켰거나 마이크를 쓴 사람만 칸으로(창만 열어 둔 사람은 칸 없음)
-    var staff = list.filter(function (p) { return p.role !== 'student' && p.id !== me && (p.tr.cam || p.tr.mic); })
+    // 위: 대기실에 있는 운영진·연구원 모두(카메라를 끄면 이름 칸)
+    var staff = list.filter(function (p) { return p.role !== 'student' && p.id !== me; })
       .map(function (p) { return { p: p, zone: 'top', cam: true }; });
     var meIt = null;
-    if (this.on && (this.role === 'student' || this.cam || this.mic)) meIt = { p: { id: me, name: this.sess.name, role: this.role }, me: true, zone: this.role === 'student' ? 'bot' : 'top' };
+    if (this.on) meIt = { p: { id: me, name: this.sess.name, role: this.role }, me: true, zone: this.role === 'student' ? 'bot' : 'top' };
     if (meIt && meIt.zone === 'top') staff.push(meIt);
     var inWr = {}; list.forEach(function (p) { if (p.role === 'student') inWr[p.id] = p; });
     var stu = [];

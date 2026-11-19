@@ -116,6 +116,7 @@
   .wb.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
   .wb.down { background: var(--rec); border-color: var(--rec); color: #fff; }
   #c-chat .wbox { flex: 1; min-height: 0; margin: 10px; position: relative; }
+  #alerts { display: none !important; }   /* 알림 팝업은 쓰지 않음(Ver.2.9) — 대기실 칸 테두리·[시작] 깜빡임으로 */
   #c-chat .setwrap { position: absolute; right: 8px; top: 42px; z-index: 20; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 50px); overflow: auto; background: var(--paper); color: var(--ink); border-radius: 12px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
   #c-chat .setwrap.hide { display: none; }
   #c-chat .bcbox { padding: 8px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; }
@@ -331,7 +332,7 @@
   <form class="card" id="f-gate" autocomplete="off">
     <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>2026 K예술영재 · 무용 온라인 멘토링</div>
     <h1 id="g-title">운영·연구원 화면</h1>
-    <p class="lead" id="g-lead">멘토링 중에는 보기만 하고, 멘토링 전에는 「화면 등장」으로 멘토와 이야기할 수 있습니다.</p>
+    <p class="lead" id="g-lead">왼쪽 멘토링실은 보기만 하고, 오른쪽 대기실에서 학생들과 얼굴을 보며 이야기합니다.</p>
     <div class="seg"><label><input type="radio" name="role" value="ops" checked><span>운영진</span></label><label><input type="radio" name="role" value="research"><span>연구원</span></label></div>
     <div class="autor" id="g-rrow"><span class="autor-l">회차</span><b id="g-rauto"><i class="fdot"></i>오늘 날짜에 맞춰 자동</b><button class="lnk" type="button" id="g-rpick">직접 입력</button></div>
     <label class="field hide" id="g-rbox"><span>회차 <small class="muted">(비우면 자동 · 리허설은 test)</small></span><input id="g-room" autocomplete="off"></label>
@@ -785,7 +786,7 @@
     $('#v-M').muted = $('#v-S').muted = !soundOn;
     UI.show('#o-M', !okM);
     $('#o-M div').textContent = !view.mentorLive ? '멘토 접속 전' : '멘토 화면 연결 중…';
-    var stage = !cur ? (view.stage || []) : [];
+    var stage = [];   // 멘토링실 화면에는 멘토와 진행 중인 학생만(Ver.2.9 — 화면 등장·다음 학생 미리보기 표시 없음)
     UI.grid($('#g-stage'), stage.map(function (m) {
       if (m.id === sess.id) return { key: m.id, label: '나 (' + UI.roleName(m.role) + ')', stream: stageLocal, mirror: true, muted: true };
       var GL = links.get('view', m.id, 'offer');
@@ -794,8 +795,8 @@
     UI.show('#o-S', !okS && !stage.length);
     UI.show('#l-S', !stage.length); UI.show('#st-S', !stage.length);
     var nx = view.next, LN = nx && links.get('view', nx.id, 'offer');
-    UI.show('#nextbar', !!nx);
-    if (nx) {
+    UI.show('#nextbar', false);
+    if (false) {
       UI.attach($('#v-N'), LN && LN.state === 'connected' ? LN.stream : null);
       $('#l-N').textContent = '다음 ' + PREFIX + nx.name;
       var mw = (view.mentorInfo || {}).warm;
@@ -1015,8 +1016,8 @@
   function paintStageBtn() {
     // 빈 학생 칸: 「화면 등장」 / 다른 사람이 나와 있으면 아래에 「나도 화면 등장」 / 내가 나와 있으면 아래에 조작·「화면 끄기」
     var busy = !!(view && view.cur), others = !busy && ((view && view.stage) || []).some(function (m) { return m.id !== sess.id; });
-    UI.show('#b-stage', !busy && !stageLocal); UI.show('#o-S-h', !busy && !stageLocal);
-    UI.show('#st-join', !busy && !stageLocal && others);
+    UI.show('#b-stage', false); UI.show('#o-S-h', false);   // 화면 등장은 쓰지 않음(대기실 화상에서 이야기)
+    UI.show('#st-join', false);
     UI.show('#st-ctrls', !!stageLocal);
     if (stageLocal) {
       var at = stageLocal.getAudioTracks()[0], vt = stageLocal.getVideoTracks()[0], talking = !!(at && at.enabled);

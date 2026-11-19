@@ -55,11 +55,9 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   if (await ops.evaluate(() => !!document.querySelector('.al.absent'))) throw new Error('미접속 팝업은 없어야 함');
   log('학생가: 대기실 접속 시각 지남 → 빨간 테두리 정보 칸(팝업 없음)');
   await SHOT(ops, 'ops_popups');
-  log('top popup alerts:', await ops.evaluate(() => [...document.querySelectorAll('#alerts .al')].map(e => e.className).join(' | ')));
-  await sleep(13000);
-  const left = await ops.evaluate(() => [...document.querySelectorAll('#alerts .al')].filter(e => /absent|due/.test(e.className)).length);
-  log('after 13s, absent/due popups left:', left);
-  if (left) throw new Error('popups should disappear');
+  await sleep(2500);
+  if (await ops.evaluate(() => { const a = document.querySelector('#alerts'); return !!(a && a.offsetParent) || !!document.querySelector('#alerts .al'); })) throw new Error('알림 팝업은 없어야 함');
+  log('no popup alerts on ops screen');
   log('ops roster tiles:', await ops.evaluate(() => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length), '/ cards hidden:', await ops.evaluate(() => getComputedStyle(document.querySelector('#c-list')).display));
   if (!/010-1111-2222/.test(await text(ops, '#w-grid'))) throw new Error('phones not shown on not-connected tile');
   await SHOT(ops, 'ops_half');
@@ -89,18 +87,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res.waitForSelector('#s-main:not(.hide)');
   if (await res.isVisible('#p-rec') || await res.isVisible('#chatForm')) throw new Error('research should not see recording/chat send');
   await sleep(1200); await SHOT(res, 'research_empty');
-  await res.click('#b-stage');
-  await waitFor(mentor, () => { const v = document.querySelector('#g-stage video'); return v && v.videoWidth > 0; }, null, 30000, 'mentor sees researcher');
-  log('mentor sees researcher on stage');
-  await sleep(1500); await SHOT(mentor, 'mentor_stage'); await SHOT(res, 'research');
-  { const png = await ops.evaluate(() => window.__recFrame()); if (png) fs.writeFileSync(path.join(OUT, 's_rec_gap_stage.png'), Buffer.from(png.split(',')[1], 'base64')); }
-  if (!(await res.isVisible('#b-stoff'))) throw new Error('화면 끄기 not shown');
-  const micOnStage = await res.evaluate(() => document.querySelector('#h-talk').textContent);
-  log('research on stage — mic:', micOnStage);
-  if (!/켜짐/.test(micOnStage)) throw new Error('mic should be on when appearing');
-  await res.click('#b-stoff');
-  await waitFor(res, () => !document.querySelector('#b-stage').classList.contains('hide') && document.querySelector('#st-ctrls').classList.contains('hide'), null, 10000, 'back to waiting view');
-  log('화면 끄기 → back to next-student waiting view with 화면 등장 button');
+  if (await res.isVisible('#b-stage')) throw new Error('화면 등장 버튼은 없어야 함(멘토링실은 멘토·학생만)');
+  log('research: no 화면 등장 (멘토링실 = 멘토 + 진행 중 학생만)');
   await res.close();
 
   // 학생 A: 이름+생년월일 → 유의사항 → 카메라 → 대기실
@@ -134,6 +122,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('ops panel waiting-room video:', (await vids(panel, '#w-grid')).join(', '));
   const micA = await sA.evaluate(() => document.querySelector('#w-mic').textContent);
   if (!/켜짐/.test(micA)) throw new Error('student mic should be on in waiting room');
+  await waitFor(sC, () => [...document.querySelectorAll('#wgrid .wz.top .wt.staff')].some(t => /운영진/.test(t.textContent)), null, 30000, 'staff on top (camera off)');
+  log('student C: 위 운영진 칸(카메라 꺼도 이름 칸), 아래 학생:', await sC.evaluate(() => [...document.querySelectorAll('#wgrid .wz.bot .wt .wnm')].map(e => e.textContent).join(', ')));
   // 운영진 카메라 켜기 → 학생 화면에 「운영진 운영A」
   await panel.click('#w-camb');
   await waitFor(sC, () => [...document.querySelectorAll('#wgrid .wt.staff')].some(t => /운영진/.test(t.textContent) && t.querySelector('video').videoWidth > 0), null, 40000, 'student sees ops cam');
@@ -148,7 +138,6 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
 
   // 대기실 채팅·공지
   if (await sA.evaluate(() => { const c = document.querySelector('.chat'); return !!(c && c.offsetParent); })) throw new Error('채팅은 없어야 함');
-  await panel.evaluate(() => document.querySelectorAll('#alerts .al .x').forEach(b => b.click()));   // 알림 팝업이 공지 칸을 가리지 않게
   await panel.fill('#bcText', '앞 순서가 조금 늦어지고 있어요');
   await panel.evaluate(() => { const f = document.querySelector('#bcForm'); f.requestSubmit(); f.requestSubmit(); });   // 두 번 눌러 확인(알림 팝업에 가려지지 않게 직접)
   try { await waitFor(sA, () => !document.querySelector('#bc').hidden && /늦어지고/.test(document.querySelector('#bc').textContent), null, 60000, 'student sees bc'); }

@@ -47,6 +47,7 @@
   };
   Room.prototype.askNotify = function () { try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {} };
   Room.prototype.notify = function (title, body, tag) {
+    if (!this.o.popups) return;
     try { if ('Notification' in window && Notification.permission === 'granted') { var n = new Notification(title, { body: body, tag: tag, requireInteraction: true }); n.onclick = function () { window.focus(); n.close(); }; } } catch (e) {}
   };
 
@@ -205,6 +206,7 @@
   };
   // 화면 위쪽 알림: 학생 목록·시작 버튼을 가리지 않는 자리에 잠깐 떴다가 사라짐
   Room.prototype.pop = function (key, html, ttl, cls, onlyUpdate) {
+    if (!this.o.popups) return;   // 운영 화면 알림 팝업은 쓰지 않음(Ver.2.9)
     var box = $('#alerts'), el = box.querySelector('[data-k="' + key.replace(/"/g, '') + '"]');
     if (!el) {
       if (onlyUpdate) return;
