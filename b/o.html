@@ -115,6 +115,9 @@
   .wb svg { width: 14px; height: 14px; }
   .wb.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
   .wb.down { background: var(--rec); border-color: var(--rec); color: #fff; }
+  .wb.warn { background: #B5413D; border-color: #B5413D; color: #fff; }
+  .wb kbd { font: 700 10px/1 inherit; padding: 2px 4px; border-radius: 4px; border: 1px solid rgba(255,255,255,.3); opacity: .8; }
+  .wb.down kbd { border-color: rgba(255,255,255,.7); }
   #c-chat .wbox { flex: 1; min-height: 0; margin: 10px; position: relative; }
   #alerts { display: none !important; }   /* 알림 팝업은 쓰지 않음(Ver.2.9) — 대기실 칸 테두리·[시작] 깜빡임으로 */
   #c-chat .setwrap { position: absolute; right: 8px; top: 42px; z-index: 20; width: min(420px, calc(100% - 16px)); max-height: calc(100% - 50px); overflow: auto; background: var(--paper); color: var(--ink); border-radius: 12px; padding: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.45); }
@@ -449,8 +452,9 @@
       <section class="wbox" id="wbox">
         <div class="wbh"><b><i></i>대기실</b><small id="w-cnt"></small><span class="sp"></span>
           <button class="wb" type="button" id="w-listen" title="대기실 학생들의 소리를 이 창에서 듣습니다"></button>
-          <button class="wb" type="button" id="w-ptt" title="누르고 있는 동안 대기실 전체에 말합니다">누르고 말하기</button>
+          <button class="wb" type="button" id="w-ptt" title="누르고 있는 동안(또는 키보드 스페이스바를 누르고 있는 동안) 대기실 전체에 말합니다">누르고 말하기 <kbd>Space</kbd></button>
           <button class="wb" type="button" id="w-open" title="켜 두면 누르지 않아도 대기실에 내 소리가 들립니다"></button>
+          <button class="wb op-only" type="button" id="w-mall" title="대기실에 있는 학생 마이크를 한꺼번에 끄거나 켭니다"></button>
           <button class="wb" type="button" id="w-camb" title="대기실 화면에 내 카메라를 보입니다"></button>
           <button class="wb" id="b-set" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정·ZOOM</span></button></div>
       <div class="setwrap hide" id="setwrap">
@@ -490,9 +494,9 @@
   <div class="card">
     <div class="brand"><span class="kmark sm lt" aria-hidden="true"><b>K</b><span><i></i><i></i><i></i><i></i></span></span>운영진 · <span id="rs-who"></span></div>
     <h1 id="rs-t">녹화 <em>준비</em></h1>
-    <p class="lead">이 창은 접속해 있는 동안 <b>계속 녹화</b>합니다. 학생 멘토링은 학생별 파일로, 그 밖의 시간은 「대기」 파일로 나눠 <b>FHD(1920×1080)</b>로 저장됩니다.</p>
+    <p class="lead">이 창은 <b>멘토링이 진행되는 동안 항상 자동 녹화</b>해 학생별 파일로 <b>FHD(1920×1080)</b> 저장합니다. 멘토링 사이(대기) 시간은 녹화하지 않으며, 필요하면 「녹화 시작」을 눌러 「대기」 파일로 녹화합니다.</p>
     <div class="rs-dir" id="rs-dir"></div>
-    <button class="btn full yel" id="rs-go" type="button">저장 폴더 고르고 녹화 시작</button>
+    <button class="btn full yel" id="rs-go" type="button">저장 폴더 고르기</button>
     <button class="btn full ghost" id="rs-other" type="button" style="margin-top:8px">다른 폴더 고르기</button>
     <p class="note">폴더 선택 창에서 바탕화면·다운로드 폴더 자체가 아닌 그 <b>안의 새 폴더</b>를 고르고, 크롬이 묻는 「파일 수정 허용」에 <b>허용</b>(가능하면 「방문할 때마다 허용」)을 눌러 주세요. 창은 닫지 말고 띄워 두세요.</p>
   </div>
@@ -511,7 +515,7 @@
   var PANEL = UI.param('mode') === 'room';      // 대기실 창(영상·녹화 없이 학생·알림·채팅만)
   var TITLE = PANEL ? '대기실 운영 | K예술영재 온라인 멘토링' : '운영 화면 | K예술영재 온라인 멘토링';
   var sess, links = null, rec = null, view = null, r = '', room = null;
-  var lastOffer = {}, testing = null, testTried = {}, recKey = '', manualStop = '', armed = {};
+  var lastOffer = {}, testing = null, testTried = {}, recKey = '', manualStop = '', armed = {}, gapRec = false;   // gapRec: 운영자가 「녹화 시작」을 눌러 멘토링 아닌 시간도 녹화
   var IS_REC = false, recOn = false, leaving = false, lastHostAsk = 0;   // IS_REC: 자동 녹화하는 운영진 녹화 창 · recOn: 이 창에서 녹화함
   var savedZoom = '', soundOn = true, role = 'ops', stageLocal = null, stageWantUntil = 0, tab = 'list', hotN = 0;
   document.title = TITLE;
@@ -565,7 +569,7 @@
     var want = !PANEL && role === 'ops' && C.AUTO_RECORD_OPS !== false;
     IS_REC = want && window.MeetRecorder.autoSaveSupported();
     if (want && !IS_REC) setTimeout(function () { UI.toast('이 브라우저는 폴더 자동 저장이 안 돼 이 창에서는 녹화하지 않습니다. 녹화는 PC 크롬에서 해 주세요.', 6000); }, 800);
-    if (IS_REC) { $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화'); $('#sw-host').parentNode.querySelector('span').textContent = '연결 점검 맡기'; $('#sw-auto').parentNode.querySelector('span').textContent = '자동 녹화(멘토링 아닌 시간도 「대기」 파일로)'; }
+    if (IS_REC) { $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화'); $('#sw-host').parentNode.querySelector('span').textContent = '연결 점검 맡기'; $('#sw-auto').checked = true; $('#sw-auto').parentNode.style.display = 'none'; }   // 녹화 창: 멘토링은 항상 자동 녹화
     setTab(PANEL ? 'chat' : (innerWidth <= 1000 ? 'stage' : 'chat'));
     room = new window.MeetRoom({
       sess: sess, role: role, title: TITLE,
@@ -701,6 +705,7 @@
     }
     room.render(v);
     paintSide();
+    paintWr();
   }
 
   /* 대기실 화상 버튼 */
@@ -710,7 +715,11 @@
     $('#w-listen').innerHTML = UI.ico(wr.listen ? 'vol' : 'volOff') + '<span>' + (wr.listen ? '대기실 소리 켬' : '대기실 소리 끔') + '</span>'; $('#w-listen').classList.toggle('on', wr.listen);
     $('#w-open').innerHTML = '<span>' + (wr.openMic ? '마이크 켜 둠' : '마이크 켜 두기') + '</span>'; $('#w-open').classList.toggle('on', wr.openMic);
     $('#w-camb').innerHTML = '<span>' + (wr.cam ? '내 카메라 켜짐' : '내 카메라') + '</span>'; $('#w-camb').classList.toggle('on', !!wr.cam);
+    var am = !!(view && view.wallMute && view.wallMute.on);
+    $('#w-mall').innerHTML = UI.ico(am ? 'micOff' : 'mic') + '<span>' + (am ? '학생 마이크 모두 켜기' : '학생 마이크 모두 끄기') + '</span>';
+    $('#w-mall').classList.toggle('warn', am); $('#w-mall').dataset.on = am ? '1' : '';
   }
+  $('#w-mall').onclick = async function () { var b = this; b.disabled = true; await wr.muteAll(!b.dataset.on); b.disabled = false; };
   $('#w-listen').onclick = function () { wr.setListen(!wr.listen); paintWr(); };
   $('#w-open').onclick = async function () { await wr.setOpenMic(!wr.openMic); paintWr(); UI.toast(wr.openMic ? '대기실에 내 소리가 들립니다' : '대기실 마이크를 껐습니다'); };
   $('#w-camb').onclick = async function () { this.disabled = true; await wr.setCam(!wr.cam); this.disabled = false; paintWr(); };
@@ -720,6 +729,18 @@
     var up = function () { if (!b.classList.contains('down')) return; b.classList.remove('down'); wr.talk(false); };
     b.addEventListener('pointerdown', dn); ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) { b.addEventListener(t, up); });
     window.addEventListener('blur', up);
+    // 키보드 스페이스바를 누르고 있는 동안 대기실에 말하기(글자 입력 칸에서는 제외)
+    var held = false;
+    document.addEventListener('keydown', function (e) {
+      if (e.code !== 'Space' || stageLocal || !wr || !wr.on || typing(e.target)) return;
+      e.preventDefault();
+      if (e.repeat || held) return;
+      if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();   // 스페이스로 버튼이 눌리지 않게
+      held = true; b.classList.add('down'); wr.talk(true);
+    });
+    var rel = function (e) { if (!held) return; if (e && e.preventDefault) e.preventDefault(); held = false; b.classList.remove('down'); wr.talk(false); };
+    document.addEventListener('keyup', function (e) { if (e.code === 'Space') rel(e); });
+    window.addEventListener('blur', function () { rel(); });
   })();
 
   function onAction(a, id, b) {
@@ -994,7 +1015,7 @@
   /* ───── 화면 등장(멘토링 전) + 스페이스로 말하기 ───── */
   var pttMode = true, pttHeld = false;
   function micOn(on) { if (!stageLocal) return; stageLocal.getAudioTracks().forEach(function (t) { t.enabled = !!on; }); paintStageBtn(); }
-  function typing(el) { return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable); }
+  function typing(el) { return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable); }
   document.addEventListener('keydown', function (e) {
     if (e.code !== 'Space' || !stageLocal || !pttMode || typing(e.target)) return;
     e.preventDefault();
@@ -1115,7 +1136,7 @@
   window.__recFrame = function () { return rec ? rec.canvas.toDataURL('image/png') : ''; };   // 시험용: 지금 녹화 화면
   window.__setRecDir = function (h) { if (rec) { rec.setDir(h); paintDir(); } if (IS_REC && !recOn) recBegin(); };   // 시험용
 
-  /* 녹화 담당: 접속하면 저장 폴더·권한부터 받고, 그 순간부터 계속 녹화 */
+  /* 녹화 담당: 접속하면 저장 폴더·권한부터 받음 → 멘토링은 항상 자동 녹화, 대기 시간은 「녹화 시작」을 눌렀을 때만 */
   async function recSetup() {
     ensureRec(); paintDir();
     var R = window.MeetRecorder, h = R.autoSaveSupported() ? await R.loadDir() : null, perm = '';
@@ -1127,7 +1148,7 @@
     $('#rs-who').textContent = sess.name;
     $('#rs-dir').textContent = !R.autoSaveSupported() ? '이 브라우저는 폴더 자동 저장을 지원하지 않습니다(크롬 권장) — 다운로드로 저장됩니다.'
       : h ? '저장 폴더: 「' + h.name + '」' + (perm === 'granted' ? '' : ' — 이 창에서 쓰려면 권한 허용이 필요합니다.') : '아직 저장 폴더를 정하지 않았습니다.';
-    UI.label('#rs-go', 'folder', !R.autoSaveSupported() ? '녹화 시작' : h ? (perm === 'granted' ? '이 폴더로 녹화 시작' : '권한 허용하고 녹화 시작') : '저장 폴더 고르고 녹화 시작');
+    UI.label('#rs-go', 'folder', !R.autoSaveSupported() ? '녹화 준비' : h ? (perm === 'granted' ? '이 폴더에 저장' : '권한 허용하고 이 폴더에 저장') : '저장 폴더 고르기');
     UI.show('#rs-other', R.autoSaveSupported() && !!h);
     UI.show('#recSetup', true);
   }
@@ -1148,7 +1169,7 @@
       if (list.length) UI.toast('지난 녹화 ' + list.length + '개를 「' + rec.dir.name + '」 폴더에 복구했습니다: ' + list.join(', '), 8000);
     }).catch(function () {});
     if (view && !view.host) { lastHostAsk = Date.now(); sess.op('host', { on: true }); }
-    UI.toast('녹화를 시작합니다' + (rec.dir ? ' · 「' + rec.dir.name + '」 폴더에 자동 저장' : ''), 3500);
+    UI.toast('녹화 준비 완료 — 멘토링은 학생별로 자동 녹화' + (rec.dir ? ' · 「' + rec.dir.name + '」 폴더에 저장' : '') + '. 대기 시간 녹화는 「녹화 시작」', 5000);
     autoRecord();
   }
   $('#rs-go').onclick = function () { recSetupGo(false); };
@@ -1166,7 +1187,7 @@
   // 녹화 구간: 학생마다 한 파일. 녹화 담당은 멘토링이 아닌 시간도 「대기」 파일로 이어서 녹화
   function autoRecord() {
     if (!rec || !view || !recOn || leaving || !rec.supported()) return;
-    var cur = view.cur, key = cur ? cur.id : (IS_REC ? 'gap' : '');
+    var cur = view.cur, key = cur ? cur.id : (IS_REC && gapRec ? 'gap' : '');
     if (key !== autoRecord.k) { if (manualStop && manualStop !== key) manualStop = ''; autoRecord.k = key; }
     if (recKey === 'manual' && !cur) return;
     var LS = cur && links.get('view', cur.id, 'offer');
@@ -1177,8 +1198,8 @@
     }
     if (rec.recording() && key === 'gap' && Date.now() - rec.recAt > (C.GAP_SPLIT_MIN || 30) * 60000) { rec.stop(); recKey = ''; }   // 긴 대기는 나눠 저장
     if (rec.recording() && recKey === 'gap' && !rec.recAudio && rec.ac.state === 'running') { rec.stop(); recKey = ''; }   // 소리가 풀리면 소리 포함으로 새 파일
-    if (!$('#sw-auto').checked || !key || manualStop === key) return;
-    if (!rec.recording() && ready) {
+    if (!key || (!(IS_REC && cur) && (!$('#sw-auto').checked || manualStop === key))) return;   // 녹화 창: 멘토링 중에는 항상 녹화
+    if (!rec.recording() && (ready || (IS_REC && cur))) {   // 녹화가 꺼져 있었으면 멘토링 시작 즉시 녹화(학생 영상은 들어오는 대로)
       paintStage();
       try { rec.start(recName(), recTitle()); recKey = key; }
       catch (e) { console.warn('rec start', e); recIssue = '녹화를 시작하지 못했습니다(' + (e.message || e) + ')'; }
@@ -1188,8 +1209,11 @@
   var recIssue = '', recShouldSince = 0, lastRecAlarm = 0, restarts = [];
   function recWatch() {
     var box = $('#rec-live'); if (!rec || !recOn || !view) { UI.show(box, false); $('#h-rec').classList.remove('bad'); return; }
-    var cur = view.cur, key = cur ? cur.id : (IS_REC ? 'gap' : '');
-    var should = !leaving && $('#sw-auto').checked && !!key && manualStop !== key;
+    var cur = view.cur, key = cur ? cur.id : (IS_REC && gapRec ? 'gap' : '');
+    var should = !leaving && !!key && ((IS_REC && cur) || ($('#sw-auto').checked && manualStop !== key));
+    $('#b-rec-start').disabled = rec.recording();
+    $('#b-rec-stop').disabled = !rec.recording() || !!(IS_REC && cur);
+    $('#b-rec-stop').title = IS_REC && cur ? '멘토링 중에는 녹화를 멈출 수 없습니다(학생이 끝나면 자동 저장)' : '';
     var h = rec.health(), bad = '', warn = '';
     if (h) {
       recShouldSince = 0; recIssue = '';
@@ -1212,7 +1236,11 @@
       if (Date.now() - recShouldSince > 5000) bad = '<b>녹화가 되고 있지 않습니다!</b> ' + (recIssue || '잠시 뒤 자동으로 다시 시작합니다. 계속되면 「녹화 시작」을 눌러 주세요.');
       else { UI.show(box, false); return; }
       box.innerHTML = bad;
-    } else if (!key || leaving) { recShouldSince = 0; UI.show(box, false); return; }
+    } else if (!key || leaving) {
+      recShouldSince = 0;
+      if (IS_REC && !leaving) { box.innerHTML = '녹화 대기 — 멘토링이 시작되면 학생별로 <b>자동 녹화</b>합니다. 지금(대기 시간)도 녹화하려면 「녹화 시작」을 누르세요.'; box.className = 'reclive'; UI.show(box, true); $('#h-rec').classList.remove('bad'); return; }
+      UI.show(box, false); return;
+    }
     else { recShouldSince = 0; box.innerHTML = '녹화 멈춤(수동) — 「녹화 시작」을 누르면 다시 녹화합니다.'; warn = 'x'; }
     box.className = 'reclive' + (bad ? ' bad' : warn ? ' warn' : '');
     UI.show(box, true);
@@ -1227,11 +1255,15 @@
     if (!rec || !recOn) { UI.toast('먼저 「이 PC에서 녹화」를 켜 주세요'); return; }
     if (rec.recording()) return;
     manualStop = ''; paintStage();
+    if (IS_REC && !view.cur) gapRec = true;   // 멘토링 아닌 시간도 「대기」 파일로 계속 녹화(「녹화 중지」 전까지)
     rec.start(recName(), recTitle());
     recKey = view.cur ? view.cur.id : IS_REC ? 'gap' : 'manual';
+    UI.toast(view.cur ? '녹화를 시작했습니다' : '녹화를 시작했습니다 — 멘토링 사이 시간은 「대기」 파일, 멘토링은 학생별 파일로 저장합니다', 4000);
   };
   $('#b-rec-stop').onclick = function () {
     if (!rec || !rec.recording()) return;
+    if (IS_REC && view.cur) { UI.toast('멘토링 중에는 녹화를 멈출 수 없습니다. 학생이 끝나면 자동으로 저장됩니다.', 4000); return; }
+    if (IS_REC) gapRec = false;   // 대기 시간 녹화만 멈춤(다음 멘토링은 다시 자동 녹화)
     manualStop = view.cur ? view.cur.id : IS_REC ? 'gap' : '';
     rec.stop(); recKey = '';
   };

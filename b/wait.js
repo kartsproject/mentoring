@@ -307,13 +307,25 @@
     z.style.setProperty('--wc', best);
     z.style.setProperty('--ww', Math.floor(bestW) + 'px');
   }
+  // 위 운영진·연구원은 가로 한 줄로만, 아래 학생은 한 줄에 5명씩(좁은 휴대폰 화면은 크기에 맞춰 자동)
+  function setZone(z, c, w) { z.style.setProperty('--wc', c); z.style.setProperty('--ww', Math.max(40, Math.floor(w)) + 'px'); }
   WaitRoom.prototype.fit = function () {
     var el = this.el, Z = this.zones; if (!el || !Z) return;
-    var nt = Z.top.children.length, nb = Z.bot.children.length, W = el.clientWidth, H = el.clientHeight;
-    var ht = nt ? Math.max(90, Math.min(Math.round(H * (nb ? 0.3 : 1)), nb ? 260 : H)) : 0;
-    Z.top.style.height = nt ? ht + 'px' : '';
-    fitZone(Z.top, nt, W, ht);
-    fitZone(Z.bot, nb, W, H - ht - (nt ? 8 : 0));
+    var nt = Z.top.children.length, nb = Z.bot.children.length, W = el.clientWidth, H = el.clientHeight, gap = 6;
+    var topH = 0;
+    if (nt) {
+      var wt = (W - gap * (nt - 1)) / nt;
+      var ht = Math.max(48, Math.min(nb ? Math.round(H * 0.26) : H, nb ? 200 : 9999, wt * 3 / 4));
+      setZone(Z.top, nt, Math.min(wt, ht * 4 / 3));
+      topH = Math.ceil(ht) + 9;
+      Z.top.style.height = topH + 'px';
+    } else Z.top.style.height = '';
+    if (!nb) return;
+    var hb = H - topH - (nt ? 8 : 0);
+    if (W < 520) { fitZone(Z.bot, nb, W, hb); return; }
+    var c = Math.min(5, nb), rows = Math.ceil(nb / c), w = (W - gap * (c - 1)) / c;
+    if (hb > 40 && rows * w * 3 / 4 + gap * (rows - 1) > hb) w = ((hb - gap * (rows - 1)) / rows) * 4 / 3;
+    setZone(Z.bot, c, w);
   };
 
   /* ── 운영진·연구원: 말하기·마이크 켜 두기·카메라 ── */
@@ -361,6 +373,14 @@
     if (btn) { if (!(btn.dataset.armed && Date.now() - Number(btn.dataset.armed) < 3000)) { btn.dataset.armed = Date.now(); btn.classList.add('arm'); btn.querySelector('span').textContent = '한 번 더'; setTimeout(function () { btn.classList.remove('arm'); btn.querySelector('span').textContent = '마이크 끄기'; delete btn.dataset.armed; }, 3000); return; } }
     var j = await call(this.sess, { a: 'wr', cmd: 'mute', sid: sid }).catch(function () { return null; });
     UI.toast(j && j.ok ? '학생 마이크를 껐습니다(학생이 다시 켤 수 있음)' : '마이크를 끄지 못했습니다');
+  };
+
+  // (운영진) 대기실 학생 마이크 모두 끄기(on=true)·모두 켜기(on=false)
+  WaitRoom.prototype.muteAll = async function (on) {
+    var j = await call(this.sess, { a: 'wr', cmd: 'muteall', on: !!on }).catch(function () { return null; });
+    if (j && j.ok) { this.sess.kick(); UI.toast(on ? '대기실 학생 마이크를 모두 껐습니다' : '대기실 학생 마이크를 모두 켰습니다'); }
+    else UI.toast('학생 마이크를 바꾸지 못했습니다' + (j && j.error ? ' (' + j.error + ')' : ''));
+    return !!(j && j.ok);
   };
 
   M.WaitRoom = WaitRoom;

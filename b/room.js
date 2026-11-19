@@ -45,7 +45,7 @@
         g.gain.setValueAtTime(.0001, a.currentTime + x[1]); g.gain.exponentialRampToValueAtTime(.3, a.currentTime + x[1] + .02); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + x[1] + .16); o.start(a.currentTime + x[1]); o.stop(a.currentTime + x[1] + .18); });
     } catch (e) {}
   };
-  Room.prototype.askNotify = function () { try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {} };
+  Room.prototype.askNotify = function () { if (!this.o.popups) return; try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {} };
   Room.prototype.notify = function (title, body, tag) {
     if (!this.o.popups) return;
     try { if ('Notification' in window && Notification.permission === 'granted') { var n = new Notification(title, { body: body, tag: tag, requireInteraction: true }); n.onclick = function () { window.focus(); n.close(); }; } } catch (e) {}

@@ -45,9 +45,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await ops.waitForSelector('#recSetup:not(.hide)', { timeout: 10000 });
   await sleep(500); await SHOT(ops, 'ops_recsetup');
   await ops.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));   // 폴더 선택 창 대신(시험용)
-  await waitFor(ops, () => document.querySelector('#recSetup').classList.contains('hide') && !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording on login');
+  await waitFor(ops, () => document.querySelector('#recSetup').classList.contains('hide'), null, 10000, 'rec setup closed');
+  await sleep(2500);
+  if (await ops.evaluate(() => window.__rec().recording())) throw new Error('접속만으로 녹화되면 안 됨');
+  log('접속 → 녹화 대기(자동 녹화 안 함):', (await ops.evaluate(() => document.querySelector('#rec-live').textContent)).slice(0, 30));
+  await ops.click('#b-rec-start');
+  await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide') && window.__rec().recording(), null, 10000, 'gap recording after 녹화 시작');
   await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 30000, 'recorder took host');
-  log('ops 운영A in: folder set → recording from login (대기), host taken');
+  log('ops 운영A in: folder set → 「녹화 시작」 → 대기 녹화, host taken');
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
   await waitFor(ops, () => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length >= 4, null, 15000, 'roster tiles');
   // 대기실 접속 시각이 지난 미접속 학생 → 칸 테두리 빨강(예전 「미접속」 팝업 대신)
@@ -135,6 +140,31 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('ops muted student C → C mic:', await sC.evaluate(() => document.querySelector('#w-mic').textContent));
   await sC.click('#w-mic');
   await panel.click('#w-camb');
+  // 스페이스바로 말하기(운영진)
+  const staffMicOff = () => { const t = [...document.querySelectorAll('#wgrid .wz.top .wt.staff')].find(t => /운영/.test(t.textContent)); return t && !t.querySelector('.wmo').hidden; };
+  await waitFor(sC, staffMicOff, null, 20000, 'staff mic off before space');
+  await panel.keyboard.down('Space');
+  await waitFor(panel, () => document.querySelector('#w-ptt').classList.contains('down'), null, 5000, 'ptt down by space');
+  await waitFor(sC, () => !(() => { const t = [...document.querySelectorAll('#wgrid .wz.top .wt.staff')].find(t => /운영/.test(t.textContent)); return t && !t.querySelector('.wmo').hidden; })(), null, 20000, 'student sees staff talking (space)');
+  await panel.keyboard.up('Space');
+  await waitFor(sC, staffMicOff, null, 20000, 'staff mic off after space up');
+  if (await panel.evaluate(() => document.querySelector('#w-camb').classList.contains('on'))) throw new Error('space should not press buttons');
+  log('ops Space held → 대기실에 말하기, 떼면 끔');
+  // 학생 마이크 모두 끄기·켜기
+  await waitFor(panel, () => /모두 끄기/.test(document.querySelector('#w-mall').textContent), null, 10000, 'mall button');
+  await panel.click('#w-mall');
+  await waitFor(sC, () => /운영진이 꺼 둠/.test(document.querySelector('#w-mic').textContent), null, 20000, 'C all-muted');
+  await waitFor(sA, () => /꺼짐|꺼 둠/.test(document.querySelector('#w-mic').innerHTML) && document.querySelector('#w-mic').classList.contains('off'), null, 20000, 'A all-muted');
+  await sC.click('#w-mic');
+  if (!(await sC.evaluate(() => document.querySelector('#w-mic').classList.contains('off')))) throw new Error('locked mic should stay off');
+  await waitFor(panel, () => /모두 켜기/.test(document.querySelector('#w-mall').textContent), null, 10000, 'mall on state');
+  await panel.click('#w-mall');
+  await waitFor(sC, () => /켜짐/.test(document.querySelector('#w-mic').textContent), null, 20000, 'C unmuted');
+  await waitFor(sA, () => !document.querySelector('#w-mic').classList.contains('off'), null, 20000, 'A unmuted');
+  log('학생 마이크 모두 끄기 → A·C 꺼짐(학생이 켜지 못함) → 모두 켜기 → 다시 켜짐');
+  const lay = await panel.evaluate(() => { const z = document.querySelector('#w-grid .wz.bot'), t = document.querySelector('#w-grid .wz.top'); return { cols: getComputedStyle(z).gridTemplateColumns.split(' ').length, topRows: new Set([...t.children].map(c => Math.round(c.getBoundingClientRect().top))).size }; });
+  if (lay.cols !== Math.min(5, await panel.evaluate(() => document.querySelectorAll('#w-grid .wz.bot .wt').length)) || lay.topRows > 1) throw new Error('layout: ' + JSON.stringify(lay));
+  log('대기실 배치: 학생 한 줄 ' + lay.cols + '명, 운영진 ' + lay.topRows + '줄');
 
   // 대기실 채팅·공지
   if (await sA.evaluate(() => { const c = document.querySelector('.chat'); return !!(c && c.offsetParent); })) throw new Error('채팅은 없어야 함');
@@ -160,13 +190,19 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await ops.screenshot({ path: path.join(OUT, '3_ops_waiting.png') });
   await panel.screenshot({ path: path.join(OUT, '3_panel.png') });
 
+  // 대기 녹화를 멈춘 상태에서도 멘토링은 자동 녹화
+  await ops.click('#b-rec-stop');
+  await waitFor(ops, () => !window.__rec().recording(), null, 15000, 'gap recording stopped');
+  log('운영자 「녹화 중지」 → 대기 녹화 멈춤');
   // 대기실 창에서 시작 → 녹화 창이 녹화
   const t0 = Date.now();
   await panel.click('#w-grid .wt[data-id="S_학생가"] button[data-a="call"]');
   await waitFor(sA, () => !document.querySelector('#s-live').classList.contains('hide') && document.querySelector('#l-remote').videoWidth > 0, null, 30000, 'A live');
   log('started from panel window → student A live after', Date.now() - t0, 'ms');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
-  log('recording started on host window');
+  await waitFor(ops, () => window.__rec().recording() && /학생가/.test(window.__rec().health().name), null, 20000, 'student file');
+  if (!(await ops.evaluate(() => document.querySelector('#b-rec-stop').disabled))) throw new Error('멘토링 중에는 녹화 중지 불가여야 함');
+  log('recording started on host window (대기 녹화 꺼져 있어도 멘토링은 자동 녹화, 중지 버튼 잠김):', await ops.evaluate(() => window.__rec().health().name));
   if (process.env.SHOTS) { await SHOT(ops, 'ops_popup_start'); await ops.evaluate(() => { window.__tShift = 9 * 60000 + 5000; }); await sleep(1200); await SHOT(ops, 'ops_last1min'); await SHOT(panel, 'panel_last1min'); await ops.evaluate(() => { window.__tShift = 0; }); await ops.setViewportSize({ width: 1920, height: 1080 }); await sleep(1500); await SHOT(ops, 'ops_1920'); await ops.setViewportSize({ width: 1600, height: 950 }); }
   if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
   await SHOT(ops, 'ops_split');
@@ -191,7 +227,11 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await ops.click('#b-end'); await ops.click('#b-end');
   try { await waitFor(ops, () => [...document.querySelectorAll('#rec-files li')].filter(li => li.textContent.includes('자동 저장')).length >= 3, null, 30000, 'auto-saved'); }
   catch (e) { await ops.screenshot({ path: path.join(OUT, 'dbg_ops_end.png') }); log('DIAG files:', await ops.evaluate(() => document.querySelector('#rec-files').innerText + ' | cur:' + document.querySelector('#c-name').textContent)); throw e; }
-  await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording resumes after end');
+  await sleep(2500);
+  if (await ops.evaluate(() => window.__rec().recording())) throw new Error('대기 녹화를 꺼 두었으면 멘토링 뒤 녹화 멈춤이어야 함');
+  await ops.click('#b-rec-start');
+  await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide') && window.__rec().recording(), null, 10000, 'gap recording after 녹화 시작 again');
+  log('멘토링 끝 → 녹화 멈춤(대기 녹화 꺼 둠) → 「녹화 시작」 → 대기 녹화');
   const names = await ops.evaluate(() => [...document.querySelectorAll('#rec-files li span:first-child')].map(x => x.textContent));
   log('auto-saved:', names.join(' | '));
   if (!names.some(n => /^\d{6}_\d{4}_리허설_대기/.test(n))) throw new Error('no gap file');

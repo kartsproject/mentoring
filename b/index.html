@@ -166,6 +166,7 @@
   .wbtn { display: inline-flex; align-items: center; gap: 5px; height: 34px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--k3); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; }
   .wbtn svg { width: 17px; height: 17px; }
   .wbtn.off { background: #D64541; }
+  .wbtn.lock { opacity: .75; cursor: not-allowed; }
   .chat { flex: 1 1 54%; }
   .mini { display: none; }
   .info { grid-template-columns: 1fr; }
@@ -344,7 +345,7 @@
   var PREFIX = C.PREFIX || '';
   var R0 = UI.param('r');                 // 리허설 등 회차를 주소로 지정할 때만(평소에는 명단에서 자동)
   var TITLE = '무용분야 심화 멘토링 대기실';
-  var sess = null, links = null, dc = null, local = null, ac = null, wr = null, ended = false, ringSeen = null;
+  var sess = null, links = null, dc = null, local = null, ac = null, wr = null, ended = false, ringSeen = null, allSeen = null, micLock = false;
   var screen = '', lastCurAt = 0, zoomGone = false, stopWaitMeter = null, lastV = null, PENDING = [], pid = 0, RULES_SEEN = false, ME = null;
 
   // 카카오톡 안 브라우저는 카메라가 안 되는 경우가 많아 기본 브라우저로 다시 엽니다
@@ -525,6 +526,19 @@
     $('#onlineCnt').textContent = (v.online ? '지금 ' + v.online + '명 접속 중' : '');
     if (wr) { wr.want(screen !== 's-live' && !v.called && !v.zoomUrl && !zoomGone); wr.sync(v); }
     // 운영진 호출(알림 버튼) → 띵동
+    // 운영진이 대기실 학생 마이크를 모두 끔·켬(멘토링실에서는 영향 없음)
+    var am = v.wallMute || null, amAt = am ? am.at : 0, inWait = screen !== 's-live' && !v.called;
+    var lockWas = micLock; micLock = !!(am && am.on) && inWait;
+    var amChanged = lockWas !== micLock;
+    if (allSeen == null || amAt > allSeen) {
+      var firstAm = allSeen == null; allSeen = amAt;
+      if (am && inWait && (am.on || !firstAm) && local) {
+        local.getAudioTracks().forEach(function (t) { t.enabled = !am.on; });
+        sess.kick(); amChanged = true;
+        UI.toast(am.on ? '운영진이 대기실 마이크를 모두 껐습니다. 운영진이 다시 켜면 켜집니다.' : '운영진이 대기실 마이크를 다시 켰습니다.', 5000);
+      }
+    }
+    if (amChanged) paintCtrls();
     if (ringSeen == null) ringSeen = v.ringAt || 0;
     else if ((v.ringAt || 0) > ringSeen) { ringSeen = v.ringAt; dingdong(); }
     if (v.called) {
@@ -714,13 +728,16 @@
       mic.innerHTML = mOn ? M.ICON.mic : M.ICON.micOff; mic.classList.toggle('off', !mOn);
       cam.innerHTML = cOn ? M.ICON.cam : M.ICON.camOff; cam.classList.toggle('off', !cOn);
       var wm = $('#w-mic'), wc = $('#w-cam');
-      wm.innerHTML = (mOn ? M.ICON.mic : M.ICON.micOff) + '<span>' + (mOn ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; wm.classList.toggle('off', !mOn);
+      var lk = micLock && screen !== 's-live';
+      wm.innerHTML = (mOn ? M.ICON.mic : M.ICON.micOff) + '<span>' + (lk ? '운영진이 꺼 둠' : mOn ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; wm.classList.toggle('off', !mOn); wm.classList.toggle('lock', lk);
       wc.innerHTML = (cOn ? M.ICON.cam : M.ICON.camOff) + '<span>' + (cOn ? '카메라 켜짐' : '카메라 꺼짐') + '</span>'; wc.classList.toggle('off', !cOn);
       if (wr) wr.render();
       if (lastV) { sess.info.mic = !!mOn; sess.info.cam = !!cOn; }
     };
     paintCtrls = paint;
-    mic.onclick = $('#w-mic').onclick = function () { local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); sess.kick(); };
+    mic.onclick = $('#w-mic').onclick = function () {
+      if (micLock && screen !== 's-live') { UI.toast('지금은 운영진이 대기실 마이크를 모두 꺼 두었습니다. 운영진이 다시 켜면 켜집니다.', 4000); return; }
+      local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); sess.kick(); };
     cam.onclick = $('#w-cam').onclick = function () { local.getVideoTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); sess.kick(); };
     flip.innerHTML = M.ICON.flip;
     UI.show(flip, dc.camCount > 1);
