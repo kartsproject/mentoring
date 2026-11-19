@@ -50,11 +50,24 @@ body.lw:not(.split):not(.pmode) #c-stage, body:not(.lw):not(.split):not(.pmode) 
 .rhd small { font-size: 13px; color: var(--kt2); font-weight: 500; }
 body.split:not(.pmode) .rhd, body.pmode .rhd { display: none; }
 
-/* 가운데 고르기(세그먼트) */
-.apill { background: rgba(255,255,255,.1); border: 0; box-shadow: none; padding: 3px; border-radius: 980px; backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
-.apill button { font-weight: 500; font-size: 13px; padding: 7px 18px; color: rgba(232,232,237,.75); border-radius: 980px; transition: background .3s var(--ease), color .3s var(--ease); }
-.apill button.on { background: #F5F5F7; color: #1D1D1F; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
-.apill .ai svg { width: 14px; height: 14px; }
+/* 가운데 소리 고르기 알약(Ver.2.18.1): 반으로 나눈 알약, 고른 쪽에 파랑→보라 그라데이션이 미끄러져 옴 */
+.apill { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 4px; border-radius: 980px; background: rgba(29,29,31,.88); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 14px 34px -10px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: saturate(180%) blur(24px); -webkit-backdrop-filter: saturate(180%) blur(24px); }
+.apill::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 980px; background: linear-gradient(100deg, #2997FF 0%, #A970FF 100%); box-shadow: 0 6px 18px -4px rgba(120,110,255,.6); transition: transform .45s var(--ease); }
+body.lw .apill::before { transform: translateX(100%); }
+.apill::after { content: ""; position: absolute; left: 50%; top: 10px; bottom: 10px; width: 1px; background: rgba(255,255,255,.12); transition: opacity .3s; opacity: 0; }
+.apill button { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 112px; padding: 9px 18px; border-radius: 980px; background: transparent !important; box-shadow: none !important; color: rgba(235,235,245,.6); font-weight: 600; font-size: 14px; letter-spacing: -.01em; transition: color .3s var(--ease); }
+.apill button:hover { color: #fff; }
+.apill button.on { color: #fff; }
+.apill .ai { display: inline-grid; } .apill .ai svg { width: 16px; height: 16px; }
+.apill.inline { padding: 3px; } .apill.inline::before { top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); }
+.apill.inline button { min-width: 88px; padding: 6px 12px; font-size: 12.5px; }
+/* 두 방 사이 경계 위에 겹쳐 놓기(넓은 화면, 두 방이 함께 보일 때) */
+@media (min-width: 1001px) {
+  main.body:has(> .aband:not([hidden])) { grid-template-rows: minmax(0, 1fr); padding-top: 30px; }
+  main.body:has(> .aband:not([hidden])) #c-stage { padding-top: 26px; }
+  main.body:has(> .aband:not([hidden])) #c-chat .wbox { margin-top: 26px !important; }
+  .aband:not([hidden]), body.lw .aband:not([hidden]), body:not(.lw) .aband:not([hidden]) { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); z-index: 45; padding: 0; margin: 0; background: transparent; grid-column: auto; }
+}
 
 /* 멘토링실 */
 #c-stage > .panel { background: transparent; border: 0; border-radius: 0; }
