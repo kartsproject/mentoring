@@ -83,7 +83,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await sleep(2500);
   if (await ops.evaluate(() => { const a = document.querySelector('#alerts'); return !!(a && a.offsetParent) || !!document.querySelector('#alerts .al'); })) throw new Error('알림 팝업은 없어야 함');
   log('no popup alerts on ops screen');
-  log('ops roster tiles:', await ops.evaluate(() => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length), '/ cards hidden:', await ops.evaluate(() => getComputedStyle(document.querySelector('#c-list')).display));
+  log('ops roster tiles:', await ops.evaluate(() => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length), '/ old card list removed:', await ops.evaluate(() => !document.querySelector('#c-list')));
   if (!/010-1111-2222/.test(await text(ops, '#w-grid'))) throw new Error('phones not shown on not-connected tile');
   await SHOT(ops, 'ops_half');
   log('phones shown on cards');
@@ -102,7 +102,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await SHOT(panel, 'panel_phone');
   await panel.click('#w-grid .wt[data-id="S_학생가"] [data-tel]');
   log('정보 칸 전화 아이콘 → 학생·보호자 번호 팝업 → 다시 눌러 닫기');
-  await waitFor(ops, () => document.body.classList.contains('split') && document.querySelector('#c-list').offsetParent === null && document.querySelector('#c-stage').getBoundingClientRect().width > innerWidth * 0.9, null, 5000, 'main window full-width video');
+  await waitFor(ops, () => document.body.classList.contains('split') && document.querySelector('#c-chat').offsetParent === null && document.querySelector('#c-stage').getBoundingClientRect().width > innerWidth * 0.9, null, 5000, 'main window full-width video');
   log('main window: waiting room moved out → video uses full width:', await ops.evaluate(() => Math.round(document.querySelector('#c-stage').getBoundingClientRect().width) + '/' + innerWidth));
 
   // 멘토
