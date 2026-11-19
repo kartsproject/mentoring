@@ -221,10 +221,33 @@
       ph = one('학생', x.sPhone) + one('보호자', x.pPhone);
       ph = ph ? '<div class="wph2">' + ph + '</div>' : '';
     }
-    return '<div class="wi ' + cls + '"><div class="wih"><b>' + (x.extra ? 'T' : x.no) + '</b><span class="wn">' + UI.esc(x.name) + '</span></div>' +
-      '<div class="wst">' + (f.late ? '대기실 접속 시각 지남 · ' : '') + UI.esc(stt) + '</div>' +
-      (x.extra ? '' : '<div class="wtm">대기실 ' + UI.esc(x.wait || '-') + ' · 멘토링 ' + UI.esc(when || '-') + '</div>') + ph +
+    // 정보 칸(Ver.2.18.2): 번호 배지·이름 / 상태 알약(아이콘) / 가운데 이니셜 원(상태 색 고리) / 시간 두 칸(아이콘) / 연락처·버튼
+    var ico = function (k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WI[k] + '</svg>'; };
+    var sk = cur ? 'live' : x.done ? 'done' : x.zoom ? 'zoom' : x.live ? 'on' : f.late ? 'late' : 'off';
+    var main = f.late && !cur && !x.done && !x.zoom && !x.live ? '접속 시각 지남' : stt;
+    var sub = main !== stt ? stt : '';
+    var nm = String(x.name || ''), ini = nm.length > 2 ? nm.slice(-2) : nm;
+    var tel = function (lb, n) { return n ? '<a class="wpc" href="tel:' + String(n).replace(/\D/g, '') + '" title="' + lb + ' ' + UI.esc(n) + '">' + ico('phone') + '<span>' + lb + ' ' + UI.esc(n) + '</span></a>' : ''; };
+    var phs = ops && !x.done && !cur ? tel('학생', x.sPhone) + tel('보호자', x.pPhone) : '';
+    return '<div class="wi ' + cls + ' s-' + sk + '">' +
+      '<div class="wih"><b>' + (x.extra ? 'T' : x.no) + '</b><span class="wn">' + UI.esc(x.name) + '</span></div>' +
+      '<div class="wst"><span class="wsp">' + ico(sk) + '<span>' + UI.esc(main) + '</span></span>' + (sub ? '<small>' + UI.esc(sub) + '</small>' : '') + '</div>' +
+      '<div class="wav"><span class="wav-c">' + UI.esc(ini) + '<i>' + ico(sk) + '</i></span></div>' +
+      (x.extra ? '' : '<div class="wtm"><span title="대기실 입장 시각">' + ico('door') + '<b>' + UI.esc(x.wait || '-') + '</b><small>대기실</small></span>' +
+        '<span title="멘토링 시간">' + ico('clock') + '<b>' + UI.esc(when || '-') + '</b><small>멘토링</small></span></div>') +
+      (phs ? '<div class="wph2">' + phs + '</div>' : '') +
       (acts ? '<div class="wact">' + acts + '</div>' : '') + '</div>';
+  };
+  var WI = {
+    live: '<circle cx="12" cy="12" r="2.5"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/>',
+    done: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    zoom: '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7v10l-5.5-3.5"/>',
+    on: '<path d="M2 8.8a15 15 0 0 1 20 0M5 12.4a10 10 0 0 1 14 0M8.5 15.9a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/>',
+    late: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+    off: '<path d="M2 8.8a15 15 0 0 1 4.3-2.9M10 5.1a15 15 0 0 1 12 3.7M5 12.4a10 10 0 0 1 4.3-2.3M16.6 10.7a10 10 0 0 1 2.4 1.7M8.5 15.9a5 5 0 0 1 7 0M3 3l18 18"/>',
+    door: '<path d="M4 21h16M6 21V4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21"/><circle cx="14.5" cy="12" r="1"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    phone: '<path d="M5 3.5h3.5l1.5 4.5-2.2 1.4a11 11 0 0 0 4.8 4.8l1.4-2.2 4.5 1.5V17a2 2 0 0 1-2 2A15.5 15.5 0 0 1 3 5.5a2 2 0 0 1 2-2z"/>'
   };
 
   WaitRoom.prototype.render = function () {
