@@ -170,7 +170,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   const staffMicOff = () => { const t = [...document.querySelectorAll('#wgrid .wz.top .wt.staff')].find(t => /운영/.test(t.textContent)); return t && !t.querySelector('.wmo').hidden; };
   await waitFor(sC, staffMicOff, null, 20000, 'staff mic off before space');
   await panel.keyboard.down('Space');
-  await waitFor(panel, () => document.querySelector('#w-ptt').classList.contains('down'), null, 5000, 'ptt down by space');
+  await waitFor(panel, () => document.querySelector('#w-open').classList.contains('down'), null, 5000, 'ptt down by space');
   await waitFor(sC, () => !(() => { const t = [...document.querySelectorAll('#wgrid .wz.top .wt.staff')].find(t => /운영/.test(t.textContent)); return t && !t.querySelector('.wmo').hidden; })(), null, 20000, 'student sees staff talking (space)');
   await panel.keyboard.up('Space');
   await waitFor(sC, staffMicOff, null, 20000, 'staff mic off after space up');
@@ -244,7 +244,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res2.fill('#g-name', '연구원B'); await res2.fill('#g-code', 'r1234'); await res2.click('#g-btn');
   await res2.waitForSelector('#s-main:not(.hide)');
   await res2.click('#b-join');
-  await waitFor(res2, () => !document.querySelector('#st-ctrls').classList.contains('hide'), null, 15000, 'research joined room');
+  await waitFor(res2, () => !document.querySelector('#b-smic').classList.contains('hide'), null, 15000, 'research joined room');
   await waitFor(mentor, () => { const v = document.querySelector('#m-rp .rpip video'); return v && v.videoWidth > 0; }, null, 40000, 'mentor sees research pip');
   log('연구원 멘토링실 들어감 → 멘토 화면 왼쪽 위 작은 화면(멘토 본인 화면과 함께)');
   await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 30000, 'student has hidden research pip');
@@ -257,7 +257,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 20000, 'student hides research when mic off');
   await waitFor(ops, () => window.__rec().pips.length >= 1, null, 20000, 'recording includes research pip');
   log('마이크 끔 → 학생 화면에서 숨김, 녹화에는 연구원 작은 화면·소리 포함');
-  await res2.click('#b-stoff');
+  await res2.click('#b-join');
   await waitFor(mentor, () => !document.querySelector('#m-rp .rpip'), null, 20000, 'research left room');
   await res2.context().close();   // 시험 PC 부담 줄이기
   log('연구원 「멘토링실에서 나가기」 → 멘토 화면에서 사라짐');
