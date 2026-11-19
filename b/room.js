@@ -298,7 +298,7 @@
     var self = this, sess = this.o.sess, ch = sess.chat, msgs = ch.list || [], me = sess.name;
     var v = this.view, on = v ? v.students.filter(function (x) { return !x.extra && x.live; }).length : 0;
     $('#cheadSub').textContent = this.rlabel() + ' · 학생 ' + on + '명 접속 중';
-    $('#bcList').innerHTML = (ch.bc || []).slice().reverse().map(function (b) { return '<div>' + hhmm(b.t) + ' · ' + UI.esc(b.x) + (b.b ? ' <small>(' + UI.esc(b.b) + ')</small>' : '') + '</div>'; }).join('') || '<div class="muted">보낸 공지가 없습니다.</div>';
+    if ($('#bcList')) $('#bcList').innerHTML = (ch.bc || []).slice().reverse().map(function (b) { return '<div>' + hhmm(b.t) + ' · ' + UI.esc(b.x) + (b.b ? ' <small>(' + UI.esc(b.b) + ')</small>' : '') + '</div>'; }).join('') || '<div class="muted">보낸 공지가 없습니다.</div>';
     var maxId = msgs.length ? msgs[msgs.length - 1].i : 0;
     if (this.lastChatMax >= 0 && msgs.some(function (m) { return m.i > self.lastChatMax && m.f === 's'; })) this.beep();   // 학생 새 메시지
     this.lastChatMax = maxId;
@@ -404,7 +404,7 @@
       if (!j || !j.ok) { UI.toast('보내지 못했습니다. 다시 보내 주세요.'); $('#chatText').value = text; }
     };
     $('#quick').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; $('#chatText').value = b.textContent; $('#chatText').focus(); });
-    $('#bcForm').onsubmit = async function (e) {
+    if ($('#bcForm')) $('#bcForm').onsubmit = async function (e) {
       e.preventDefault();
       var text = $('#bcText').value.trim(); if (!text) return;
       var btn = $('#bcForm button[type=submit]');
@@ -414,7 +414,7 @@
       else UI.toast('보내지 못했습니다');
       btn.textContent = '전체 보내기';
     };
-    $('#bcClear').onclick = async function () {
+    if ($('#bcClear')) $('#bcClear').onclick = async function () {
       if (!self.confirmBtn(this, '공지 모두 내리기?')) return;
       var j = await sess.op('bcclear', {});
       UI.toast(j.ok ? '공지를 모두 내렸습니다' : '처리하지 못했습니다');

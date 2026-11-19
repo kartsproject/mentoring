@@ -198,6 +198,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -667,7 +668,7 @@
   function renderChat() {
     var ch = sess.chat;
     var bc = ch.bc || [];
-    $('#bc').hidden = !bc.length;
+    $('#bc').hidden = true; bc = [];   // 상단 고정 공지는 쓰지 않음(Ver.2.18)
     $('#bc').innerHTML = bc.slice(-3).map(function (b) { return '<div><b>' + UI.ico('pin') + '공지</b>' + UI.esc(b.x) + ' <small>' + hhmm(b.t) + '</small></div>'; }).join('');
     var box = $('#msgs'), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
     var html = ch.list.map(function (m) {

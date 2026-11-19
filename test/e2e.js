@@ -22,10 +22,17 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
 (async () => {
   const browser = await chromium.launch({
     executablePath: '/usr/bin/google-chrome', headless: true,
-    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required']
+    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'].concat(process.env.FAKEVID ? ['--use-file-for-fake-video-capture=' + process.env.FAKEVID] : [])
   });
   const mk = async (name, vp) => {
     const c = await browser.newContext({ viewport: vp || { width: 1600, height: 950 }, acceptDownloads: true, permissions: ['camera', 'microphone'] });
+    if (process.env.THEME) {   // 디자인 시안 비교용: 시안 CSS를 덧씌움(배포 코드와 무관)
+      const css = fs.readFileSync(process.env.THEME, 'utf8');
+      await c.addInitScript(css => { document.addEventListener('DOMContentLoaded', () => {
+        const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+        const cs = document.querySelector('#c-stage'); if (cs && !cs.querySelector('.rhd')) { const h = document.createElement('div'); h.className = 'rhd'; h.innerHTML = '<b>멘토링실</b><small>멘토 · 진행 중인 학생</small>'; cs.prepend(h); }
+      }); }, css);
+    }
     const p = await c.newPage(); (global.__pages = global.__pages || []).push(p);
     p.on('pageerror', e => console.log(`[${name} pageerror]`, e.message));
     p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) console.log(`[${name} console]`, m.text()); });
@@ -49,7 +56,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await sleep(2500);
   if (await ops.evaluate(() => window.__rec().recording())) throw new Error('접속만으로 녹화되면 안 됨');
   log('접속 → 녹화 대기(자동 녹화 안 함):', (await ops.evaluate(() => document.querySelector('#rec-live').textContent)).slice(0, 30));
-  await ops.click('#b-rec-start');
+  await ops.click('.recb:visible');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide') && window.__rec().recording(), null, 10000, 'gap recording after 녹화 시작');
   await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 30000, 'recorder took host');
   log('ops 운영A in: folder set → 「녹화 시작」 → 대기 녹화, host taken');
@@ -62,7 +69,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(opsB, () => document.querySelector('#recSetup').classList.contains('hide') && /이 PC는 녹화하지 않습니다/.test(document.querySelector('#rec-warn').textContent) && /운영A/.test(document.querySelector('#rec-warn').textContent), null, 15000, 'skip folder');
   if (await opsB.evaluate(() => window.__rec() && window.__rec().recording())) throw new Error('skipped PC should not record');
   log('운영B 저장 폴더 건너뛰기 →', await opsB.evaluate(() => document.querySelector('#rec-warn').textContent));
-  await opsB.click('#b-rec-start');
+  await opsB.click('.recb:visible');
   await waitFor(opsB, () => !document.querySelector('#recSetup').classList.contains('hide'), null, 5000, 'rec setup again');
   await opsB.click('#rs-skip');
   await opsB.context().close();
@@ -103,7 +110,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res.click('.seg label:nth-child(2)');
   await res.fill('#g-name', '연구원A'); await res.fill('#g-code', 'r1234'); await res.click('#g-btn');
   await res.waitForSelector('#s-main:not(.hide)');
-  if (await res.isVisible('#p-rec') || await res.isVisible('#chatForm')) throw new Error('research should not see recording/chat send');
+  if (await res.isVisible('#b-rec') || await res.isVisible('#w-rec') || await res.isVisible('#chatForm')) throw new Error('research should not see recording/chat send');
   await sleep(1200); await SHOT(res, 'research_empty');
   if (await res.isVisible('#b-stage')) throw new Error('화면 등장 버튼은 없어야 함(멘토링실은 멘토·학생만)');
   if (!(await res.isVisible('#b-join'))) throw new Error('연구원: 멘토링실 들어가기 버튼');
@@ -202,11 +209,9 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
 
   // 대기실 채팅·공지
   if (await sA.evaluate(() => { const c = document.querySelector('.chat'); return !!(c && c.offsetParent); })) throw new Error('채팅은 없어야 함');
-  await panel.fill('#bcText', '앞 순서가 조금 늦어지고 있어요');
-  await panel.evaluate(() => { const f = document.querySelector('#bcForm'); f.requestSubmit(); f.requestSubmit(); });   // 두 번 눌러 확인(알림 팝업에 가려지지 않게 직접)
-  try { await waitFor(sA, () => !document.querySelector('#bc').hidden && /늦어지고/.test(document.querySelector('#bc').textContent), null, 60000, 'student sees bc'); }
-  catch (e) { await panel.screenshot({ path: path.join(OUT, 'dbg_panel_bc.png') }); log('DIAG bc:', await panel.evaluate(() => document.querySelector('#bcText').value + ' | ' + document.querySelector('#bcForm button').textContent + ' | ' + document.querySelector('#bcList').textContent)); throw e; }
-  log('no chat on student screen; pinned notice shown over waiting-room video');
+  if (await panel.$('#bcForm') || await ops.$('#bcForm')) throw new Error('상단 고정 공지는 없어야 함');
+  if (!(await sA.evaluate(() => document.querySelector('#bc').hidden))) throw new Error('학생 화면에 공지 칸이 보이면 안 됨');
+  log('no chat, no pinned notice (Ver.2.18)');
   await sA.screenshot({ path: path.join(OUT, '2_student_chat.png') });
 
   // 연결 점검 + 다음 차례 미리 연결
@@ -225,7 +230,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await panel.screenshot({ path: path.join(OUT, '3_panel.png') });
 
   // 대기 녹화를 멈춘 상태에서도 멘토링은 자동 녹화
-  await ops.click('#b-rec-stop');
+  await ops.click('.recb:visible');
   await waitFor(ops, () => !window.__rec().recording(), null, 15000, 'gap recording stopped');
   log('운영자 「녹화 중지」 → 대기 녹화 멈춤');
   // 대기실 창에서 시작 → 녹화 창이 녹화
@@ -235,7 +240,9 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('started from panel window → student A live after', Date.now() - t0, 'ms');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
   await waitFor(ops, () => window.__rec().recording() && /학생가/.test(window.__rec().health().name), null, 20000, 'student file');
-  if (!(await ops.evaluate(() => document.querySelector('#b-rec-stop').disabled))) throw new Error('멘토링 중에는 녹화 중지 불가여야 함');
+  if (!(await ops.evaluate(() => document.querySelector('#b-rec').classList.contains('lock')))) throw new Error('멘토링 중에는 녹화 버튼이 잠겨야 함');
+  await ops.click('.recb:visible'); await sleep(800);
+  if (!(await ops.evaluate(() => window.__rec().recording()))) throw new Error('멘토링 중 녹화 버튼을 눌러도 녹화는 계속되어야 함');
   log('recording started on host window (대기 녹화 꺼져 있어도 멘토링은 자동 녹화, 중지 버튼 잠김):', await ops.evaluate(() => window.__rec().health().name));
   // 연구원 멘토링실 참여(멘토링 중): 멘토 화면에 작게, 마이크 켜면 학생 화면에 작게 + 소리, 녹화에도
   const res2 = await mk('research2');
@@ -261,6 +268,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(mentor, () => !document.querySelector('#m-rp .rpip'), null, 20000, 'research left room');
   await res2.context().close();   // 시험 PC 부담 줄이기
   log('연구원 「멘토링실에서 나가기」 → 멘토 화면에서 사라짐');
+  // 운영진도 멘토링 참여(Ver.2.18): 녹화 PC의 운영진이 들어가면 멘토 화면에 작게 + 녹화에 본인도 포함
+  await ops.click('#b-join:visible');
+  await waitFor(mentor, () => { const v = document.querySelector('#m-rp .rpip video'); return v && v.videoWidth > 0; }, null, 40000, 'mentor sees ops pip');
+  await waitFor(ops, () => window.__rec().pips.some(p => /운영/.test(p.label)), null, 20000, 'recording includes ops self');
+  await SHOT(ops, 'ops_joined');
+  await ops.click('#b-join:visible');
+  await waitFor(mentor, () => !document.querySelector('#m-rp .rpip'), null, 20000, 'ops left room');
+  log('운영진 「멘토링 참여」 → 멘토 화면에 작게 + 녹화에 본인 포함 → 다시 눌러 나가기');
   // 안정성: 서버 캐시가 통째로 비워져도(구글 캐시 축출) 진행 상태·접속이 이어지는지
   const ev = await (await fetch(BASE + '/__evict')).json();
   await sleep(6000);
@@ -274,6 +289,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await panel.close();
   await waitFor(ops, () => !document.body.classList.contains('split') && document.querySelector('#c-chat').offsetParent !== null, null, 5000, 'panel closed → waiting room back');
   log('panel window closed → waiting room back in main window');
+  await sleep(1500); await SHOT(ops, 'ops_full_live');
+  if (process.env.SHOTS) { await ops.click('#b-set2:visible, #b-set:visible'); await sleep(600); await SHOT(ops, 'ops_settings'); await ops.click('#b-set2:visible, #b-set:visible'); }
   await sleep(4000);
 
   // 다음 학생
@@ -294,7 +311,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   catch (e) { await ops.screenshot({ path: path.join(OUT, 'dbg_ops_end.png') }); log('DIAG files:', await ops.evaluate(() => document.querySelector('#rec-files').innerText + ' | cur:' + document.querySelector('#c-name').textContent)); throw e; }
   await sleep(2500);
   if (await ops.evaluate(() => window.__rec().recording())) throw new Error('대기 녹화를 꺼 두었으면 멘토링 뒤 녹화 멈춤이어야 함');
-  await ops.click('#b-rec-start');
+  await ops.click('.recb:visible');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide') && window.__rec().recording(), null, 10000, 'gap recording after 녹화 시작 again');
   log('멘토링 끝 → 녹화 멈춤(대기 녹화 꺼 둠) → 「녹화 시작」 → 대기 녹화');
   const names = await ops.evaluate(() => [...document.querySelectorAll('#rec-files li span:first-child')].map(x => x.textContent));

@@ -87,8 +87,8 @@
   #c-list { display: none !important; }   /* 학생 카드는 없앰 — 대기실 칸이 대신(Ver.2.8) */
   .col { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
   #c-stage { background: var(--k0); color: var(--k-tx); overflow-y: auto; padding: 12px; gap: 10px; }
-  #c-stage > .panel:first-child { flex: 1 0 auto; min-height: 0; display: flex; flex-direction: column; }
-  #c-stage > .panel:first-child .duo { flex: 1 1 auto; min-height: 260px; }
+  #c-stage > .panel:first-of-type { flex: 1 0 auto; min-height: 0; display: flex; flex-direction: column; }
+  #c-stage > .panel:first-of-type .duo { flex: 1 1 auto; min-height: 260px; }
   #c-stage > #p-rec { flex: none; }
   #rec-files { max-height: 84px; overflow-y: auto; }
   #c-list { overflow-y: auto; padding: 16px 16px 30px; border-right: 1px solid var(--line); }
@@ -218,7 +218,7 @@
   .rrow:empty { display: none; }
   .rrow .rpip { width: calc(var(--tw) * .65); flex: none; border-radius: 10px; box-shadow: none; }
   .rrow .rpip .rpl { font-size: 12.5px; }
-  @media (max-width: 1000px) { #c-stage > .panel:first-child .duo { flex: none; container-type: normal; } .duo-in, .duo-in.has-r { --tw: calc((100vw - 42px) / 2); grid-template-columns: 1fr 1fr; width: 100%; } }
+  @media (max-width: 1000px) { #c-stage > .panel:first-of-type .duo { flex: none; container-type: normal; } .duo-in, .duo-in.has-r { --tw: calc((100vw - 42px) / 2); grid-template-columns: 1fr 1fr; width: 100%; } }
   .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
   .tile .overlay { font-size: 14px; }
   .tile .st2 { position: absolute; right: 10px; top: 10px; z-index: 2; }
@@ -408,6 +408,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -458,15 +459,17 @@
     <!-- 떠 있는 조작 막대: 고른 쪽(멘토링실/대기실) 화면 가운데 아래로 이동 — Ver.2.17 -->
     <div class="fbar" id="fbar" role="toolbar" aria-label="내 조작">
       <div class="fb-g fb-m">
-        <button class="fb res-only" id="b-join" type="button" title="멘토링 참여하기 — 내 카메라를 켜고 멘토링실에 들어갑니다(멘토에게 작게 보임). 다시 누르면 나가기"><i class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7v10l-5.5-3.5"/><path d="M9 9.5v5M6.5 12h5"/></svg></i><span class="fl">멘토링 참여</span></button>
+        <button class="fb" id="b-join" type="button" title="멘토링 참여하기 — 내 카메라를 켜고 멘토링실에 들어갑니다(멘토에게 작게 보임). 다시 누르면 나가기"><i class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5 21 7v10l-5.5-3.5"/><path d="M9 9.5v5M6.5 12h5"/></svg></i><span class="fl">멘토링 참여</span></button>
         <button class="fb hide" id="b-smic" type="button" title="누르면 마이크 계속 켜기/끄기 · 길게 누르거나 스페이스바를 누르고 있는 동안 말하기"><i class="fc"></i><span class="fl"></span></button>
         <button class="fb hide" id="b-scam" type="button" title="멘토링실 내 카메라 켜기/끄기"><i class="fc"></i><span class="fl"></span></button>
+        <button class="fb op-only recb" id="b-rec" type="button" title="녹화 시작/멈추기 — 멘토링 중에는 학생별로 항상 녹화합니다"><i class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg></i><span class="fl">녹화 시작</span></button>
         <button class="fb op-only" id="b-set2" type="button" title="설정·ZOOM"><i class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></i><span class="fl">설정·ZOOM</span></button>
       </div>
       <div class="fb-g fb-w">
         <button class="fb" id="w-open" type="button" title="누르면 대기실 마이크 계속 켜기/끄기 · 길게 누르거나 스페이스바를 누르고 있는 동안 말하기"><i class="fc"></i><span class="fl"></span></button>
         <button class="fb" id="w-camb" type="button" title="대기실 화면에 내 카메라 보이기/끄기"><i class="fc"></i><span class="fl"></span></button>
         <button class="fb op-only" id="w-mall" type="button" title="대기실 학생 마이크를 한꺼번에 끄기/켜기"><i class="fc"></i><span class="fl"></span></button>
+        <button class="fb op-only recb" id="w-rec" type="button" title="녹화 시작/멈추기 — 멘토링 중에는 학생별로 항상 녹화합니다"><i class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg></i><span class="fl">녹화 시작</span></button>
         <button class="fb" id="b-set" type="button" title="설정·ZOOM"><i class="fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></i><span class="fl">설정·ZOOM</span></button>
       </div>
     </div>
@@ -476,6 +479,7 @@
     </div></div>
     <!-- 화면(영상)·녹화 -->
     <div class="col dk" id="c-stage">
+      <div class="rhd"><b>멘토링실</b><small>멘토 · 진행 중인 학생</small></div>
       <section class="panel">
         <div class="duo"><div class="duo-in">
           <div class="tile"><video id="v-M" autoplay playsinline></video>
@@ -510,23 +514,6 @@
         </div>
       </section>
 
-      <section class="panel op-only" id="p-rec">
-        <h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg>녹화 <span class="chip" id="rec-type"></span></h3>
-        <div class="warnbox hide" id="rec-warn"></div>
-        <div class="reclive hide" id="rec-live"></div>
-        <div class="pb">
-          <div class="row">
-            <label class="switch"><input type="checkbox" id="sw-auto" checked><i></i><span>학생 시작·종료에 맞춰 자동 녹화</span></label>
-            <span style="flex:1"></span>
-            <button class="btn sm" id="b-rec-start" type="button">녹화 시작</button>
-            <button class="btn coral sm" id="b-rec-stop" type="button">녹화 중지·저장</button>
-          </div>
-          <div class="folder"><span>저장 폴더</span><span class="chip" id="rec-dir">정하지 않음</span>
-            <button class="btn ghost sm" id="b-dir" type="button">폴더 정하기</button>
-            <span class="muted" id="rec-dir-help">학생 1명이 끝날 때마다 이 폴더에 파일이 바로 저장됩니다(다운로드 창 없음).</span></div>
-          <ul class="files" id="rec-files"><li class="muted">아직 저장된 녹화 파일이 없습니다.</li></ul>
-        </div>
-      </section>
     </div>
 
     <!-- 학생(대기실 운영) -->
@@ -538,15 +525,24 @@
 
     <!-- 채팅·공지 -->
     <div class="col" id="c-chat">
-      <div class="bcbox op-only">
-        <h3><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 5 4 4H6l4-4z"/><path d="M12 12v9"/></svg>상단 고정 공지 <small>학생 채팅창 위에 고정</small><button class="btn ghost sm" id="bcClear" type="button">공지 모두 내리기</button></h3>
-        <form id="bcForm"><input id="bcText" maxlength="300" placeholder="예: 앞 순서가 5분 정도 늦어지고 있습니다. 조금만 기다려 주세요."><button class="btn coral sm" type="submit">전체 보내기</button></form>
-        <div class="bclist" id="bcList"></div>
-      </div>
       <section class="wbox" id="wbox">
         <div class="wbh"><b><i></i>대기실</b><small id="w-cnt"></small><span class="sp"></span>
 </div>
       <div class="setwrap hide" id="setwrap">
+      <div class="setbox op-only" id="p-rec">
+        <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg>녹화 <span class="chip" id="rec-type"></span></h4>
+        <div class="warnbox hide" id="rec-warn"></div>
+        <div class="reclive hide" id="rec-live"></div>
+        <div class="pb">
+          <div class="row">
+            <label class="switch"><input type="checkbox" id="sw-auto" checked><i></i><span>학생 시작·종료에 맞춰 자동 녹화</span></label>
+          </div>
+          <div class="folder"><span>저장 폴더</span><span class="chip" id="rec-dir">정하지 않음</span>
+            <button class="btn ghost sm" id="b-dir" type="button">폴더 정하기</button>
+            <span class="muted" id="rec-dir-help">학생 1명이 끝날 때마다 이 폴더에 파일이 바로 저장됩니다(다운로드 창 없음).</span></div>
+          <ul class="files" id="rec-files"><li class="muted">아직 저장된 녹화 파일이 없습니다.</li></ul>
+        </div>
+      </div>
       <div class="setbox op-only">
         <h4><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>예비 ZOOM 링크</h4>
         <div class="row"><input id="z-url" placeholder="https://zoom.us/j/... (암호 포함 초대 링크)"><button class="btn sm" id="b-zoom" type="button">저장</button></div>
@@ -1018,8 +1014,8 @@
       rec.idleText = '';
       rec.idle.M = !view.mentorLive ? '멘토 접속 전' : '멘토 화면 연결 중';
       rec.idle.S = !cur ? (view.next ? '다음 학생 대기 중 · ' + PREFIX + view.next.name : '다음 학생 대기 중') : !cur.live ? PREFIX + cur.name + ' 접속 전' : '학생 화면 연결 중';
-      rec.setPips(room.filter(function (x) { return x.key !== sess.id; }).map(function (x) {
-        return { key: x.key, video: document.querySelector('#o-rp [data-k="' + x.key + '"] video'), label: x.label, stream: x.stream, mic: x.mic };
+      rec.setPips(room.map(function (x) {   // 이 PC에서 멘토링실에 들어간 나도 녹화에 포함(Ver.2.18)
+        return { key: x.key, video: document.querySelector('#o-rp [data-k="' + x.key + '"] video'), label: x.key === sess.id ? UI.roleName(role) + ' ' + sess.name : x.label, stream: x.stream, mic: x.mic };
       }));
       rec.setGroup(stage.map(function (m) {
         var cell = document.querySelector('#g-stage [data-k="' + m.id + '"] video');
@@ -1135,7 +1131,6 @@
       UI.show(w, true);
     } else if (!rec.supported()) { w.textContent = '이 브라우저는 녹화를 지원하지 않습니다. 크롬(Chrome)에서 열어 주세요.'; UI.show(w, true); }
     else UI.show(w, false);
-    $('#p-rec').style.opacity = rec && (recOn || v.host === sess.id) ? 1 : .6;
   }
   $('#z-url').oninput = function () { this.dataset.dirty = '1'; };
   $('#b-zoom').onclick = async function () {
@@ -1382,7 +1377,7 @@
   $('#rs-skip').onclick = function () {
     UI.show('#recSetup', false);
     $('#h-me').innerHTML = UI.ico('user') + UI.esc('운영 ' + sess.name);
-    UI.toast('이 PC에서는 녹화하지 않습니다. 녹화하려면 녹화 상자의 「녹화 시작」을 누르세요.', 5000);
+    UI.toast('이 PC에서는 녹화하지 않습니다. 녹화하려면 아래 조작 막대의 「녹화 시작」을 누르세요.', 5000);
     if (view) paintRecWarn();
   };
   // 파일 이름: 녹화 시작 시각(YYMMDD_HHMM, 한국 시각)을 맨 앞에 — 예) 261121_1000_2회차_03_이름 / 261121_0940_2회차_대기
@@ -1419,12 +1414,10 @@
   // 녹화 지킴이: 1초마다 상태를 보고, 멈췄으면 새 파일로 다시 시작 + 눈에 띄게 알림
   var recIssue = '', recShouldSince = 0, lastRecAlarm = 0, restarts = [];
   function recWatch() {
+    paintRecBtn();
     var box = $('#rec-live'); if (!rec || !recOn || !view) { UI.show(box, false); $('#h-rec').classList.remove('bad'); return; }
     var cur = view.cur, key = cur ? cur.id : (IS_REC && gapRec ? 'gap' : '');
     var should = !leaving && !!key && ((IS_REC && cur) || ($('#sw-auto').checked && manualStop !== key));
-    $('#b-rec-start').disabled = rec.recording();
-    $('#b-rec-stop').disabled = !rec.recording() || !!(IS_REC && cur);
-    $('#b-rec-stop').title = IS_REC && cur ? '멘토링 중에는 녹화를 멈출 수 없습니다(학생이 끝나면 자동 저장)' : '';
     var h = rec.health(), bad = '', warn = '';
     if (h) {
       recShouldSince = 0; recIssue = '';
@@ -1462,7 +1455,22 @@
   setInterval(recWatch, 1000);
   setInterval(function () { if (recOn) autoRecord(); }, 1000);
   ['pointerdown', 'keydown'].forEach(function (t) { document.addEventListener(t, function () { if (rec && rec.ac.state !== 'running') rec.resume().then(function () { if (view) paintRecWarn(); }); }, true); });
-  $('#b-rec-start').onclick = function () {
+  // 컨트롤 바의 녹화 버튼(멘토링실 쪽 #b-rec · 대기실 쪽 #w-rec) — 누르면 시작/멈춤(Ver.2.18)
+  var REC_ICO = $('#b-rec .fc').innerHTML;
+  function paintRecBtn() {
+    var on = !!(rec && rec.recording()), cur = view && view.cur, lock = on && IS_REC && cur;
+    var bad = $('#h-rec').classList.contains('bad') && !on;
+    var other = !on && view && view.host && view.host !== sess.id ? view.hostName : '';
+    var label = lock ? '녹화 중 · 학생별' : on ? '녹화 중 · 멈추기' : bad ? '녹화 안 됨!' : other ? '다른 PC 녹화 중' : '녹화 시작';
+    ['#b-rec', '#w-rec'].forEach(function (id) {
+      fbSet(id, REC_ICO, label, on || bad ? 'off' : '');
+      var b = $(id); b.classList.toggle('lock', !!lock); b.classList.toggle('blink', !!bad);
+      b.title = lock ? '멘토링 중에는 학생별로 항상 녹화합니다(학생이 끝나면 자동 저장)' : on ? '누르면 녹화를 멈추고 저장합니다' : other ? '녹화는 ' + other + ' 님 PC에서 하고 있습니다. 누르면 이 PC에서도 녹화합니다' : '누르면 녹화를 시작합니다(멘토링 사이 시간은 「대기」 파일)';
+    });
+    if (PANEL) { UI.show('#b-rec', false); UI.show('#w-rec', false); }
+  }
+  $('#b-rec').onclick = $('#w-rec').onclick = function () { this.blur(); if (rec && rec.recording()) recStop(); else recStart(); };
+  function recStart() {
     if (IS_REC && !recOn) { recSetup(); return; }   // 폴더를 건너뛴 PC: 녹화 준비 창 다시
     if (!rec || !recOn) { UI.toast('이 브라우저에서는 녹화할 수 없습니다(PC 크롬에서 열어 주세요)'); return; }
     if (rec.recording()) return;
@@ -1472,7 +1480,7 @@
     recKey = view.cur ? view.cur.id : IS_REC ? 'gap' : 'manual';
     UI.toast(view.cur ? '녹화를 시작했습니다' : '녹화를 시작했습니다 — 멘토링 사이 시간은 「대기」 파일, 멘토링은 학생별 파일로 저장합니다', 4000);
   };
-  $('#b-rec-stop').onclick = function () {
+  function recStop() {
     if (!rec || !rec.recording()) return;
     if (IS_REC && view.cur) { UI.toast('멘토링 중에는 녹화를 멈출 수 없습니다. 학생이 끝나면 자동으로 저장됩니다.', 4000); return; }
     if (IS_REC) gapRec = false;   // 대기 시간 녹화만 멈춤(다음 멘토링은 다시 자동 녹화)
