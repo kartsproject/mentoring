@@ -498,6 +498,8 @@
     <div class="rs-dir" id="rs-dir"></div>
     <button class="btn full yel" id="rs-go" type="button">저장 폴더 고르기</button>
     <button class="btn full ghost" id="rs-other" type="button" style="margin-top:8px">다른 폴더 고르기</button>
+    <button class="btn full ghost" id="rs-skip" type="button" style="margin-top:8px">건너뛰기 — 이 PC에서는 녹화하지 않음</button>
+    <p class="note" style="margin-top:6px">건너뛰면 <b>이 PC에서는 멘토링이 녹화되지 않습니다.</b> 다른 PC가 녹화하는지 꼭 확인하세요. 나중에 녹화 상자의 「녹화 시작」을 누르면 다시 고를 수 있습니다.</p>
     <p class="note">폴더 선택 창에서 바탕화면·다운로드 폴더 자체가 아닌 그 <b>안의 새 폴더</b>를 고르고, 크롬이 묻는 「파일 수정 허용」에 <b>허용</b>(가능하면 「방문할 때마다 허용」)을 눌러 주세요. 창은 닫지 말고 띄워 두세요.</p>
   </div>
 </div>
@@ -948,7 +950,8 @@
       if (rec.ac.state !== 'running') { w.innerHTML = '<b>소리가 녹음되지 않고 있습니다.</b> 이 화면 아무 곳이나 한 번 클릭해 주세요(영상은 녹화 중).'; UI.show(w, true); }
       else UI.show(w, false);
     } else if (!rec || v.host !== sess.id) {
-      w.innerHTML = host ? '녹화는 <b>' + UI.esc(host) + '</b> 님 PC에서 하고 있습니다.' : '<b>녹화 담당 PC가 없습니다.</b> 녹화할 PC에서 위쪽 「이 PC에서 녹화」를 켜 주세요.';
+      var skip = IS_REC && !recOn ? '<b>이 PC는 녹화하지 않습니다</b>(저장 폴더 건너뜀) — 녹화하려면 「녹화 시작」. ' : '';
+      w.innerHTML = skip + (host ? '녹화는 <b>' + UI.esc(host) + '</b> 님 PC에서 하고 있습니다.' : '<b>녹화하는 PC가 없습니다!</b> 녹화할 PC에서 운영 화면에 들어가 저장 폴더를 골라 주세요.');
       UI.show(w, true);
     } else if (!rec.supported()) { w.textContent = '이 브라우저는 녹화를 지원하지 않습니다. 크롬(Chrome)에서 열어 주세요.'; UI.show(w, true); }
     else UI.show(w, false);
@@ -1128,7 +1131,8 @@
     $('#b-dir').textContent = d ? '폴더 바꾸기' : '폴더 정하기';
   }
   $('#b-dir').onclick = async function () {
-    if (!rec) { UI.toast('먼저 「이 PC에서 녹화」를 켜 주세요'); return; }
+    if (IS_REC && !recOn) { recSetup(); return; }
+    if (!rec) { UI.toast('이 브라우저에서는 녹화할 수 없습니다(PC 크롬에서 열어 주세요)'); return; }
     await pickDir(true);
   };
   window.__rec = function () { return rec; };   // 시험용
@@ -1164,6 +1168,7 @@
   function recBegin() {
     UI.show('#recSetup', false);
     recOn = true;
+    $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화');
     // 지난번에 끝나지 못한 녹화(창이 갑자기 닫힘 등)가 있으면 폴더로 복구
     if (rec.dir) window.MeetRecorder.Backup.recover(rec.dir).then(function (list) {
       if (list.length) UI.toast('지난 녹화 ' + list.length + '개를 「' + rec.dir.name + '」 폴더에 복구했습니다: ' + list.join(', '), 8000);
@@ -1174,6 +1179,13 @@
   }
   $('#rs-go').onclick = function () { recSetupGo(false); };
   $('#rs-other').onclick = function () { recSetupGo(true); };
+  // 저장 폴더 건너뛰기: 이 PC는 녹화하지 않음(다른 PC가 녹화) — 나중에 「녹화 시작」으로 다시 준비
+  $('#rs-skip').onclick = function () {
+    UI.show('#recSetup', false);
+    $('#h-me').innerHTML = UI.ico('user') + UI.esc('운영 ' + sess.name);
+    UI.toast('이 PC에서는 녹화하지 않습니다. 녹화하려면 녹화 상자의 「녹화 시작」을 누르세요.', 5000);
+    if (view) paintRecWarn();
+  };
   // 파일 이름: 녹화 시작 시각(YYMMDD_HHMM, 한국 시각)을 맨 앞에 — 예) 261121_1000_2회차_03_이름 / 261121_0940_2회차_대기
   function recName() {
     var cur = view && view.cur, k = new Date(Date.now() + 9 * 3600e3).toISOString();   // KST
@@ -1252,7 +1264,8 @@
   setInterval(function () { if (recOn) autoRecord(); }, 1000);
   ['pointerdown', 'keydown'].forEach(function (t) { document.addEventListener(t, function () { if (rec && rec.ac.state !== 'running') rec.resume().then(function () { if (view) paintRecWarn(); }); }, true); });
   $('#b-rec-start').onclick = function () {
-    if (!rec || !recOn) { UI.toast('먼저 「이 PC에서 녹화」를 켜 주세요'); return; }
+    if (IS_REC && !recOn) { recSetup(); return; }   // 폴더를 건너뛴 PC: 녹화 준비 창 다시
+    if (!rec || !recOn) { UI.toast('이 브라우저에서는 녹화할 수 없습니다(PC 크롬에서 열어 주세요)'); return; }
     if (rec.recording()) return;
     manualStop = ''; paintStage();
     if (IS_REC && !view.cur) gapRec = true;   // 멘토링 아닌 시간도 「대기」 파일로 계속 녹화(「녹화 중지」 전까지)

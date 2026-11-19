@@ -53,6 +53,19 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide') && window.__rec().recording(), null, 10000, 'gap recording after 녹화 시작');
   await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 30000, 'recorder took host');
   log('ops 운영A in: folder set → 「녹화 시작」 → 대기 녹화, host taken');
+  // 다른 운영진: 저장 폴더 건너뛰기 → 이 PC는 녹화 안 함, 녹화 PC 안내
+  const opsB = await mk('opsB');
+  await opsB.goto(BASE + '/b/o.html?r=test');
+  await opsB.fill('#g-name', '운영B'); await opsB.fill('#g-code', 'o1234'); await opsB.click('#g-btn');
+  await opsB.waitForSelector('#recSetup:not(.hide)', { timeout: 15000 });
+  await opsB.click('#rs-skip');
+  await waitFor(opsB, () => document.querySelector('#recSetup').classList.contains('hide') && /이 PC는 녹화하지 않습니다/.test(document.querySelector('#rec-warn').textContent) && /운영A/.test(document.querySelector('#rec-warn').textContent), null, 15000, 'skip folder');
+  if (await opsB.evaluate(() => window.__rec() && window.__rec().recording())) throw new Error('skipped PC should not record');
+  log('운영B 저장 폴더 건너뛰기 →', await opsB.evaluate(() => document.querySelector('#rec-warn').textContent));
+  await opsB.click('#b-rec-start');
+  await waitFor(opsB, () => !document.querySelector('#recSetup').classList.contains('hide'), null, 5000, 'rec setup again');
+  await opsB.click('#rs-skip');
+  await opsB.context().close();
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
   await waitFor(ops, () => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length >= 4, null, 15000, 'roster tiles');
   // 대기실 접속 시각이 지난 미접속 학생 → 칸 테두리 빨강(예전 「미접속」 팝업 대신)
