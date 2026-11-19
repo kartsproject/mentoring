@@ -248,7 +248,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('started from panel window → student A live after', Date.now() - t0, 'ms');
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 20000, 'recording');
   await waitFor(ops, () => window.__rec().recording() && /학생가/.test(window.__rec().health().name), null, 20000, 'student file');
-  if (!(await ops.evaluate(() => document.querySelector('#b-rec').classList.contains('lock')))) throw new Error('멘토링 중에는 녹화 버튼이 잠겨야 함');
+  await waitFor(ops, () => document.querySelector('#b-rec').classList.contains('lock'), null, 5000, '멘토링 중에는 녹화 버튼이 잠겨야 함');
   await ops.click('.recb:visible'); await sleep(800);
   if (!(await ops.evaluate(() => window.__rec().recording()))) throw new Error('멘토링 중 녹화 버튼을 눌러도 녹화는 계속되어야 함');
   log('recording started on host window (대기 녹화 꺼져 있어도 멘토링은 자동 녹화, 중지 버튼 잠김):', await ops.evaluate(() => window.__rec().health().name));

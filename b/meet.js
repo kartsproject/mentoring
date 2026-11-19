@@ -803,36 +803,44 @@
   /* ───────── 휴대폰 키보드가 입력 칸을 가리지 않게(모든 화면 공통) ─────────
    * 키보드가 올라오면 그만큼 아래 여백을 만들어 스크롤할 수 있게 하고, 입력 중인 칸을 보이는 영역 가운데로 옮김 */
   (function keyboardSafe() {
-    var vv = window.visualViewport;
+    // 휴대폰 키보드가 입력 칸을 가리지 않게(모든 화면 공통)
+    //  - 아이폰(사파리)은 키보드가 화면 위에 덮이기만 해서 페이지가 줄어들지 않음 → 키보드 높이만큼 아래 여백을 주고,
+    //    고른 입력 칸을 보이는 영역 위쪽으로 올림(다음 칸까지 보이게)
+    //  - 안드로이드(크롬)는 화면이 줄어듦 → 같은 방식으로 칸만 올림
+    //  ※ CSS 변수 이름은 --kbh(디자인의 --kb 색과 겹치지 않게)
+    var vv = window.visualViewport, baseH = window.innerHeight;
     var isField = function (el) { return el && (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|file)$/i.test(el.type) || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'); };
     try {
       var st = document.createElement('style');
-      st.textContent = 'body.kb-open{padding-bottom:var(--kb,0px)!important}';
+      st.textContent = 'body.kb-open::after{content:"";display:block;height:calc(var(--kbh,0px) + 40px)}';   // 아래 빈 공간(페이지 높이가 100%로 고정돼 있어도 올릴 수 있게)
       (document.head || document.documentElement).appendChild(st);
     } catch (e) {}
-    function kbH() { return vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0; }
+    function kbH() {
+      if (!isField(document.activeElement)) baseH = Math.max(window.innerHeight, vv ? vv.height : 0);   // 키보드 없을 때 높이 기억
+      return vv ? Math.max(0, Math.round(Math.max(baseH, window.innerHeight) - vv.height)) : 0;
+    }
     function show(el) {
       if (!isField(el) || !document.body.contains(el)) return;
-      var r = el.getBoundingClientRect();
-      var top = vv ? vv.offsetTop : 0, bottom = top + (vv ? vv.height : window.innerHeight);
-      var box = el.closest('label, .field') || el, rb = box.getBoundingClientRect();
-      if (rb.bottom > bottom - 12 || r.top < top + 8) {
-        try { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { box.scrollIntoView(); }
-      }
+      var box = el.closest('.field, label') || el, rb = box.getBoundingClientRect();
+      var vTop = vv ? vv.offsetTop : 0, vH = vv ? vv.height : window.innerHeight;
+      // 칸 위쪽을 보이는 영역 위에서 약 15%(최대 90px) 자리로 → 아래로 다음 칸까지 보임
+      var want = vTop + Math.min(90, vH * 0.15), d = rb.top - want;
+      var tooLow = rb.bottom > vTop + vH - 16, tooHigh = rb.top < vTop + 8;
+      if ((tooLow || tooHigh || d > vH * 0.35) && Math.abs(d) > 12) window.scrollBy(0, d);
     }
     function apply() {
       var h = kbH(), open = h > 80 && isField(document.activeElement);
-      document.documentElement.style.setProperty('--kb', (open ? h : 0) + 'px');
+      document.documentElement.style.setProperty('--kbh', (open ? h : 0) + 'px');
       if (document.body) document.body.classList.toggle('kb-open', open);
       if (open) show(document.activeElement);
     }
-    if (vv) { vv.addEventListener('resize', apply); vv.addEventListener('scroll', function () { if (document.body && document.body.classList.contains('kb-open')) apply(); }); }
+    if (vv) vv.addEventListener('resize', apply);
     window.addEventListener('resize', apply);
     document.addEventListener('focusin', function (e) {
       if (!isField(e.target)) return;
-      [120, 350, 700].forEach(function (t) { setTimeout(function () { apply(); show(e.target); }, t); });   // 키보드가 올라오는 동안 몇 번 확인
+      [60, 250, 500, 900].forEach(function (t) { setTimeout(function () { apply(); show(e.target); }, t); });   // 키보드가 올라오는 동안 몇 번 확인
     });
-    document.addEventListener('focusout', function () { setTimeout(apply, 200); });
+    document.addEventListener('focusout', function () { setTimeout(apply, 250); });
   })();
 
   window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck, Speak: Speak };
