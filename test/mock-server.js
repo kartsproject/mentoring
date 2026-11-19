@@ -79,7 +79,10 @@ const UrlFetchApp = { fetch: (url, o) => {
   Object.entries(o.headers || {}).forEach(([k, v]) => args.push('-H', k + ': ' + v));
   if (o.payload) args.push('--data-binary', '@-');
   args.push(u);
-  const outp = execFileSync('curl', args, { input: o.payload || '', encoding: 'utf8' });
+  const t0 = Date.now();
+  let outp;
+  try { outp = execFileSync('curl', args, { input: o.payload || '', encoding: 'utf8' }); }
+  finally { const dt = Date.now() - t0; if (dt > 1500) console.log('[sfu slow]', dt + 'ms', url.replace(/.*\/sessions\//, '')); }
   const i = outp.lastIndexOf('\n'), text = outp.slice(0, i), code = Number(outp.slice(i + 1));
   return { getResponseCode: () => code, getContentText: () => text };
 } };
@@ -118,6 +121,7 @@ ro.appendRow(['test', 4, '학생다', '20160303', hm(8), hm(18) + ' – ' + hm(2
 ro.appendRow(['3', 1, '홍길동', '20140505', '17:20', '17:30 – 17:40', '', '']);
 sheets['회차'].rows.forEach(r => { if (r[0] === 'test') { r[1] = today; r[3] = 2; } });
 ctx.cache_().removeAll(['ro|all', 'se|all']);
+if (process.env.NOSFU !== '1') { props.CF_SFU_APP_ID = 'testapp'; props.CF_SFU_APP_TOKEN = 'testtoken'; }   // 대기실 화상(가짜 SFU)
 }
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json' };

@@ -88,8 +88,8 @@
     var self = this, L = v.students, real = L.filter(function (x) { return !x.extra; });
     var on = real.filter(function (x) { return x.live; }).length;
     var done = real.filter(function (x) { return self.statusOf(x) === 'done'; }).length;
-    var chatN = (this.o.sess.chat.list || []).filter(function (m) { return m.f === 's'; }).length;
-    $('#sum').innerHTML = '<div><b>' + on + '<small style="font-size:13px;color:var(--faint);font-weight:700"> / ' + real.length + '</small></b>접속 중</div><div><b>' + (real.length - done - (v.cur ? 1 : 0)) + '</b>대기</div><div><b>' + done + '</b>완료</div><div><b>' + chatN + '</b>채팅</div>';
+    var chatN = (v.wr || []).filter(function (p) { return p.role === 'student'; }).length;   // 대기실 화상에 있는 학생 수(채팅은 없앰)
+    $('#sum').innerHTML = '<div><b>' + on + '<small style="font-size:13px;color:var(--faint);font-weight:700"> / ' + real.length + '</small></b>접속 중</div><div><b>' + (real.length - done - (v.cur ? 1 : 0)) + '</b>대기</div><div><b>' + done + '</b>완료</div><div><b>' + chatN + '</b>대기실 화상</div>';
     var F = {};
     this.alertsOf().forEach(function (a) { (F[a.x.id] = F[a.x.id] || {})[a.type] = true; });
     document.documentElement.style.setProperty('--ph', '-' + (this.clock() % 1200) + 'ms');   // 다시 그려도 깜빡임 박자 유지

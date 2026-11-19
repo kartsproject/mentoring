@@ -153,6 +153,39 @@
   body.typing .status:not(.next), body.typing .info { display: none; }
   @media (max-height: 600px) { .info { display: none; } }
 
+  /* 대기실 화상 */
+  .wvid .bc { margin: 0; flex: none; }
+  .chat[hidden] { display: none !important; }
+  .wvid { flex: 1 1 auto; min-height: 150px; display: flex; flex-direction: column; gap: 6px; background: var(--k1); border-radius: 16px; padding: 8px; color: var(--k-tx); }
+  .wvid .wgrid { flex: 1; }
+  .wbar { flex: none; display: flex; align-items: center; gap: 6px; padding: 0 2px; }
+  .wbar b { font-size: 13.5px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+  .wbar b i { width: 7px; height: 7px; border-radius: 50%; background: #6FD39B; box-shadow: 0 0 0 3px rgba(111,211,155,.2); }
+  .wbar small { color: var(--k-soft); font-size: 12px; font-weight: 600; }
+  .wbar .sp { flex: 1; }
+  .wbtn { display: inline-flex; align-items: center; gap: 5px; height: 34px; padding: 0 12px; border-radius: 999px; border: 0; background: var(--k3); color: #fff; font-weight: 800; font-size: 13px; cursor: pointer; }
+  .wbtn svg { width: 17px; height: 17px; }
+  .wbtn.off { background: #D64541; }
+  .chat { flex: 1 1 54%; }
+  .mini { display: none; }
+  .info { grid-template-columns: 1fr; }
+  body.typing .wvid { display: none; }
+  @media (max-width: 600px) { .wbtn span { display: none; } .wbtn { width: 38px; padding: 0; justify-content: center; } }
+  @media (min-width: 980px) and (min-height: 560px) {
+    #room { max-width: 1440px; padding: 0 16px 14px; }
+    #room.on { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto auto auto minmax(0, 1fr); column-gap: 14px; row-gap: 8px; }
+    #room .rh { grid-column: 1 / 3; }
+    #room .wvid { grid-column: 1; grid-row: 2 / 5; min-height: 0; }
+    #room .status, #room .info { grid-column: 2; }
+  }
+
+  /* 멘토링을 마친 뒤 */
+  #s-end { min-height: 100dvh; place-items: center; padding: 24px; background: var(--band); color: var(--band-tx); }
+  #s-end.on { display: grid; }
+  #s-end .card { max-width: 440px; text-align: center; }
+  #s-end .big { width: 64px; height: 64px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; margin: 0 auto 16px; }
+  #s-end .big .i { width: 32px; height: 32px; }
+
   /* ⑤ 멘토링 화면 */
   .topbar .kmark { margin-right: 2px; }
   .ready-banner { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); background: var(--yel); color: var(--ink); padding: 9px 18px; border-radius: 999px; font-weight: 800; font-size: 14px; z-index: 4; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
@@ -242,9 +275,13 @@
     </div>
     <div class="mini"><video id="w-self" autoplay playsinline muted></video><div class="meter"><i id="w-meter"></i></div></div>
   </section>
-  <section class="chat">
-    <div class="ch"><h2>대기실 채팅</h2><small id="onlineCnt"></small></div>
+  <section class="wvid" id="wvid">
     <div class="bc" id="bc" hidden></div>
+    <div class="wgrid" id="wgrid"></div>
+    <div class="wbar"><b><i></i>대기실</b><small id="wcnt"></small><small id="onlineCnt" hidden></small><span class="sp"></span>
+      <button class="wbtn" type="button" id="w-mic"></button><button class="wbtn" type="button" id="w-cam"></button></div>
+  </section>
+  <section class="chat" hidden>
     <div class="msgs" id="msgs"><div class="empty">아직 대화가 없습니다.<br>먼저 인사를 남겨 보세요.</div></div>
     <form class="send" id="sendForm" autocomplete="off">
       <input type="text" id="text" maxlength="300" placeholder="운영진에게 묻거나 인사를 나눠 보세요">
@@ -252,6 +289,15 @@
     </form>
   </section>
 </div>
+
+<!-- 멘토링을 마친 뒤: 안내 후 바로 퇴장 -->
+<section class="scr" id="s-end">
+  <div class="card">
+    <div class="big"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <h1>멘토링이 끝났습니다</h1>
+    <p class="lead">참여해 주셔서 감사합니다. 수고하셨어요!<br>카메라와 마이크를 껐습니다. 이제 창을 닫아도 됩니다.</p>
+  </div>
+</section>
 
 <!-- ⑤ 멘토링 -->
 <section id="s-live" class="stage hide">
@@ -290,13 +336,15 @@
 
 <script src="config.js"></script>
 <script src="meet.js"></script>
+<script src="../a/sfu.js"></script>
+<script src="wait.js"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
   var PREFIX = C.PREFIX || '';
   var R0 = UI.param('r');                 // 리허설 등 회차를 주소로 지정할 때만(평소에는 명단에서 자동)
   var TITLE = '무용분야 심화 멘토링 대기실';
-  var sess = null, links = null, dc = null, local = null, ac = null;
+  var sess = null, links = null, dc = null, local = null, ac = null, wr = null, ended = false;
   var screen = '', lastCurAt = 0, zoomGone = false, stopWaitMeter = null, lastV = null, PENDING = [], pid = 0, RULES_SEEN = false, ME = null;
 
   // 카카오톡 안 브라우저는 카메라가 안 되는 경우가 많아 기본 브라우저로 다시 엽니다
@@ -305,7 +353,7 @@
   $('#g-mail').textContent = C.CONTACT || ''; $('#g-mail').href = 'mailto:' + (C.CONTACT || '');
 
   function go(id) {
-    ['s-gate', 's-check', 'room'].forEach(function (s) { $('#' + s).classList.toggle('on', s === id); });
+    ['s-gate', 's-check', 'room', 's-end'].forEach(function (s) { $('#' + s).classList.toggle('on', s === id); });
     UI.show('#s-live', id === 's-live');
     document.body.classList.toggle('dark', id === 's-live');
     screen = id;
@@ -448,6 +496,11 @@
     stopWaitMeter = M.Media.meter(local, $('#w-meter'));
     UI.netbar(sess);
     UI.wakeLock();
+    // 대기실 화상: 마이크는 켠 채로(직접 끌 수 있음)
+    local.getAudioTracks().forEach(function (t) { t.enabled = true; });
+    wr = new M.WaitRoom({ sess: sess, el: $('#wgrid'), role: 'student', getLocal: function () { return local; },
+      onMute: function () { local.getAudioTracks().forEach(function (t) { t.enabled = false; }); paintCtrls(); UI.toast('운영진이 마이크를 껐습니다. 말할 때는 마이크 버튼을 눌러 켜 주세요.', 5000); },
+      onChange: function (n) { $('#wcnt').textContent = n ? n + '명' : ''; } });
     setupCtrls();
     go('room');
     setInterval(tick, 500);
@@ -456,6 +509,7 @@
 
   function render(v) {
     lastV = v;
+    if (v.done && !v.called && !v.zoomUrl) { finish(); return; }   // 멘토링을 마침 → 안내 후 바로 퇴장
     if (!links) return;   // 아직 카메라 확인 전
     var ms = links.get('ms', 'M');
     var vt = local && local.getVideoTracks()[0], at = local && local.getAudioTracks()[0];
@@ -469,8 +523,10 @@
     else UI.show('#z-card', false);
 
     $('#onlineCnt').textContent = (v.online ? '지금 ' + v.online + '명 접속 중' : '');
+    if (wr) { wr.want(screen !== 's-live' && !v.called && !v.zoomUrl && !zoomGone); wr.sync(v); }
     if (v.called) {
       if (screen !== 's-live') {
+        if (wr) wr.want(false);
         go('s-live');
         ensureLive();
         alertCalled();
@@ -517,6 +573,20 @@
     if (v.isNext && ms && ms.state === 'connected') { w.className = 'chip ok'; w.innerHTML = UI.ico('check') + '멘토 연결 준비 완료'; }
     else if (v.isNext) { w.className = 'chip warn'; w.textContent = '멘토 연결 준비 중'; }
     else { w.className = 'chip'; w.textContent = v.mentorLive ? '멘토 접속 중' : '멘토 접속 전'; }
+  }
+
+  // 멘토링을 마치면 안내를 보이고 바로 퇴장(카메라·마이크 끄고 연결 끊음)
+  function finish() {
+    if (ended) return; ended = true;
+    try { if (wr) wr.stop(); } catch (e) {}
+    try { if (links) links.closeWhere(function () { return true; }, true); } catch (e) {}
+    try { M.Media.stop(local); } catch (e) {}
+    try { if (dc && dc.stream) M.Media.stop(dc.stream); if (dc) dc.stopMeterOnly(); } catch (e) {}
+    try { if (stopWaitMeter) stopWaitMeter(); } catch (e) {}
+    try { sessionStorage.removeItem('meet_stu'); } catch (e) {}
+    setTimeout(function () { try { sess.stop(); } catch (e) {} }, 1500);
+    go('s-end');
+    document.title = '멘토링이 끝났습니다';
   }
 
   function beep(seq) {
@@ -606,7 +676,7 @@
     if (dead) {
       try {
         await dc.start({}); local = dc.stream; dc.stopMeterOnly();
-        links.replaceLocal(local); links.applyPolicy();
+        links.replaceLocal(local); links.applyPolicy(); if (wr) wr.replaceLocal();
         UI.attach($('#l-self'), local); UI.attach($('#w-self'), local);
       } catch (e) { UI.toast(M.Media.errText(e), 5000); }
     }
@@ -620,16 +690,21 @@
       var mOn = at && at.enabled, cOn = vt && vt.enabled;
       mic.innerHTML = mOn ? M.ICON.mic : M.ICON.micOff; mic.classList.toggle('off', !mOn);
       cam.innerHTML = cOn ? M.ICON.cam : M.ICON.camOff; cam.classList.toggle('off', !cOn);
+      var wm = $('#w-mic'), wc = $('#w-cam');
+      wm.innerHTML = (mOn ? M.ICON.mic : M.ICON.micOff) + '<span>' + (mOn ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; wm.classList.toggle('off', !mOn);
+      wc.innerHTML = (cOn ? M.ICON.cam : M.ICON.camOff) + '<span>' + (cOn ? '카메라 켜짐' : '카메라 꺼짐') + '</span>'; wc.classList.toggle('off', !cOn);
+      if (wr) wr.render();
+      if (lastV) { sess.info.mic = !!mOn; sess.info.cam = !!cOn; }
     };
     paintCtrls = paint;
-    mic.onclick = function () { local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); };
-    cam.onclick = function () { local.getVideoTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); };
+    mic.onclick = $('#w-mic').onclick = function () { local.getAudioTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); sess.kick(); };
+    cam.onclick = $('#w-cam').onclick = function () { local.getVideoTracks().forEach(function (t) { t.enabled = !t.enabled; }); paint(); sess.kick(); };
     flip.innerHTML = M.ICON.flip;
     UI.show(flip, dc.camCount > 1);
     flip.onclick = async function () {
       try {
         await dc.flip(); local = dc.stream; dc.stopMeterOnly();
-        links.replaceLocal(local);
+        links.replaceLocal(local); if (wr) wr.replaceLocal();
         UI.attach($('#l-self'), local); UI.attach($('#w-self'), local);
         paint();
       } catch (e) { UI.toast('카메라를 바꾸지 못했습니다'); }

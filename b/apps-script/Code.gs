@@ -1,11 +1,12 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.1
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.2
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
  *  - 회차별 진행 상태(현재 학생, 완료, ZOOM 전환, 화면 등장) 보관
  *  - 대기실: 학생 본인 확인(이름+생년월일), 대기실 채팅, 상단 고정 공지
  *  - Cloudflare TURN 임시 접속증 발급(스크립트 속성에 키가 있을 때만)
+ *  - 대기실 화상(Ver.2.2): Cloudflare Realtime SFU 연결 요청을 앱 비밀키로 대신 보냄(비밀키는 브라우저에 가지 않음)
  *  - 시트 「명단」「회차」 읽기, 「기록」「채팅」 남기기
  *
  * 비밀값은 코드에 넣지 않습니다. [프로젝트 설정 > 스크립트 속성]에 넣습니다.
@@ -14,6 +15,8 @@
  *  RESEARCH_CODE      연구원 접속 코드
  *  CF_TURN_KEY_ID     (선택) Cloudflare TURN 키 ID
  *  CF_TURN_API_TOKEN  (선택) Cloudflare TURN API 토큰
+ *  CF_SFU_APP_ID      대기실 화상용 Cloudflare Realtime SFU App ID (미술과 같은 값 사용 가능)
+ *  CF_SFU_APP_TOKEN   대기실 화상용 Cloudflare Realtime SFU API Token (미술과 같은 값 사용 가능)
  *
  * 처음 한 번 / 코드를 바꾼 뒤: 편집기 상단에서 setup 선택 → 실행 (시트 탭·머리글을 맞춤, 기존 내용은 유지)
  * 배포: 배포 > 새 배포 > 웹 앱 / 실행: 나 / 액세스: 모든 사용자
@@ -28,6 +31,7 @@ var CHAT_MAX = 300;        // 회차별 채팅 보관 개수(화면용, 전체 �
 var BC_MAX = 10;           // 상단 고정 공지 보관 개수
 var SLOT_MIN = 10;         // 1인 멘토링 시간(분) — 「멘토링 시간」에 끝 시각이 없을 때 사용
 var TZ = 'Asia/Seoul';
+var SFU_BASE = 'https://rtc.live.cloudflare.com/v1/apps/';
 
 var ROSTER_HEAD = ['회차', '순서', '이름', '생년월일', '대기실 접속', '멘토링 시간', '학생 연락처', '보호자 연락처'];
 var SESS_HEAD = ['회차', '날짜', '멘토', '휴식(몇 번째 학생 뒤)'];
@@ -64,6 +68,8 @@ function handle_(req) {
       case 'op':   return op_(r, req);
       case 'chat': return chat_(r, req);
       case 'ice':  auth_(r, req); return { ok: true, ice: iceServers_() };
+      case 'sfu':  return sfu_(r, req);
+      case 'wr':   return wr_(r, req);
       default: return { ok: false, error: 'bad_action' };
     }
   } catch (err) {
@@ -269,18 +275,20 @@ function join_(r, req) {
     return { ok: false, error: 'bad_role' };
   }
 
-  var tok = token_();
+  var tok = token_(), pid = '';
   var res = withLock_(function () {
     var s = getState_(r);
-    var isNew = !s.parts[id];
-    s.parts[id] = { role: role, name: name, joinedAt: (s.parts[id] && s.parts[id].joinedAt) || Date.now(), panel: !!req.panel };
+    var isNew = !s.parts[id], old = s.parts[id] || {};
+    s.n = s.n || 0;
+    s.parts[id] = { role: role, name: name, joinedAt: old.joinedAt || Date.now(), panel: !!req.panel, pid: old.pid || ('p' + (++s.n)) };
+    pid = s.parts[id].pid;
     putState_(r, s);
     cache_().put('tk|' + r + '|' + id, tok, TTL);
     return { isNew: isNew };
   });
   cput_('sn|' + r + '|' + id, { t: Date.now(), info: {} });
   log_(r, '입장', name, role + (req.panel ? '(대기실 창)' : '') + (res.isNew ? '' : ' (재접속)'));
-  return { ok: true, id: id, tok: tok, name: name, role: role, r: r, me: me, ice: iceServers_(), now: Date.now() };
+  return { ok: true, id: id, tok: tok, pid: pid, name: name, role: role, r: r, me: me, ice: iceServers_(), now: Date.now() };
 }
 
 /* ───────────── poll ───────────── */
@@ -354,6 +362,18 @@ function view_(r, s, id, role, now) {
   var next = nx ? { id: nx.id, name: nx.name, no: nx.no, time: nx.time, info: nx.info } : null;
   var online = students.filter(function (st) { return st.live; }).length;
 
+  // 대기실 화상: 영상을 올린 사람(학생은 멘토링 중·완료·ZOOM이 아닐 때만)
+  var wr = Object.keys(s.parts).filter(function (i) {
+    var p = s.parts[i];
+    if (!p.wr || !p.wr.sfu || !live(i)) return false;
+    if (p.role === 'student') return !(s.cur && s.cur.id === i) && !s.done[i] && !s.zoom[i];
+    return isStaff_(p.role);
+  }).map(function (i) {
+    var p = s.parts[i], sn = seen[i];
+    return { id: i, pid: p.pid, name: p.name, role: p.role, sfu: p.wr.sfu, tr: p.wr.tr || {}, talk: !!(sn && sn.info && sn.info.wtalk), at: p.wr.at || 0,
+             mic: p.role === 'student' ? !(sn && sn.info && sn.info.mic === false) : !!(sn && sn.info && sn.info.wtalk) };
+  });
+
   if (role === 'student') {
     var me = null, ahead = 0;
     for (var k = 0; k < waiting.length; k++) { if (waiting[k].id === id) { me = waiting[k]; break; } ahead++; }
@@ -372,7 +392,8 @@ function view_(r, s, id, role, now) {
       host: s.host && live(s.host) ? s.host : null,
       done: !!s.done[id],
       test: s.test[id] || null,
-      zoomUrl: s.zoom[id] ? s.zoomUrl : ''
+      zoomUrl: s.zoom[id] ? s.zoomUrl : '',
+      wr: wr, wmuteAt: (s.parts[id] && s.parts[id].wmuteAt) || 0
     };
   }
 
@@ -384,6 +405,7 @@ function view_(r, s, id, role, now) {
   if (role === 'mentor') return base;
 
   // 운영진·연구원
+  base.wr = wr;
   base.host = s.host && live(s.host) ? s.host : null;
   base.hostName = base.host && s.parts[base.host] ? s.parts[base.host].name : '';
   base.zoomUrl = s.zoomUrl;
@@ -545,9 +567,9 @@ function op_(r, req) {
         return { ok: true, chat: chatView_(r, 'ops', 0, -1) };
       }
       case 'reset': {
-        var parts = s.parts;
+        var parts = s.parts, pn = s.n;
         s = blankState_();
-        s.parts = parts;
+        s.parts = parts; s.n = pn;
         var ch2 = chatState_(r); cput_('ch|' + r, { gv: ch2.gv + 1, last: ch2.last, list: [] });
         cput_('bc|' + r, []);
         log_(r, '초기화', name, '');
@@ -560,6 +582,82 @@ function op_(r, req) {
     return { ok: true };
   });
   return result;
+}
+
+/* ───────────── 대기실 화상 ─────────────
+ *  cmd pub : 내가 대기실에 올린 영상·소리 이름 등록(sfu 세션, tr {cam, mic}) — 비우면 대기실 화상에서 나감
+ *  cmd mute: (운영진) 학생 마이크 끄기 요청
+ */
+function wr_(r, req) {
+  var id = auth_(r, req), cmd = String(req.cmd || '');
+  return withLock_(function () {
+    var s = getState_(r), me = s.parts[id];
+    if (!me || me.role === 'mentor') throw new Error('forbidden');
+    if (cmd === 'pub') {
+      var sfu = String(req.sfu || '').slice(0, 64), tr = {};
+      ['cam', 'mic'].forEach(function (k) { if (req.tr && req.tr[k]) tr[k] = String(req.tr[k]).slice(0, 64); });
+      me.wr = sfu ? { sfu: sfu, tr: tr, at: (me.wr && me.wr.sfu === sfu && me.wr.at) || Date.now() } : null;
+    } else if (cmd === 'mute') {
+      if (me.role !== 'ops') throw new Error('forbidden');
+      var t = s.parts[String(req.sid || '')];
+      if (t) t.wmuteAt = Date.now();
+    } else return { ok: false, error: 'bad_cmd' };
+    putState_(r, s);
+    return { ok: true };
+  });
+}
+
+/* Cloudflare Realtime SFU 대행 — 브라우저는 연결 정보(SDP)만 보내고, 앱 비밀키는 여기서만 씀
+ *  op: new | push | pull | update | reneg | close */
+function sfu_(r, req) {
+  var id = auth_(r, req), p = props_();
+  var app = p.getProperty('CF_SFU_APP_ID'), key = p.getProperty('CF_SFU_APP_TOKEN');
+  if (!app || !key) return { ok: false, error: 'sfu_not_set' };
+  var s = getState_(r), me = s.parts[id];
+  if (!me || me.role === 'mentor') throw new Error('forbidden');
+  var op = String(req.op || ''), sid = String(req.sid || '');
+  if (op !== 'new' && !/^[\w-]{8,64}$/.test(sid)) return { ok: false, error: 'bad_sid' };
+  var path, method = 'post', body = null;
+  var simul = function (rid) { return { preferredRid: String(rid), priorityOrdering: 'asciibetical', ridNotAvailable: 'asciibetical' }; };
+  switch (op) {
+    case 'new': path = '/sessions/new'; break;
+    case 'push':
+      path = '/sessions/' + sid + '/tracks/new';
+      body = { sessionDescription: { type: 'offer', sdp: String(req.sdp || '') },
+               tracks: (req.tracks || []).slice(0, 4).map(function (t) { return { location: 'local', mid: String(t.mid), trackName: String(t.trackName) }; }) };
+      break;
+    case 'pull':
+      path = '/sessions/' + sid + '/tracks/new';
+      body = { tracks: (req.tracks || []).slice(0, 40).map(function (t) {
+        var o = { location: 'remote', sessionId: String(t.sessionId), trackName: String(t.trackName) };
+        if (t.rid) o.simulcast = simul(t.rid);
+        return o;
+      }) };
+      break;
+    case 'update':
+      path = '/sessions/' + sid + '/tracks/update'; method = 'put';
+      body = { tracks: (req.tracks || []).slice(0, 40).map(function (t) {
+        return { location: 'remote', sessionId: String(t.sessionId), trackName: String(t.trackName), mid: String(t.mid), simulcast: simul(t.rid) };
+      }) };
+      break;
+    case 'reneg':
+      path = '/sessions/' + sid + '/renegotiate'; method = 'put';
+      body = { sessionDescription: { type: 'answer', sdp: String(req.sdp || '') } };
+      break;
+    case 'close':
+      path = '/sessions/' + sid + '/tracks/close'; method = 'put';
+      body = { tracks: (req.mids || []).slice(0, 40).map(function (m) { return { mid: String(m) }; }), force: false };
+      if (req.sdp) body.sessionDescription = { type: 'offer', sdp: String(req.sdp) };
+      break;
+    default: return { ok: false, error: 'bad_op' };
+  }
+  var opt = { method: method, contentType: 'application/json', headers: { Authorization: 'Bearer ' + key }, muteHttpExceptions: true };
+  if (body) opt.payload = JSON.stringify(body);
+  var res = UrlFetchApp.fetch(SFU_BASE + encodeURIComponent(app) + path, opt);
+  var code = res.getResponseCode(), j = {};
+  try { j = JSON.parse(res.getContentText() || '{}'); } catch (e) {}
+  if (code >= 300 || j.errorCode) return { ok: false, error: 'sfu', code: code, detail: j.errorDescription || j.errorCode || ('HTTP ' + code) };
+  return { ok: true, res: j };
 }
 
 /* ───────────── ICE(STUN/TURN) ───────────── */
@@ -651,6 +749,13 @@ function setup() {
   Logger.log('연구원 코드: ' + p.getProperty('RESEARCH_CODE'));
   Logger.log('TURN 설정: ' + (p.getProperty('CF_TURN_KEY_ID') ? '있음' : '없음(STUN만 사용)'));
   Logger.log('ICE 확인: ' + JSON.stringify(iceServers_()).slice(0, 300));
+  var hasSfu = p.getProperty('CF_SFU_APP_ID') && p.getProperty('CF_SFU_APP_TOKEN');
+  Logger.log('대기실 화상(SFU) 설정: ' + (hasSfu ? '있음' : '없음 — CF_SFU_APP_ID·CF_SFU_APP_TOKEN을 넣어 주세요(미술과 같은 값)'));
+  if (hasSfu) {
+    var t = UrlFetchApp.fetch(SFU_BASE + encodeURIComponent(p.getProperty('CF_SFU_APP_ID')) + '/sessions/new', {
+      method: 'post', headers: { Authorization: 'Bearer ' + p.getProperty('CF_SFU_APP_TOKEN') }, muteHttpExceptions: true });
+    Logger.log('SFU 연결 시험: ' + (t.getResponseCode() < 300 ? '성공' : '실패 HTTP ' + t.getResponseCode() + ' ' + t.getContentText().slice(0, 200)));
+  }
   var all = rosterAll_();
   Logger.log('명단: ' + Object.keys(all).map(function (k) { return k + '회차 ' + all[k].length + '명'; }).join(', '));
 }

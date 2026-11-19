@@ -32,7 +32,10 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
     return p;
   };
   global.__pages = [];
-  const ops = await mk('ops'), mentor = await mk('mentor'), res = await mk('research'), sA = await mk('stuA', { width: 420, height: 860 }), sB = await mk('stuB', { width: 420, height: 860 });
+  // 대기실 화상용 가짜 SFU 대역 페이지(test/mock-sfu.js)
+  const sfuHost = await mk('sfu');
+  await sfuHost.goto('http://localhost:' + (process.env.SFU_PORT || 8788) + '/host');
+  const ops = await mk('ops'), mentor = await mk('mentor'), res = await mk('research'), sA = await mk('stuA', { width: 420, height: 860 }), sB = await mk('stuB', { width: 420, height: 860 }), sC = await mk('stuC', { width: 1280, height: 800 });
 
   // 운영진(녹화 창)
   await ops.goto(BASE + '/b/o.html?r=test');
@@ -43,7 +46,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await sleep(500); await SHOT(ops, 'ops_recsetup');
   await ops.evaluate(async () => window.__setRecDir(await navigator.storage.getDirectory()));   // 폴더 선택 창 대신(시험용)
   await waitFor(ops, () => document.querySelector('#recSetup').classList.contains('hide') && !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording on login');
-  await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 15000, 'recorder took host');
+  await waitFor(ops, () => document.querySelector('#sw-host').checked, null, 30000, 'recorder took host');
   log('ops 운영A in: folder set → recording from login (대기), host taken');
   // 명단 카드·미접속 알림(학생가: 대기실 접속 시각 지남)
   await waitFor(ops, () => document.querySelectorAll('#list .st').length >= 4, null, 15000, 'roster cards');
@@ -117,15 +120,36 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   log('student A in room:', (await text(sA, '#sched')).replace(/\s+/g, ' '));
   await studentIn(sB, '학생나', '150202');   // 6자리 생년월일도 허용
   log('student B in room (6-digit birth)');
+  await studentIn(sC, '학생다', '20160303');
+
+  // 대기실 화상: 학생끼리·운영진과 얼굴 보기(가짜 SFU)
+  const vids = (p, sel) => p.evaluate(s => [...document.querySelectorAll(s + ' .wt')].map(t => t.querySelector('.wnm').textContent + ':' + (t.querySelector('video').videoWidth || 0)), sel);
+  await waitFor(sA, () => [...document.querySelectorAll('#wgrid .wt')].filter(t => !t.classList.contains('me') && t.querySelector('video').videoWidth > 0).length >= 2, null, 60000, 'A sees B, C video');
+  log('student A waiting-room video:', (await vids(sA, '#wgrid')).join(', '));
+  await waitFor(panel, () => [...document.querySelectorAll('#w-grid .wt')].filter(t => t.querySelector('video').videoWidth > 0).length >= 3, null, 60000, 'panel sees 3 students');
+  log('ops panel waiting-room video:', (await vids(panel, '#w-grid')).join(', '));
+  const micA = await sA.evaluate(() => document.querySelector('#w-mic').textContent);
+  if (!/켜짐/.test(micA)) throw new Error('student mic should be on in waiting room');
+  // 운영진 카메라 켜기 → 학생 화면에 「운영진 운영A」
+  await panel.click('#w-camb');
+  await waitFor(sC, () => [...document.querySelectorAll('#wgrid .wt.staff')].some(t => /운영진/.test(t.textContent) && t.querySelector('video').videoWidth > 0), null, 40000, 'student sees ops cam');
+  log('ops camera on → student C sees staff tile');
+  await SHOT(sC, 'stu_waitroom_wide'); await SHOT(sA, 'stu_waitroom_phone'); await SHOT(panel, 'panel_waitroom');
+  // 운영진이 학생 C 마이크 끄기(두 번 누름)
+  await panel.evaluate(() => { const t = [...document.querySelectorAll('#w-grid .wt')].find(t => /학생다/.test(t.textContent)); const b = t.querySelector('.wmute'); b.click(); b.click(); });
+  await waitFor(sC, () => /꺼짐/.test(document.querySelector('#w-mic').textContent), null, 20000, 'student C muted by ops');
+  log('ops muted student C → C mic:', await sC.evaluate(() => document.querySelector('#w-mic').textContent));
+  await sC.click('#w-mic');
+  await panel.click('#w-camb');
 
   // 대기실 채팅·공지
-  await sA.fill('#text', '안녕하세요 학생가입니다'); await sA.click('#sendBtn');
-  await waitFor(panel, () => /학생가입니다/.test(document.querySelector('#msgs').textContent), null, 15000, 'panel sees student chat');
-  await panel.fill('#chatText', '반가워요! 운영진입니다'); await panel.click('#chatForm button');   // 대기실을 새 창으로 뺐으므로 채팅은 대기실 창에서
-  await waitFor(sB, () => /운영진입니다/.test(document.querySelector('#msgs').textContent) && /운영진/.test(document.querySelector('#msgs .m.o .who').textContent), null, 15000, 'student sees ops chat');
-  await panel.fill('#bcText', '앞 순서가 조금 늦어지고 있어요'); await panel.click('#bcForm button'); await panel.click('#bcForm button');
-  await waitFor(sA, () => !document.querySelector('#bc').hidden && /늦어지고/.test(document.querySelector('#bc').textContent), null, 15000, 'student sees bc');
-  log('chat + pinned notice ok (student↔ops, panel→students)');
+  if (await sA.evaluate(() => { const c = document.querySelector('.chat'); return !!(c && c.offsetParent); })) throw new Error('채팅은 없어야 함');
+  await panel.evaluate(() => document.querySelectorAll('#alerts .al .x').forEach(b => b.click()));   // 알림 팝업이 공지 칸을 가리지 않게
+  await panel.fill('#bcText', '앞 순서가 조금 늦어지고 있어요');
+  await panel.evaluate(() => { const f = document.querySelector('#bcForm'); f.requestSubmit(); f.requestSubmit(); });   // 두 번 눌러 확인(알림 팝업에 가려지지 않게 직접)
+  try { await waitFor(sA, () => !document.querySelector('#bc').hidden && /늦어지고/.test(document.querySelector('#bc').textContent), null, 60000, 'student sees bc'); }
+  catch (e) { await panel.screenshot({ path: path.join(OUT, 'dbg_panel_bc.png') }); log('DIAG bc:', await panel.evaluate(() => document.querySelector('#bcText').value + ' | ' + document.querySelector('#bcForm button').textContent + ' | ' + document.querySelector('#bcList').textContent)); throw e; }
+  log('no chat on student screen; pinned notice shown over waiting-room video');
   await sA.screenshot({ path: path.join(OUT, '2_student_chat.png') });
 
   // 연결 점검 + 다음 차례 미리 연결
@@ -160,12 +184,16 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await ops.click('#b-next');
   await waitFor(sB, () => document.querySelector('#l-remote').videoWidth > 0, null, 30000, 'B live');
   log('student B live after', Date.now() - tB, 'ms');
-  await waitFor(sA, () => document.querySelector('#room').classList.contains('on') && document.querySelector('#status').classList.contains('done'), null, 15000, 'A done');
-  log('student A back in room with done status (chat still available)');
+  await waitFor(sA, () => document.querySelector('#s-end').classList.contains('on'), null, 15000, 'A done → end screen');
+  const camA = await sA.evaluate(() => [...document.querySelectorAll('video')].some(v => v.srcObject && v.srcObject.getTracks().some(t => t.readyState === 'live' && t.kind === 'video' && !t.remote)));
+  log('student A: 멘토링 끝 → 안내 후 바로 퇴장 (end screen, live local camera:', camA, ')');
+  await waitFor(sC, () => ![...document.querySelectorAll('#wgrid .wt')].some(t => /학생가/.test(t.textContent)), null, 20000, 'A gone from waiting room');
+  log('student A no longer in C\'s waiting-room video');
   await SHOT(sA, 'stu_done');
   await sleep(3000);
   await ops.click('#b-end'); await ops.click('#b-end');
-  await waitFor(ops, () => [...document.querySelectorAll('#rec-files li')].filter(li => li.textContent.includes('자동 저장')).length >= 3, null, 30000, 'auto-saved');
+  try { await waitFor(ops, () => [...document.querySelectorAll('#rec-files li')].filter(li => li.textContent.includes('자동 저장')).length >= 3, null, 30000, 'auto-saved'); }
+  catch (e) { await ops.screenshot({ path: path.join(OUT, 'dbg_ops_end.png') }); log('DIAG files:', await ops.evaluate(() => document.querySelector('#rec-files').innerText + ' | cur:' + document.querySelector('#c-name').textContent)); throw e; }
   await waitFor(ops, () => !document.querySelector('#h-rec').classList.contains('hide'), null, 10000, 'gap recording resumes after end');
   const names = await ops.evaluate(() => [...document.querySelectorAll('#rec-files li span:first-child')].map(x => x.textContent));
   log('auto-saved:', names.join(' | '));
@@ -189,17 +217,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   vinfo.forEach(x => { log('recording file:', x.name, x.w + 'x' + x.h, x.mb + 'MB'); if (x.w < 1920 || x.h < 1080) throw new Error('recording below FHD'); });
   if (vinfo[0]) fs.writeFileSync(path.join(OUT, 's_rec_frame.png'), Buffer.from(vinfo[0].png.split(',')[1], 'base64'));
 
-  // 채팅 메시지 지우기·전체 지우기
-  await ops.click('#clearChat'); await ops.click('#clearChat');
-  await waitFor(sA, () => !/학생가입니다/.test(document.querySelector('#msgs').textContent), null, 15000, 'chat cleared on student');
-  log('chat cleared → removed on student screen');
 
   // 학생 새로고침: 다시 입력 없이 카메라 확인부터
-  await sB.reload();
-  await sB.waitForSelector('#c-btn:not([disabled])', { timeout: 20000 });
-  await sB.click('#c-btn');
-  await sB.waitForSelector('#room.on');
-  log('student B reload → skipped login/rules, back in room');
+  await sC.reload();
+  await sC.waitForSelector('#c-btn:not([disabled])', { timeout: 20000 });
+  await sC.click('#c-btn');
+  await sC.waitForSelector('#room.on');
+  await waitFor(sC, () => document.querySelectorAll('#wgrid .wt').length >= 1 && document.querySelector('#wgrid .wt.me'), null, 30000, 'C waiting video after reload');
+  log('student C reload → skipped login/rules, back in room (waiting-room video back)');
 
   // 회차 자동: 주소에 회차 없이 들어오면 날짜에 맞는 회차(오늘 11/16 → 2회차 11/21)
   const m2 = await mk('mentor-auto');

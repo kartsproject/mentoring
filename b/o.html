@@ -71,10 +71,10 @@
   .mtabs button.alert { background: var(--red-lt); color: var(--red); animation: blink 1.2s infinite; }
   .unread { background: var(--rec); color: #fff; font-size: 11.5px; font-weight: 800; border-radius: 999px; min-width: 20px; height: 20px; display: inline-grid; place-items: center; padding: 0 6px; }
   .unread[hidden] { display: none; }
-  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 440px 340px; }   /* 화면 넓게 · 학생 440 · 채팅 340 */
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px minmax(400px, 32vw); }   /* 멘토링실 넓게 · 학생 420 · 대기실 화상 */
   .col { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
   #c-stage { background: var(--k0); color: var(--k-tx); overflow-y: auto; padding: 12px; gap: 10px; }
-  #c-stage > .panel:first-child { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #c-stage > .panel:first-child { flex: 1 0 auto; min-height: 0; display: flex; flex-direction: column; }
   #c-stage > .panel:first-child .duo { flex: 1 1 auto; min-height: 260px; }
   #c-stage > #p-rec { flex: none; }
   #rec-files { max-height: 84px; overflow-y: auto; }
@@ -83,7 +83,7 @@
   .colh { display: flex; align-items: baseline; gap: 8px; margin: 0 2px 12px; }
   .colh b { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
   .colh small { color: var(--gray); font-size: 12.5px; }
-  body.pmode .body { grid-template-columns: minmax(380px, 1fr) 380px; }
+  body.pmode .body { grid-template-columns: 420px minmax(0, 1fr); }
   body.pmode #c-stage, body.pmode .stage-only { display: none !important; }
   @media (max-width: 1500px) {
     body:not(.pmode) .body { grid-template-columns: minmax(0, 1fr) 420px; }
@@ -109,6 +109,22 @@
   body.split:not(.pmode) #c-list, body.split:not(.pmode) #c-chat, body.split:not(.pmode) .mtabs { display: none !important; }
   body.split:not(.pmode) #c-stage { display: flex !important; }
   #b-room.on { background: var(--yel); color: var(--ink); border-color: var(--yel); }
+
+  /* 대기실 화상(Ver.2.7) */
+  .wbox { background: var(--k1); color: var(--k-tx); border-radius: 14px; padding: 8px; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; }
+  .wbh { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: 2px 2px 0; }
+  .wbh b { font-size: 14px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+  .wbh b i { width: 7px; height: 7px; border-radius: 50%; background: #6FD39B; box-shadow: 0 0 0 3px rgba(111,211,155,.2); }
+  .wbh small { color: var(--k-soft); font-size: 12px; font-weight: 600; }
+  .wbh .sp { flex: 1; }
+  .wb { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 9px; border-radius: 7px; border: 1px solid rgba(255,255,255,.18); background: transparent; color: var(--k-tx); font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .wb svg { width: 14px; height: 14px; }
+  .wb.on { background: #2F8A57; border-color: #2F8A57; color: #fff; }
+  .wb.down { background: var(--rec); border-color: var(--rec); color: #fff; }
+  #c-chat .wbox { flex: 1; min-height: 0; margin: 10px; }
+  #c-chat .wbox .wgrid { flex: 1; }
+  #c-chat [hidden] { display: none !important; }
+  body.wr-off .wbox { display: none; }
 
   /* 화면(영상) 단 — 어두운 무대 */
   .panel { background: var(--k1); border: 1px solid var(--k-line); border-radius: 14px; }
@@ -348,7 +364,7 @@
   <div class="mtabs" id="mtabs">
     <button type="button" class="t-stage" data-t="stage"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>화면</button>
     <button type="button" class="t-list" data-t="list" id="mtList"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.7 3.3-5.5 6.5-5.5s5.8 1.8 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2 .7 3.2 2.4 3.5 5.2"/></svg><span>학생</span></button>
-    <button type="button" class="t-chat" data-t="chat" id="mtChat"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>채팅 <span class="unread" id="mtUnread" hidden>0</span></button>
+    <button type="button" class="t-chat" data-t="chat" id="mtChat"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="8" height="6" rx="1.5"/><rect x="13" y="5" width="8" height="6" rx="1.5"/><rect x="3" y="13" width="8" height="6" rx="1.5"/><rect x="13" y="13" width="8" height="6" rx="1.5"/></svg>대기실 <span class="unread" id="mtUnread" hidden>0</span></button>
   </div>
 
   <main class="body">
@@ -438,10 +454,18 @@
         <form id="bcForm"><input id="bcText" maxlength="300" placeholder="예: 앞 순서가 5분 정도 늦어지고 있습니다. 조금만 기다려 주세요."><button class="btn coral sm" type="submit">전체 보내기</button></form>
         <div class="bclist" id="bcList"></div>
       </div>
-      <div class="chead"><b>대기실 채팅</b><span style="color:var(--muted2);font-size:13px" id="cheadSub"></span>
+      <section class="wbox" id="wbox">
+        <div class="wbh"><b><i></i>대기실 화상</b><small id="w-cnt"></small><span class="sp"></span>
+          <button class="wb" type="button" id="w-listen" title="대기실 학생들의 소리를 이 창에서 듣습니다"></button>
+          <button class="wb" type="button" id="w-ptt" title="누르고 있는 동안 대기실 전체에 말합니다">누르고 말하기</button>
+          <button class="wb" type="button" id="w-open" title="켜 두면 누르지 않아도 대기실에 내 소리가 들립니다"></button>
+          <button class="wb" type="button" id="w-camb" title="대기실 화면에 내 카메라를 보입니다"></button></div>
+        <div class="wgrid" id="w-grid"></div>
+      </section>
+      <div class="chead" hidden><b>대기실 채팅</b><span style="color:var(--muted2);font-size:13px" id="cheadSub"></span>
         <button class="btn ghost sm clr op-only" id="clearChat" type="button" title="이 회차 채팅방의 모든 메시지를 지웁니다"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span>채팅 지우기</span></button></div>
-      <div id="msgs"><div class="empty">아직 대화가 없습니다.</div></div>
-      <div class="quick op-only" id="quick">
+      <div id="msgs" hidden><div class="empty">아직 대화가 없습니다.</div></div>
+      <div class="quick op-only" id="quick" hidden>
         <button type="button">안녕하세요! 운영진입니다. 차례가 되면 자동으로 멘토링 화면으로 바뀌어요.</button>
         <button type="button">잠시 후 시작합니다. 카메라 앞에서 조금만 기다려 주세요.</button>
         <button type="button">카메라와 마이크가 켜져 있는지 확인해 주세요.</button>
@@ -449,7 +473,7 @@
         <button type="button">곧 순서입니다. 화면을 켜 두세요.</button>
         <button type="button">연결이 원활하지 않아 ZOOM으로 안내드릴게요. 화면의 ZOOM 입장 버튼을 눌러 주세요.</button>
       </div>
-      <form class="cin op-only" id="chatForm"><input id="chatText" maxlength="300" placeholder="채팅방 전체에 보낼 메시지 (학생 이름을 누르면 @이름이 붙습니다)"><button class="btn sm" type="submit">보내기</button></form>
+      <form class="cin op-only" id="chatForm" hidden><input id="chatText" maxlength="300" placeholder="채팅방 전체에 보낼 메시지 (학생 이름을 누르면 @이름이 붙습니다)"><button class="btn sm" type="submit">보내기</button></form>
     </div>
   </main>
 </div>
@@ -471,6 +495,8 @@
 <script src="config.js"></script>
 <script src="meet.js"></script>
 <script src="recorder.js"></script>
+<script src="../a/sfu.js"></script>
+<script src="wait.js"></script>
 <script src="room.js"></script>
 <script>
 (function () {
@@ -538,7 +564,7 @@
     room = new window.MeetRoom({
       sess: sess, role: role, title: TITLE,
       onAction: onAction,
-      onUnread: function (n) { $('#mtUnread').textContent = n; $('#mtUnread').hidden = !n; },
+      onUnread: function () {},   // 대기실 채팅은 없앰(Ver.2.7) — 화상으로 대체
       onHot: function (n) { hotN = n; $('#mtList').classList.toggle('alert', !!n && tab !== 'list'); $('#mtList span').textContent = n ? '학생 · 알림 ' + n : '학생'; },
       onHotAlert: function (type) { if (type === 'due' && tab === 'chat' && document.activeElement !== $('#chatText') && innerWidth <= 1500) setTab('list'); },
       chatVisible: function () { return innerWidth > 1500 && !PANEL && !split || (PANEL && innerWidth > 1000) || tab === 'chat'; },
@@ -547,6 +573,10 @@
       titleBusy: function () { return document.visibilityState === 'hidden' && rec && rec.recording(); }
     });
     room.audioReady(); room.askNotify();
+    // 대기실 화상: 대기실이 보이는 창에서만(녹화 창은 대기실을 새 창으로 빼면 받지 않음 — 녹화 PC 부담 줄임)
+    wr = new M.WaitRoom({ sess: sess, el: $('#w-grid'), role: 'staff', canMute: role === 'ops', listen: false,
+      onChange: function (n) { $('#w-cnt').textContent = n ? n + '명' : ''; } });
+    paintWr();
     if (!PANEL) {
       links = new M.Links(sess, {
         getLocal: function () { return stageLocal; },
@@ -657,9 +687,29 @@
       autoRecord();
       paintRecWarn();
     } else sess.info = { n: M.NONCE, panel: true };
+    if (wr) { sess.info.wtalk = wr.talking || wr.openMic; wr.want(PANEL || !split); wr.sync(v); }
     room.render(v);
     paintSide();
   }
+
+  /* 대기실 화상 버튼 */
+  var wr = null;
+  function paintWr() {
+    if (!wr) return;
+    $('#w-listen').innerHTML = UI.ico(wr.listen ? 'vol' : 'volOff') + '<span>' + (wr.listen ? '대기실 소리 켬' : '대기실 소리 끔') + '</span>'; $('#w-listen').classList.toggle('on', wr.listen);
+    $('#w-open').innerHTML = '<span>' + (wr.openMic ? '마이크 켜 둠' : '마이크 켜 두기') + '</span>'; $('#w-open').classList.toggle('on', wr.openMic);
+    $('#w-camb').innerHTML = '<span>' + (wr.cam ? '내 카메라 켜짐' : '내 카메라') + '</span>'; $('#w-camb').classList.toggle('on', !!wr.cam);
+  }
+  $('#w-listen').onclick = function () { wr.setListen(!wr.listen); paintWr(); };
+  $('#w-open').onclick = async function () { await wr.setOpenMic(!wr.openMic); paintWr(); UI.toast(wr.openMic ? '대기실에 내 소리가 들립니다' : '대기실 마이크를 껐습니다'); };
+  $('#w-camb').onclick = async function () { this.disabled = true; await wr.setCam(!wr.cam); this.disabled = false; paintWr(); };
+  (function () {
+    var b = $('#w-ptt');
+    var dn = function (e) { e.preventDefault(); if (b.classList.contains('down')) return; b.classList.add('down'); wr.talk(true); };
+    var up = function () { if (!b.classList.contains('down')) return; b.classList.remove('down'); wr.talk(false); };
+    b.addEventListener('pointerdown', dn); ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (t) { b.addEventListener(t, up); });
+    window.addEventListener('blur', up);
+  })();
 
   function onAction(a, id, b) {
     var s = view && view.students.find(function (x) { return x.id === id; });
