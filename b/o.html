@@ -358,7 +358,7 @@
       <label class="switch op-only stage-only" title="이 PC가 녹화와 연결 점검을 맡습니다"><input type="checkbox" id="sw-host"><i></i><span>이 PC에서 녹화</span></label>
       <button class="btn ghost sm stage-only" id="b-sound" type="button">영상 소리 켬</button>
       <span class="vsep stage-only"></span>
-      <button class="btn ghost sm" id="alarmBtn" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><span>알림음 켬</span></button>
+      <button class="btn ghost sm hide" id="alarmBtn" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg><span>알림음 켬</span></button>
       <button class="btn ghost sm" id="guideBtn" type="button"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg><span>운영 순서</span></button>
       <button class="btn ghost sm op-only" id="simBtn" type="button" title="정해진 시각이 된 것처럼 알림을 미리 확인합니다"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>알림 미리보기</span></button>
       <button class="btn ghost sm stage-only" id="b-room" type="button" title="학생 목록·알림·채팅을 별도 창으로 띄웁니다"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="M3 9h15M14 3h7v7M21 3l-7 7"/></svg><span>대기실 창 열기</span></button>
@@ -1245,7 +1245,7 @@
     box.className = 'reclive' + (bad ? ' bad' : warn ? ' warn' : '');
     UI.show(box, true);
     $('#h-rec').classList.toggle('bad', !!bad);
-    if (bad) { UI.show('#h-rec', true); $('#h-rec span:last-child').textContent = '녹화 안 됨!'; if (Date.now() - lastRecAlarm > 20000) { lastRecAlarm = Date.now(); if (room) room.alarm('due'); } }
+    if (bad) { UI.show('#h-rec', true); $('#h-rec span:last-child').textContent = '녹화 안 됨!'; if (Date.now() - lastRecAlarm > 20000) { lastRecAlarm = Date.now(); if (room) room.alarm('due', true); } }
     else $('#h-rec span:last-child').textContent = '녹화 중';
   }
   setInterval(recWatch, 1000);

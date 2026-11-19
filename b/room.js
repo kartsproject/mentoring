@@ -33,12 +33,13 @@
   /* ───── 소리·알림 ───── */
   Room.prototype.audioReady = function () { try { this.audio = this.audio || new (window.AudioContext || window.webkitAudioContext)(); this.audio.resume(); } catch (e) {} };
   Room.prototype.beep = function () {
-    var a = this.audio; if (!this.sound || !a) return;
+    var a = this.audio; if (!this.o.popups || !this.sound || !a) return;   // 운영 화면 알림음은 쓰지 않음(Ver.2.12)
     try { a.resume(); var o = a.createOscillator(), g = a.createGain(); o.frequency.value = 660; o.connect(g); g.connect(a.destination);
       g.gain.setValueAtTime(.0001, a.currentTime); g.gain.exponentialRampToValueAtTime(.25, a.currentTime + .02); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .25); o.start(); o.stop(a.currentTime + .27); } catch (e) {}
   };
-  Room.prototype.alarm = function (type) {
-    var a = this.audio; if (!this.sound || !a) return;
+  // force: 녹화가 안 될 때 경고음만(운영 화면의 다른 알림음은 쓰지 않음 — Ver.2.12)
+  Room.prototype.alarm = function (type, force) {
+    var a = this.audio; if (!a || !(force || (this.o.popups && this.sound))) return;
     try { a.resume();
       var seq = type === 'due' ? [[880, 0], [1175, .18], [880, .36], [1175, .54]] : [[520, 0], [520, .3]];
       seq.forEach(function (x) { var o = a.createOscillator(), g = a.createGain(); o.frequency.value = x[0]; o.connect(g); g.connect(a.destination);
