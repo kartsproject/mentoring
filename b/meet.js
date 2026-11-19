@@ -812,7 +812,13 @@
     var isField = function (el) { return el && (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|file)$/i.test(el.type) || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'); };
     try {
       var st = document.createElement('style');
-      st.textContent = 'body.kb-open::after{content:"";display:block;height:calc(var(--kbh,0px) + 40px)}';   // 아래 빈 공간(페이지 높이가 100%로 고정돼 있어도 올릴 수 있게)
+      st.textContent = 'body.kb-open::after{content:"";display:block;height:calc(var(--kbh,0px) + 40px)}' +   // 아래 빈 공간(페이지 높이가 100%로 고정돼 있어도 올릴 수 있게)
+        // 휴대폰에서 입력 중(Ver.2.19.2): 위 소개 글을 접어 입력 칸을 화면 맨 위로 — 아이폰은 키보드 높이를 알려 주지 않을 때가 있어, 높이 계산 없이도 칸이 키보드 위에 오게
+        '@media (pointer:coarse),(max-width:700px){' +
+        'body.typing .hero,body.typing .kstrip{display:none!important}' +
+        'body.typing .lmain{margin-top:0!important;padding-top:12px!important}' +
+        'body.typing .gate{place-items:start center!important;align-content:start!important;padding-top:12px!important;min-height:0!important}' +
+        'body.typing #s-gate.on,body.typing #s-gate{min-height:0!important}}';
       (document.head || document.documentElement).appendChild(st);
     } catch (e) {}
     function kbH() {
@@ -836,11 +842,20 @@
     }
     if (vv) vv.addEventListener('resize', apply);
     window.addEventListener('resize', apply);
+    var touch = window.matchMedia && matchMedia('(pointer:coarse),(max-width:700px)').matches, typT = null;
     document.addEventListener('focusin', function (e) {
       if (!isField(e.target)) return;
+      if (touch && e.target.closest('#s-gate, .gate')) {
+        clearTimeout(typT); document.body.classList.add('typing');
+        window.scrollTo(0, 0);
+        [80, 320].forEach(function (t) { setTimeout(function () { var b = e.target.closest('.field, label') || e.target; var r = b.getBoundingClientRect(); if (r.top < 0 || r.top > 160) window.scrollBy(0, r.top - 70); }, t); });
+      }
       [60, 250, 500, 900].forEach(function (t) { setTimeout(function () { apply(); show(e.target); }, t); });   // 키보드가 올라오는 동안 몇 번 확인
     });
-    document.addEventListener('focusout', function () { setTimeout(apply, 250); });
+    document.addEventListener('focusout', function () {
+      setTimeout(apply, 250);
+      clearTimeout(typT); typT = setTimeout(function () { if (!isField(document.activeElement)) document.body.classList.remove('typing'); }, 300);   // 다음 칸으로 넘어갈 땐 그대로
+    });
   })();
 
   window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck, Speak: Speak };
