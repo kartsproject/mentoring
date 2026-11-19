@@ -94,6 +94,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await panel.waitForSelector('#s-main:not(.hide)', { timeout: 20000 });
   await waitFor(panel, () => document.querySelectorAll('#w-grid .wt[data-id^="S_"]').length >= 4 && document.body.classList.contains('pmode'), null, 15000, 'panel list');
   log('waiting-room panel window opened & auto-logged in:', await text(panel, '#h-title'));
+  // 학생 정보 칸: 오른쪽 위 전화 아이콘 → 학생·보호자 번호 팝업(Ver.2.18.3)
+  await panel.click('#w-grid .wt[data-id="S_학생가"] [data-tel]');
+  await waitFor(panel, () => { const p = document.querySelector('#w-grid .wt[data-id="S_학생가"] .wtelpop'); return p && !p.hidden && /010-1111-2222/.test(p.textContent) && /010-3333-4444/.test(p.textContent); }, null, 5000, 'phone popup');
+  await sleep(1500);
+  if (await panel.evaluate(() => document.querySelector('#w-grid .wt[data-id="S_학생가"] .wtelpop').hidden)) throw new Error('전화 팝업이 다시 그리기로 닫히면 안 됨');
+  await SHOT(panel, 'panel_phone');
+  await panel.click('#w-grid .wt[data-id="S_학생가"] [data-tel]');
+  log('정보 칸 전화 아이콘 → 학생·보호자 번호 팝업 → 다시 눌러 닫기');
   await waitFor(ops, () => document.body.classList.contains('split') && document.querySelector('#c-list').offsetParent === null && document.querySelector('#c-stage').getBoundingClientRect().width > innerWidth * 0.9, null, 5000, 'main window full-width video');
   log('main window: waiting room moved out → video uses full width:', await ops.evaluate(() => Math.round(document.querySelector('#c-stage').getBoundingClientRect().width) + '/' + innerWidth));
 

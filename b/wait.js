@@ -41,6 +41,8 @@
     if (this.ro && this.el) this.ro.observe(this.el);
     if (this.el) this.el.addEventListener('click', function (e) {
       var r = e.target.closest('[data-ring]'); if (r) { e.stopPropagation(); self.ring(r.dataset.ring, r); return; }
+      var tp = e.target.closest('[data-tel]'); if (tp) { var pp = tp.parentNode.querySelector('.wtelpop'); if (pp) { var was = pp.hidden; self.el.querySelectorAll('.wtelpop').forEach(function (q) { q.hidden = true; }); pp.hidden = !was; } return; }
+      if (!e.target.closest('.wtelpop')) self.el.querySelectorAll('.wtelpop:not([hidden])').forEach(function (q) { q.hidden = true; });
       var m = e.target.closest('[data-more]'); if (m) { var mn = m.parentNode.querySelector('.wmenu'); if (mn) mn.hidden = !mn.hidden; return; }
       var b = e.target.closest('button[data-a]'); if (b) { var mm = b.closest('.wmenu'); if (mm) mm.hidden = true; self.onAct(b.dataset.a, b.dataset.id, b); }
     });
@@ -215,27 +217,19 @@
       if (!x.done) acts += '<button class="wa" type="button" data-a="zoom" data-id="' + x.id + '">' + (x.zoom ? 'ZOOM 해제' : 'ZOOM') + '</button>';
       if (x.test && !x.done) acts += '<button class="wa" type="button" data-a="untest" data-id="' + x.id + '">재점검</button>';
     }
-    var ph = '';
-    if (ops && !x.done && !cur) {
-      var one = function (lb, n) { return n ? '<a href="tel:' + String(n).replace(/\D/g, '') + '">' + lb + ' ' + UI.esc(n) + '</a>' : ''; };
-      ph = one('학생', x.sPhone) + one('보호자', x.pPhone);
-      ph = ph ? '<div class="wph2">' + ph + '</div>' : '';
-    }
-    // 정보 칸(Ver.2.18.2): 번호 배지·이름 / 상태 알약(아이콘) / 가운데 이니셜 원(상태 색 고리) / 시간 두 칸(아이콘) / 연락처·버튼
+    // 정보 칸(Ver.2.18.3): 번호 배지·이름·전화 아이콘(누르면 학생·보호자 번호 팝업) / 상태 알약(아이콘) / 시간 두 칸 / 버튼
     var ico = function (k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WI[k] + '</svg>'; };
     var sk = cur ? 'live' : x.done ? 'done' : x.zoom ? 'zoom' : x.live ? 'on' : f.late ? 'late' : 'off';
     var main = f.late && !cur && !x.done && !x.zoom && !x.live ? '접속 시각 지남' : stt;
     var sub = main !== stt ? stt : '';
-    var nm = String(x.name || ''), ini = nm.length > 2 ? nm.slice(-2) : nm;
-    var tel = function (lb, n) { return n ? '<a class="wpc" href="tel:' + String(n).replace(/\D/g, '') + '" title="' + lb + ' ' + UI.esc(n) + '">' + ico('phone') + '<span>' + lb + ' ' + UI.esc(n) + '</span></a>' : ''; };
-    var phs = ops && !x.done && !cur ? tel('학생', x.sPhone) + tel('보호자', x.pPhone) : '';
+    var tel = function (lb, n) { return n ? '<a class="wpc" href="tel:' + String(n).replace(/\D/g, '') + '">' + ico('phone') + '<small>' + lb + '</small><b>' + UI.esc(n) + '</b></a>' : ''; };
+    var phs = ops ? tel('학생', x.sPhone) + tel('보호자', x.pPhone) : '';
     return '<div class="wi ' + cls + ' s-' + sk + '">' +
       '<div class="wih"><b>' + (x.extra ? 'T' : x.no) + '</b><span class="wn">' + UI.esc(x.name) + '</span></div>' +
       '<div class="wst"><span class="wsp">' + ico(sk) + '<span>' + UI.esc(main) + '</span></span>' + (sub ? '<small>' + UI.esc(sub) + '</small>' : '') + '</div>' +
-      '<div class="wav"><span class="wav-c">' + UI.esc(ini) + '<i>' + ico(sk) + '</i></span></div>' +
       (x.extra ? '' : '<div class="wtm"><span title="대기실 입장 시각">' + ico('door') + '<b>' + UI.esc(x.wait || '-') + '</b><small>대기실</small></span>' +
         '<span title="멘토링 시간">' + ico('clock') + '<b>' + UI.esc(when || '-') + '</b><small>멘토링</small></span></div>') +
-      (phs ? '<div class="wph2">' + phs + '</div>' : '') +
+      (phs ? '<button class="wtel" type="button" data-tel title="연락처 보기">' + ico('phone') + '</button><div class="wtelpop" hidden>' + phs + '</div>' : '') +
       (acts ? '<div class="wact">' + acts + '</div>' : '') + '</div>';
   };
   var WI = {
@@ -316,7 +310,12 @@
       t.querySelector('.wmo').hidden = info || micOn;
       var mb2 = t.querySelector('.wmute'); if (mb2) mb2.hidden = !cam;
       var x = t.querySelector('.wix'), h = it.st ? self.stuHtml(it.st, cam, f) : '';
-      if (x.__h !== h) { var open = !!x.querySelector('.wmenu:not([hidden])'); x.innerHTML = h; x.__h = h; if (open) { var m = x.querySelector('.wmenu'); if (m) m.hidden = false; } }
+      if (x.__h !== h) {
+        var open = !!x.querySelector('.wmenu:not([hidden])'), topen = !!x.querySelector('.wtelpop:not([hidden])');
+        x.innerHTML = h; x.__h = h;
+        if (open) { var m = x.querySelector('.wmenu'); if (m) m.hidden = false; }
+        if (topen) { var tq = x.querySelector('.wtelpop'); if (tq) tq.hidden = false; }
+      }
     });
     Object.keys(this.tiles).forEach(function (id) {
       if (seen[id]) return;

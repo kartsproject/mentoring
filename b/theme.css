@@ -276,35 +276,35 @@ body:has(#s-gate.on), body:has(#s-check.on), body:has(.gate:not(.hide)) { backgr
 .wi.s-on .wsp { background: rgba(48,209,88,.16); color: #8EE7A6; }
 .wi.s-late .wsp { background: rgba(255,69,58,.18); color: #FF8A80; }
 .wt.late .wi .wst { color: var(--kt2); }
-/* 가운데 이니셜 원 — 칸 높이에 맞춰 커지고, 좁으면 숨김 */
-.wi .wav { flex: 1 1 auto; min-height: 0; display: grid; place-items: center; }
-.wi .wav-c { position: relative; height: min(100%, 88px); aspect-ratio: 1; min-height: 0; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 30% 25%, #3A3A3E, #26262A 70%); color: #D1D1D6; font-weight: 700; font-size: 22px; letter-spacing: -.02em; box-shadow: 0 0 0 2px rgba(255,255,255,.08); }
-.wi .wav-c i { position: absolute; right: -2%; bottom: -2%; width: 34%; height: 34%; border-radius: 50%; display: grid; place-items: center; background: #3A3A3C; color: #fff; box-shadow: 0 0 0 3px #1E1E20; }
-.wi .wav-c i svg { width: 58%; height: 58%; }
-.wi.s-live .wav-c { box-shadow: 0 0 0 2.5px #2997FF, 0 0 24px -4px rgba(41,151,255,.7); } .wi.s-live .wav-c i { background: linear-gradient(120deg, #2997FF, #A970FF); }
-.wi.s-on .wav-c { box-shadow: 0 0 0 2.5px var(--kgreen); } .wi.s-on .wav-c i { background: var(--kgreen); color: #000; }
-.wi.s-done .wav-c { box-shadow: 0 0 0 2.5px rgba(48,209,88,.6); opacity: .75; } .wi.s-done .wav-c i { background: var(--kgreen); color: #000; }
-.wi.s-zoom .wav-c { box-shadow: 0 0 0 2.5px #A970FF; } .wi.s-zoom .wav-c i { background: #A970FF; }
-.wi.s-late .wav-c { box-shadow: 0 0 0 2.5px var(--kred); } .wi.s-late .wav-c i { background: var(--kred); }
-.wi.s-off .wav-c { color: #8E8E93; }
 /* 시간 두 칸 */
 .wi .wtm { display: flex; gap: 6px; color: var(--kt2); }
 .wi .wtm > span { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 10px; background: rgba(255,255,255,.06); white-space: nowrap; overflow: hidden; }
 .wi .wtm > span svg { color: var(--kt3); }
 .wi .wtm b { color: var(--kt); font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
 .wi .wtm small { color: var(--kt3); font-size: 11px; margin-left: auto; }
-.wi .wph2 { flex-direction: row; flex-wrap: wrap; gap: 5px; }
-.wi .wph2 .wpc { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 9px 3px 7px; border-radius: 980px; background: rgba(41,151,255,.14); color: #8CC6FF; font-weight: 600; font-size: 11.5px; text-decoration: none; white-space: nowrap; overflow: hidden; }
-.wi .wph2 .wpc span { overflow: hidden; text-overflow: ellipsis; }
+/* 전화: 오른쪽 위 둥근 아이콘 → 누르면 학생·보호자 번호 팝업 */
+.wi .wih { padding-right: 34px; }
+.wi .wtel { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(41,151,255,.18); color: #8CC6FF; cursor: pointer; transition: background .2s; z-index: 2; }
+.wi .wtel:hover { background: rgba(41,151,255,.32); }
+.wi .wtel svg { width: 14px; height: 14px; }
+.wi .wtelpop { position: absolute; top: 42px; right: 8px; z-index: 8; display: flex; flex-direction: column; gap: 4px; min-width: 190px; max-width: calc(100% - 16px); padding: 8px; border-radius: 16px; background: rgba(44,44,46,.97); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 18px 40px -10px rgba(0,0,0,.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+.wi .wtelpop[hidden] { display: none; }
+.wi .wtelpop .wpc { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 11px; color: var(--kt); text-decoration: none; font-size: 13px; }
+.wi .wtelpop .wpc:hover { background: rgba(41,151,255,.18); }
+.wi .wtelpop .wpc svg { width: 14px; height: 14px; color: #8CC6FF; }
+.wi .wtelpop .wpc small { color: var(--kt2); font-size: 12px; }
+.wi .wtelpop .wpc b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.wt.info { overflow: visible; }
+.wi { overflow: visible; }
 .wi .wact { gap: 5px; }
 .wt.info .wa { padding: 4px 11px; font-size: 12px; }
 @container (max-width: 205px) {
   .wi { padding: 7px 8px; gap: 4px; font-size: 11px; }
   .wi .wih b { min-width: 20px; height: 20px; font-size: 11.5px; border-radius: 6px; }
   .wi .wih .wn { font-size: 13px; }
-  .wi .wst small, .wi .wtm small, .wi .wav { display: none; }
+  .wi .wst small, .wi .wtm small { display: none; }
+  .wi .wtel { width: 24px; height: 24px; top: 6px; right: 6px; } .wi .wtelpop { top: 34px; min-width: 170px; }
   .wi .wtm { display: flex; } .wi .wtm > span { padding: 3px 6px; }
-  .wi .wph2 .wpc span { display: none; }
   .wt.info .wa { padding: 2px 8px; font-size: 11px; }
 }
 
