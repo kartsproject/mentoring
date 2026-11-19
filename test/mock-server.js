@@ -19,7 +19,7 @@ const CacheService = { getScriptCache: () => ({
   getAll: keys => { const o = {}; keys.forEach(k => { const v = cacheStore.get(k); if (v && v.exp > Date.now()) o[k] = v.v; }); return o; }
 }) };
 const props = { MENTOR_CODE: 'm1234', OPS_CODE: 'o1234', RESEARCH_CODE: 'r1234' };
-const PropertiesService = { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) };
+const PropertiesService = { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) };
 const sheets = {};
 function mkSheet(name) {
   const rows = [];
@@ -140,6 +140,7 @@ http.createServer((req, res) => {
     });
     return;
   }
+  if (url.pathname === '/__evict') { const n = cacheStore.size; cacheStore.clear(); res.end(JSON.stringify({ ok: true, evicted: n })); return; }   // 캐시가 비워졌을 때(구글 캐시 축출) 시험
   if (url.pathname === '/__stats') { res.end(JSON.stringify({ calls, log: (sheets['기록'] || { rows: [] }).rows, chat: (sheets['채팅'] || { rows: [] }).rows, roster: sheets['명단'].rows, memo: (sheets['관찰 메모'] || { rows: [] }).rows, sfuCalls, photos: Object.keys(drive.files).length })); return; }
   let p = url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
   const f = path.join(ROOT, p);

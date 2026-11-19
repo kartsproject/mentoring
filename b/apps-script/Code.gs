@@ -91,9 +91,39 @@ function props_() { return PropertiesService.getScriptProperties(); }
 function blankState_() {
   return { parts: {}, cur: null, host: null, zoomUrl: '', zoom: {}, done: {}, test: {}, stage: {}, seq: 0 };
 }
-function getState_(r) { var s = cget_('st|' + r) || blankState_(); s.stage = s.stage || {}; return s; }
+// 진행 상태는 캐시(빠름)에 두고, 캐시가 비워져도(구글이 미리 지울 수 있음) 이어지도록 스크립트 속성에도 예비로 저장(Ver.2.5)
+function getState_(r) {
+  var s = cget_('st|' + r);
+  if (!s) {
+    try { var b = props_().getProperty('bk|st|' + r); if (b) { s = JSON.parse(b); cput_('st|' + r, s); } } catch (e) {}
+  }
+  s = s || blankState_();
+  s.stage = s.stage || {};
+  return s;
+}
 function isStaff_(role) { return role === 'ops' || role === 'research'; }
-function putState_(r, s) { s.seq = (s.seq || 0) + 1; cput_('st|' + r, s); }
+function putState_(r, s) {
+  s.seq = (s.seq || 0) + 1;
+  cput_('st|' + r, s);
+  backup_('st|' + r, s);
+}
+function backup_(k, v) {
+  try {
+    var t = JSON.stringify(v);
+    if (t.length > 8800 && v && v.parts) {   // 속성 한 칸 9KB 제한: 대기실 화상 정보는 빼고(다시 올리면 채워짐)
+      var c = JSON.parse(t);
+      Object.keys(c.parts).forEach(function (i) { delete c.parts[i].wr; });
+      t = JSON.stringify(c);
+    }
+    if (t.length <= 8800) props_().setProperty('bk|' + k, t);
+  } catch (e) { /* 예비 저장 실패는 진행에 영향 없음 */ }
+}
+function bcGet_(r) {
+  var b = cget_('bc|' + r);
+  if (!b) { try { var t = props_().getProperty('bk|bc|' + r); if (t) { b = JSON.parse(t); cput_('bc|' + r, b); } } catch (e) {} }
+  return b || [];
+}
+function bcPut_(r, b) { cput_('bc|' + r, b); backup_('bc|' + r, b); }
 
 function withLock_(fn) {
   var lock = LockService.getScriptLock();
@@ -426,7 +456,7 @@ function view_(r, s, id, role, now) {
 
 /* ───────────── 대기실 채팅·공지 ───────────── */
 function chatState_(r) { return cget_('ch|' + r) || { gv: 1, last: 0, list: [] }; }
-function bcState_(r) { return cget_('bc|' + r) || []; }
+function bcState_(r) { return bcGet_(r); }
 
 function chatView_(r, role, since, gv) {
   var ch = chatState_(r);
@@ -552,12 +582,12 @@ function op_(r, req) {
         var bc = bcState_(r);
         bc.push({ t: now, x: text, b: name });
         while (bc.length > BC_MAX) bc.shift();
-        cput_('bc|' + r, bc);
+        bcPut_(r, bc);
         chatLog_(r, '공지', name, text);
         return { ok: true, bc: bc };
       }
       case 'bcclear':
-        cput_('bc|' + r, []);
+        bcPut_(r, []);
         return { ok: true, bc: [] };
       // 채팅 지우기: i가 있으면 그 메시지만, 없으면 전체
       case 'del': {
@@ -574,7 +604,7 @@ function op_(r, req) {
         s = blankState_();
         s.parts = parts; s.n = pn;
         var ch2 = chatState_(r); cput_('ch|' + r, { gv: ch2.gv + 1, last: ch2.last, list: [] });
-        cput_('bc|' + r, []);
+        bcPut_(r, []);
         log_(r, '초기화', name, '');
         break;
       }
@@ -775,5 +805,6 @@ function setup() {
 /** 리허설(test) 회차의 진행 상태·채팅·공지를 비웁니다. 편집기에서 resetTestRoom 선택 → 실행 */
 function resetTestRoom() {
   cache_().removeAll(['st|test', 'ch|test', 'bc|test']);
+  try { props_().deleteProperty('bk|st|test'); props_().deleteProperty('bk|bc|test'); } catch (e) {}
   Logger.log('test 회차 초기화 완료');
 }

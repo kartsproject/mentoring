@@ -721,6 +721,26 @@
 
   /* 멘토링이 시작되면 카메라·마이크를 자동으로 켬 */
   var paintCtrls = function () {};
+  // 휴대폰에서 다른 앱을 쓰다 돌아오면 카메라·마이크가 꺼져(끝나) 있을 수 있음 → 다시 켜서 대기실·멘토링실에 바로 반영
+  var reviving = false;
+  async function reviveLocal() {
+    if (!local || !dc || !links || reviving || ended) return;
+    if (!local.getTracks().some(function (t) { return t.readyState === 'ended'; })) return;
+    reviving = true;
+    var at0 = local.getAudioTracks()[0], vt0 = local.getVideoTracks()[0];
+    var micWas = !at0 || at0.enabled, camWas = !vt0 || vt0.enabled;
+    try {
+      await dc.start({}); local = dc.stream; dc.stopMeterOnly();
+      local.getAudioTracks().forEach(function (t) { t.enabled = screen === 's-live' ? true : micWas && !micLock; });
+      local.getVideoTracks().forEach(function (t) { t.enabled = screen === 's-live' ? true : camWas; });
+      links.replaceLocal(local); links.applyPolicy(); if (wr) wr.replaceLocal();
+      UI.attach($('#l-self'), local); UI.attach($('#w-self'), local);
+      paintCtrls(); sess.kick();
+    } catch (e) { console.warn('카메라 다시 켜기', e); }
+    finally { reviving = false; }
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') setTimeout(reviveLocal, 300); });
+  setInterval(reviveLocal, 5000);
   async function ensureLive() {
     var dead = !local || local.getTracks().some(function (t) { return t.readyState === 'ended'; }) ||
       !local.getVideoTracks().length || !local.getAudioTracks().length;

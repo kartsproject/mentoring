@@ -249,6 +249,13 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(mentor, () => !document.querySelector('#m-rp .rpip'), null, 20000, 'research left room');
   await res2.context().close();   // 시험 PC 부담 줄이기
   log('연구원 「멘토링실에서 나가기」 → 멘토 화면에서 사라짐');
+  // 안정성: 서버 캐시가 통째로 비워져도(구글 캐시 축출) 진행 상태·접속이 이어지는지
+  const ev = await (await fetch(BASE + '/__evict')).json();
+  await sleep(6000);
+  if (!/학생가/.test(await text(ops, '#c-name'))) throw new Error('cache evict: 진행 중 학생이 사라짐');
+  if (await sA.evaluate(() => document.querySelector('#s-live').classList.contains('hide'))) throw new Error('cache evict: 학생 멘토링 화면에서 빠짐');
+  await waitFor(sC, () => [...document.querySelectorAll('#wgrid .wt')].filter(t => !t.classList.contains('me') && t.querySelector('video').videoWidth > 0).length >= 1, null, 40000, 'waiting room video after evict');
+  log('서버 캐시 비움(' + ev.evicted + '개) → 진행 중 학생·멘토링·대기실 화상 그대로 이어짐');
   if (process.env.SHOTS) { await SHOT(ops, 'ops_popup_start'); await ops.evaluate(() => { window.__tShift = 9 * 60000 + 5000; }); await sleep(1200); await SHOT(ops, 'ops_last1min'); await SHOT(panel, 'panel_last1min'); await ops.evaluate(() => { window.__tShift = 0; }); await ops.setViewportSize({ width: 1920, height: 1080 }); await sleep(1500); await SHOT(ops, 'ops_1920'); await ops.setViewportSize({ width: 1600, height: 950 }); }
   if (process.env.SHOTS) { await sleep(2500); await SHOT(sA, 'stu_live'); await SHOT(ops, 'ops_live'); await SHOT(mentor, 'mentor_live'); await SHOT(sB, 'stu_next'); await SHOT(panel, 'panel_live'); }
   await SHOT(ops, 'ops_split');

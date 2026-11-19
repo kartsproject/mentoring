@@ -18,6 +18,7 @@
       method: 'POST',
       body: JSON.stringify(body),
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      cache: 'no-store',
       signal: ctl.signal
     }).then(function (res) { return res.json(); }).finally(function () { clearTimeout(t); });
   }
@@ -55,7 +56,9 @@
   Session.prototype.now = function () { return Date.now() + this.offset; };
   Session.prototype.rejoin = function () {
     var self = this;
-    return this.join().then(function () { self.emit('rejoin'); });
+    if (this._rj) return this._rj;   // 여러 요청이 동시에 다시 입장하지 않게
+    this._rj = this.join().then(function () { self.emit('rejoin'); }).finally(function () { self._rj = null; });
+    return this._rj;
   };
   Session.prototype.boost = function (ms) { this.fastUntil = Math.max(this.fastUntil, Date.now() + (ms || 10000)); };
   // 이미 연결된 상대에게는 영상 연결 안의 데이터 통로로 바로 보내고, 없으면 서버 메시지함으로
@@ -108,16 +111,29 @@
           try {
             var j = await api({ a: 'send', r: this.r, id: this.id, tok: this.tok, msgs: batch });
             if (j.ok) break;
-            if (j.error === 'auth') await this.rejoin();
+            if (j.error === 'auth') await this.rejoin().catch(function () {});
           } catch (e) { await sleep(700 * (i + 1)); }
         }
       }
     } finally { this.flushing = false; }
   };
+  // 서버 요청: 망이 잠깐 끊기거나 서버가 바쁘면(동시 접속 한도·잠금 대기) 잠깐 쉬었다 다시(최대 3번)
+  Session.prototype.call = async function (body, timeout) {
+    var j = null;
+    for (var i = 0; i < 3; i++) {
+      try {
+        body.id = this.id; body.tok = this.tok;
+        j = await api(body, timeout);
+        if (!j.ok && j.error === 'auth') { await this.rejoin(); continue; }
+        if (!j.ok && j.error === 'server') { await sleep(600 * (i + 1)); continue; }
+        return j;
+      } catch (e) { j = { ok: false, error: 'network' }; await sleep(700 * (i + 1)); }
+    }
+    return j || { ok: false, error: 'network' };
+  };
   Session.prototype.op = async function (cmd, args) {
     var body = Object.assign({ a: 'op', r: this.r, id: this.id, tok: this.tok, cmd: cmd }, args || {});
-    var j = await api(body);
-    if (!j.ok && j.error === 'auth') { await this.rejoin(); body.id = this.id; body.tok = this.tok; j = await api(body); }
+    var j = await this.call(body);
     if (j.chat) this.mergeChat(j.chat);
     if (j.bc) this.mergeChat({ gv: this.chat.gv, last: this.chat.last, list: [], bc: j.bc });
     this.kick();
@@ -140,12 +156,22 @@
   };
   Session.prototype.say = async function (text) {
     var body = { a: 'chat', r: this.r, id: this.id, tok: this.tok, text: text, since: this.chat.last, gv: this.chat.gv };
-    var j = await api(body);
-    if (!j.ok && j.error === 'auth') { await this.rejoin(); body.id = this.id; body.tok = this.tok; j = await api(body); }
+    var j = await this.call(body);
     if (j.ok && j.chat) this.mergeChat(j.chat);
     return j;
   };
-  Session.prototype.start = function () { if (!this.running) { this.running = true; this.loop(); } };
+  Session.prototype.start = function () {
+    if (this.running) return;
+    this.running = true; this.loop();
+    // 망이 다시 연결되거나, 화면을 다시 켜면(휴대폰 잠금 해제·창 전환) 바로 상태 확인
+    var self = this;
+    if (!this._wired) {
+      this._wired = true;
+      window.addEventListener('online', function () { self.kick(); });
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') self.kick(); });
+      window.addEventListener('pageshow', function () { self.kick(); });
+    }
+  };
   Session.prototype.stop = function () { this.running = false; };
   Session.prototype.loop = async function () {
     var fails = 0;
@@ -164,7 +190,7 @@
           this.emit('view', this.view);
           this.emit('net', true, 0);
         } else if (j.error === 'auth') {
-          await this.rejoin();
+          try { await this.rejoin(); } catch (e2) { fails++; this.emit('net', false, fails); }
         } else { fails++; this.emit('net', false, fails); }
       } catch (e) { fails++; this.emit('net', false, fails); }
       var base = Date.now() < this.fastUntil ? 900 : this.interval;
@@ -407,7 +433,7 @@
       var neverTimeout = L.kind === 'test' ? 20000 : 25000;
       if (!L.connectedAt && now - L.created > neverTimeout) {
         L.state = 'timeout'; self.onChange(L); self.closeLink(L, true);
-      } else if (L.connectedAt && L.badSince && now - L.badSince > (L.state === 'failed' ? 1500 : 9000)) {
+      } else if (L.connectedAt && L.badSince && now - L.badSince > (L.state === 'failed' ? 1500 : 6000)) {   // 6초 넘게 불안정하면 새로 연결
         self.closeLink(L, true);
       }
     });

@@ -1262,9 +1262,14 @@
     recOn = true;
     $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화');
     // 지난번에 끝나지 못한 녹화(창이 갑자기 닫힘 등)가 있으면 폴더로 복구
-    if (rec.dir) window.MeetRecorder.Backup.recover(rec.dir).then(function (list) {
-      if (list.length) UI.toast('지난 녹화 ' + list.length + '개를 「' + rec.dir.name + '」 폴더에 복구했습니다: ' + list.join(', '), 8000);
-    }).catch(function () {});
+    // 닫힌 창이 녹화 파일을 잠깐 붙잡고 있을 수 있어 조금 뒤에 두 번 더 확인
+    var recoverNow = function () {
+      if (!rec || !rec.dir) return;
+      window.MeetRecorder.Backup.recover(rec.dir).then(function (list) {
+        if (list.length) UI.toast('지난 녹화 ' + list.length + '개를 「' + rec.dir.name + '」 폴더에 복구했습니다: ' + list.join(', '), 8000);
+      }).catch(function () {});
+    };
+    recoverNow(); setTimeout(recoverNow, 6000); setTimeout(recoverNow, 20000);
     if (view && !view.host) { lastHostAsk = Date.now(); sess.op('host', { on: true }); }
     UI.toast('녹화 준비 완료 — 멘토링은 학생별로 자동 녹화' + (rec.dir ? ' · 「' + rec.dir.name + '」 폴더에 저장' : '') + '. 대기 시간 녹화는 「녹화 시작」', 5000);
     autoRecord();

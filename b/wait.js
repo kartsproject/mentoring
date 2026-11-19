@@ -11,6 +11,7 @@
   // 관문 호출(인증이 풀렸으면 다시 들어가서 한 번 더)
   async function call(sess, body) {
     var b = Object.assign({ r: sess.r, id: sess.id, tok: sess.tok }, body);
+    if (sess.call) return sess.call(b);   // 망이 잠깐 끊기거나 서버가 바쁘면 다시 시도
     var j = await M.api(b);
     if (!j.ok && j.error === 'auth') { await sess.rejoin(); b.id = sess.id; b.tok = sess.tok; j = await M.api(b); }
     return j;
@@ -51,7 +52,14 @@
     var self = this;
     var sfu = this.sfu = new window.ArtSFU(this.sess, {
       onTrack: function (k, t) { self.gotTrack(k, t); },
-      onPub: function (names) { self.announce(names); }
+      onPub: function (names) { self.announce(names); },
+      // 연결이 끊기면(망 바뀜·잠깐 끊김) 다시 연결: 실패는 바로, 불안정은 8초 넘게 이어지면
+      onState: function (st) {
+        if (self.sfu !== sfu) return;
+        clearTimeout(self.badT);
+        if (st === 'failed') self.restart('failed');
+        else if (st === 'disconnected') self.badT = setTimeout(function () { if (self.sfu === sfu && sfu.state !== 'connected') self.restart('disconnected'); }, 8000);
+      }
     });
     try {
       await sfu.open();
@@ -76,19 +84,28 @@
       if (e.code !== 'sfu_not_set') setTimeout(function () { if (!self.on && self.wantOn) self.start(); }, 8000);
     }
   };
+  WaitRoom.prototype.restart = function (why) {
+    if (Date.now() - (this.lastRestart || 0) < 5000) return;
+    this.lastRestart = Date.now();
+    console.warn('대기실 화상 다시 연결', why);
+    var want = this.wantOn;
+    this.stop(true);
+    if (want) this.start();
+  };
   WaitRoom.prototype.want = function (on) {   // 켜야 할 때 true(실패하면 다시 시도)
     this.wantOn = !!on;
     if (on && !this.on) this.start();
     if (!on && this.on) this.stop();
   };
-  WaitRoom.prototype.stop = function () {
+  WaitRoom.prototype.stop = function (quiet) {
     if (!this.on && !this.sfu) return;
     this.on = false;
+    clearTimeout(this.badT);
     var sfu = this.sfu; this.sfu = null;
     if (sfu) try { sfu.close(); } catch (e) {}
-    this.rt = {}; this.lastWant = '';
+    this.rt = {}; this.lastWant = ''; this.annAt = 0;
     Object.keys(this.audios).forEach(function (k) { this.audios[k].remove(); }, this); this.audios = {};
-    call(this.sess, { a: 'wr', cmd: 'pub', sfu: '' }).catch(function () {});
+    if (!quiet) call(this.sess, { a: 'wr', cmd: 'pub', sfu: '' }).catch(function () {});
     this.render();
   };
   // (학생) 카메라를 바꾸는 등 내 스트림이 바뀌면 올리는 트랙만 바꿈
@@ -102,13 +119,19 @@
   WaitRoom.prototype.announce = function (names) {
     if (!this.sfu || !this.sfu.sid) return;
     var self = this;
-    call(this.sess, { a: 'wr', cmd: 'pub', sfu: this.sfu.sid, tr: names }).then(function () { self.sess.kick(); }).catch(function () {});
+    this.annAt = Date.now();
+    call(this.sess, { a: 'wr', cmd: 'pub', sfu: this.sfu.sid, tr: names || this.sfu.names() }).then(function (j) { if (j && j.ok) self.sess.kick(); else self.annAt = 0; }).catch(function () { self.annAt = 0; });
   };
 
   // 받을 영상·소리 맞추기
   WaitRoom.prototype.sync = function (v) {
     this.view = v;
     var me = this.sess.id, list = (v && v.wr || []).filter(function (p) { return p.id !== me; });
+    // 서버에 내 대기실 화상이 안 보이면(등록 실패·서버 기록이 비워짐) 다시 알림 — 10초에 한 번
+    if (this.on && this.sfu && this.sfu.sid && v && v.wr && Date.now() - (this.annAt || 0) > 10000) {
+      var mine = v.wr.find(function (p) { return p.id === me; });
+      if (!mine || mine.sfu !== this.sfu.sid) this.announce();
+    }
     if (this.role === 'student' && v && v.wmuteAt) {   // 운영진이 내 마이크를 끔
       if (this.muteSeen == null) this.muteSeen = v.wmuteAt;
       else if (v.wmuteAt > this.muteSeen) { this.muteSeen = v.wmuteAt; this.onMuteReq(); }
