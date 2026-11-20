@@ -713,31 +713,78 @@
       });
       Array.from(box.children).forEach(function (c) { if (!keep[c.dataset.k]) { var v = c.querySelector('video'); if (v) v.srcObject = null; c.remove(); } });
     },
-    // 내 작은 화면 = 상대에게 보이는 모습 그대로(Ver.2.30)
-    // 상대 화면에서 내 영상이 차지하는 칸의 가로세로 비율을 받아, 내 작은 화면도 같은 비율로 꽉 채움 → 잘리는 부분이 똑같음
-    // o: { sess, box: 내 화면의 상대 영상 칸, stack: 내 작은 화면 묶음(.pstack), peer: function → 지금 상대 id(없으면 '') }
+    // 상대 화면 보기 방식(Ver.2.31): 'fit' 맞춰 보기(상대 영상 전체) / 'fill' 확대 보기(화면을 꽉 채움, 넘치는 쪽은 잘림)
+    // 버튼·영상 두 번 톡으로 바꿈. 고른 방식은 이 기기에 기억
+    viewMode: function (o) {   // o: { box: .vbox, btn, video }
+      var KEY = 'dance_view', mode = 'fit';
+      try { mode = localStorage.getItem(KEY) === 'fill' ? 'fill' : 'fit'; } catch (e) {}
+      var FIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 9v6M16 9v6"/></svg>';
+      var FILL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+      function paint() {
+        o.box.classList.toggle('fill', mode === 'fill');
+        if (o.btn) { o.btn.innerHTML = mode === 'fill' ? FIT : FILL; o.btn.title = mode === 'fill' ? '맞춰 보기로(상대 영상 전체)' : '확대 보기로(화면 꽉 채움)'; o.btn.setAttribute('aria-label', o.btn.title); }
+      }
+      function set(m, say) {
+        mode = m; try { localStorage.setItem(KEY, m); } catch (e) {}
+        paint();
+        if (say) UI.toast(m === 'fill' ? '확대 보기 — 화면을 꽉 채웁니다(넘치는 쪽은 잘림)' : '맞춰 보기 — 상대 영상 전체가 보입니다', 2500);
+      }
+      if (o.btn) o.btn.onclick = function () { set(mode === 'fill' ? 'fit' : 'fill', true); };
+      // 상대 영상을 두 번 톡(마우스는 두 번 클릭)
+      var last = 0;
+      o.video.addEventListener('pointerup', function () { var t = Date.now(); if (t - last < 320) { last = 0; set(mode === 'fill' ? 'fit' : 'fill', true); } else last = t; });
+      paint();
+      return { get: function () { return mode; } };
+    },
+    // 내 작은 화면 = 상대에게 보이는 모습 그대로(Ver.2.30·2.31)
+    // 상대가 맞춰 보기면 내 영상 전체, 확대 보기면 상대 화면 칸 비율만큼 잘라서(잘리는 부분이 똑같음)
+    // o: { sess, box: 내 화면의 상대 영상 칸, stack: 오른쪽 아래 묶음(.pstack), self: 내 영상 <video>, mode: viewMode, peer: function → 지금 상대 id(없으면 '') }
     selfBox: function (o) {
-      var got = {}, sentR = 0, sentTo = '', sentAt = 0;
-      o.sess.on('ev', function (m) { if (m.k === 'box' && m.r > 0.2 && m.r < 5) { got[m.from] = m.r; fit(); } });
+      var got = {}, sent = '', sentTo = '', sentAt = 0;
+      o.sess.on('ev', function (m) { if (m.k === 'box' && m.r > 0.2 && m.r < 5) { got[m.from] = { r: m.r, m: m.m === 'fill' ? 'fill' : 'fit' }; fit(); } });
       function fit() {
-        var pip = o.stack.querySelector('.pip'), p = o.peer(), r = p ? got[p] : 0;
-        var B = o.box.getBoundingClientRect();
-        if (!r || !B.width || !B.height) { o.stack.style.width = o.stack.style.minWidth = o.stack.style.maxWidth = ''; pip.style.aspectRatio = ''; return; }
-        var small = B.width < 700 || B.height < 520, land = B.width > B.height;
-        var maxW = small ? B.width * (land ? .24 : .32) : Math.min(280, B.width * .26);
-        var maxH = small ? B.height * (land ? .42 : .26) : Math.min(300, B.height * .34);
-        var w = Math.max(56, Math.min(maxW, maxH * r));
-        o.stack.style.width = Math.round(w) + 'px'; o.stack.style.minWidth = '0'; o.stack.style.maxWidth = 'none';
-        pip.style.aspectRatio = String(r);
+        var pip = o.stack.querySelector('.pip'), p = o.peer(), g = p ? got[p] : null, sv = o.self;
+        var own = sv && sv.videoWidth && sv.videoHeight ? sv.videoWidth / sv.videoHeight : 4 / 3;
+        var r = g && g.m === 'fill' ? g.r : own;   // 상대가 확대 보기면 상대 칸 비율, 아니면 내 영상 그대로
+        var base = parseFloat(getComputedStyle(o.stack.parentNode).getPropertyValue('--me')) || 200;   // 4:3일 때 가로 크기
+        var w = base * Math.sqrt(r / (4 / 3)), h = w / r, maxH = base * 0.75 * 1.5;   // 모양이 달라도 넓이는 비슷하게
+        if (h > maxH) { h = maxH; w = h * r; }
+        pip.style.width = Math.round(w) + 'px'; pip.style.aspectRatio = String(Math.round(r * 1000) / 1000);
       }
       setInterval(function () {
-        var p = o.peer(), B = o.box.getBoundingClientRect();
+        var p = o.peer(), B = o.box.getBoundingClientRect(), m = o.mode ? o.mode.get() : 'fit';
         if (p && B.width > 10 && B.height > 10) {
-          var r = Math.round(B.width / B.height * 100) / 100;
-          if (r !== sentR || p !== sentTo || Date.now() - sentAt > 8000) { sentR = r; sentTo = p; sentAt = Date.now(); o.sess.send(p, { t: 'ev', k: 'box', r: r }); }
+          var r = Math.round(B.width / B.height * 100) / 100, sig = r + m;
+          if (sig !== sent || p !== sentTo || Date.now() - sentAt > 8000) { sent = sig; sentTo = p; sentAt = Date.now(); o.sess.send(p, { t: 'ev', k: 'box', r: r, m: m }); }
         }
         fit();
-      }, 1000);
+      }, 700);
+    },
+    // 휴대폰(특히 아이폰 가로)에서 주소창 때문에 화면이 밀려 잘리지 않게: 멘토링 화면을 「보이는 영역」 크기에 맞추고 페이지 스크롤을 막음(Ver.2.31)
+    lockStage: function (el, on) {
+      document.documentElement.classList.toggle('stagelock', !!on);
+      if (!UI._lk) {
+        UI._lk = { els: [] };
+        var fitAll = function () {
+          var vv = window.visualViewport, h = vv ? vv.height : innerHeight, top = vv ? vv.offsetTop : 0;
+          UI._lk.els.forEach(function (x) { x.style.height = Math.round(h) + 'px'; x.style.top = Math.round(top) + 'px'; x.style.bottom = 'auto'; });
+          if (document.documentElement.classList.contains('stagelock') && (window.scrollY || window.scrollX) && !(vv && vv.scale > 1.01)) window.scrollTo(0, 0);
+        };
+        UI._lk.fit = fitAll;
+        if (window.visualViewport) { visualViewport.addEventListener('resize', fitAll); visualViewport.addEventListener('scroll', fitAll); }
+        window.addEventListener('resize', fitAll);
+        window.addEventListener('orientationchange', function () { setTimeout(fitAll, 60); setTimeout(fitAll, 400); });
+        setInterval(fitAll, 1500);
+        // 멘토링 화면에서 끌어 올리기·내리기로 페이지가 움직이지 않게(목록·소리 크기 막대는 그대로)
+        document.addEventListener('touchmove', function (e) {
+          if (!document.documentElement.classList.contains('stagelock')) return;
+          if (e.target.closest && e.target.closest('input, textarea, .volpop, aside.queue ol, .scrollok')) return;
+          if (e.touches && e.touches.length > 1) return;   // 두 손가락 확대는 막지 않음
+          e.preventDefault();
+        }, { passive: false });
+      }
+      if (UI._lk.els.indexOf(el) < 0) UI._lk.els.push(el);
+      UI._lk.fit();
     },
     // 작은 화면 묶음(멘토링실의 연구원): items [{key, label, stream, muted, mirror, off(안 보이게 — 소리는 그대로)}]
     pips: function (box, items) {

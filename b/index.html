@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
 <meta name="theme-color" content="#202226">
-<link rel="stylesheet" href="style.css?v=2223">
+<link rel="stylesheet" href="style.css?v=2225">
 <style>
   .scr { display: none; }
   .scr.on { display: block; }
@@ -133,7 +133,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2223">
+<link rel="stylesheet" href="theme.css?v=2225">
 </head>
 <body>
 
@@ -234,13 +234,13 @@
     <div class="overlay" id="l-wait"><div><div class="spinner"></div><h2>멘토와 연결하는 중</h2><p>잠시만 기다려 주세요</p></div></div>
     <span class="label" id="l-rlabel">멘토</span>
     <div class="ready-banner hide" id="l-banner">멘토링이 시작되었습니다</div>
-    <!-- 운영진·연구원: 맨 아래 가운데에 아주 작게 가로로 / 나: 오른쪽 아래 작은 화면(Ver.2.28) -->
-    <div class="rpips srow" id="l-rp"></div>
-    <div class="pstack"><div class="pip"><video id="l-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
+    <!-- 오른쪽 아래: 운영진·연구원(더 작게) + 나(Ver.2.31) -->
+    <div class="pstack"><div class="rpips srow" id="l-rp"></div><div class="pip"><video id="l-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
     <div class="ctrls">
       <button class="cbtn" id="b-mic" title="마이크"></button>
       <button class="cbtn" id="b-cam" title="카메라"></button>
       <button class="cbtn hide" id="b-flip" title="카메라 전환"></button>
+      <button class="cbtn fitb" id="b-fit" type="button"></button>
     </div>
   </div>
 </section>
@@ -256,14 +256,15 @@
   </div>
 </div>
 
-<script src="config.js?v=2223"></script>
-<script src="meet.js?v=2223"></script>
-<script src="../a/sfu.js?v=2223"></script>
-<script src="wait.js?v=2223"></script>
+<script src="config.js?v=2225"></script>
+<script src="meet.js?v=2225"></script>
+<script src="../a/sfu.js?v=2225"></script>
+<script src="wait.js?v=2225"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
   UI.volume('#wvid .wbar', 'wbtn'); UI.volume('#s-live .ctrls', 'cbtn');   // 소리 크기(내 마이크·듣는 소리)
+  var liveMode = UI.viewMode({ box: $('#s-live .vbox'), btn: $('#b-fit'), video: $('#l-remote') });   // 맞춰 보기 / 확대 보기(Ver.2.31)
   var PREFIX = C.PREFIX || '';
   var R0 = UI.param('r');                 // 리허설 등 회차를 주소로 지정할 때만(평소에는 명단에서 자동)
   var TITLE = '무용분야 심화 멘토링 대기실';
@@ -279,6 +280,7 @@
     ['s-gate', 's-check', 'room', 's-end'].forEach(function (s) { $('#' + s).classList.toggle('on', s === id); });
     UI.show('#s-live', id === 's-live');
     document.body.classList.toggle('dark', id === 's-live');
+    UI.lockStage($('#s-live'), id === 's-live');   // 아이폰 가로에서도 화면이 밀려 잘리지 않게(Ver.2.31)
     screen = id;
     if (id === 'room') fitRoom();
   }
@@ -372,7 +374,7 @@
     go('room');
     setInterval(tick, 500);
     // 내 작은 화면 = 멘토에게 보이는 모습 그대로(Ver.2.30)
-    UI.selfBox({ sess: sess, box: $('#l-remote'), stack: $('#s-live .pstack'), peer: function () { var L = links && links.get('ms', 'M'); return screen === 's-live' && L && L.state === 'connected' ? 'M' : ''; } });
+    UI.selfBox({ sess: sess, box: $('#l-remote'), stack: $('#s-live .pstack'), self: $('#l-self'), mode: liveMode, peer: function () { var L = links && links.get('ms', 'M'); return screen === 's-live' && L && L.state === 'connected' ? 'M' : ''; } });
     if (sess.view) render(sess.view);
   }
 

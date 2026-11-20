@@ -197,9 +197,9 @@
     var vw = v ? (v.displayWidth || v.videoWidth || v.naturalWidth || 0) : 0, vh = v ? (v.displayHeight || v.videoHeight || v.naturalHeight || 0) : 0;
     var ok = v && vw > 0 && (v.displayWidth ? true : v.tagName === 'IMG' ? v.complete : v.readyState >= 2);
     if (ok) {
-      // 칸을 꽉 채움(가운데 기준으로 넘치는 쪽만 잘라냄 — 세로 영상도 좌우 검은 띠 없이, Ver.2.29)
-      var s = Math.max(w / vw, h / vh), sw = w / s, sh = h / s;
-      try { c.drawImage(v, (vw - sw) / 2, (vh - sh) / 2, sw, sh, x, y, w, h); } catch (e) {}
+      // 영상 전체를 칸 안에(잘리지 않게 — 기록용이라 동작이 빠짐없이 남도록, Ver.2.31)
+      var s = Math.min(w / vw, h / vh), dw = vw * s, dh = vh * s;
+      try { c.drawImage(v, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); } catch (e) {}
     } else {
       c.fillStyle = '#686C72'; c.font = '600 ' + Math.round(20 * k) + 'px "Pretendard Variable", Pretendard, sans-serif';
       c.textAlign = 'center'; c.textBaseline = 'middle';

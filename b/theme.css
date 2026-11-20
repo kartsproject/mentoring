@@ -346,44 +346,67 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout
 input, textarea, select, [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 img, a, video, svg { -webkit-user-drag: none; }
 
-/* ── 멘토링실(Ver.2.28) ──
- * 운영진·연구원: 맨 아래 가운데에 아주 작게 가로로(진행 화면을 가리지 않게) — 있으면 버튼·내 화면을 그만큼 위로
- * 휴대폰: 영상통화처럼 상대 화면을 꽉 차게(레터박스 없이), 내 모습은 작은 화면
+/* ── 멘토·학생 멘토링 화면(Ver.2.31) ──
+ * 상대 영상을 최대한 크게: 화면 전체(위 줄도 영상 위에 반투명으로 겹침)
+ * 맞춰 보기(.vbox) = 상대 영상 전체 / 확대 보기(.vbox.fill) = 꽉 채움
+ * 오른쪽 아래: 운영진·연구원(더 작게) + 내 모습 · 버튼은 늘 아래 가운데 · (멘토) 남은 시간은 위 가운데 반투명
  */
-.vbox > .rpips.srow { position: absolute; left: 50%; top: auto; bottom: 8px; transform: translateX(-50%); width: auto; min-width: 0; max-width: calc(100% - 16px);
-  flex-direction: row; justify-content: center; gap: 6px; z-index: 4; }
-.vbox > .rpips.srow:not(.has) { display: none; }
-.srow .rpip { width: 84px; flex: none; border-radius: 9px !important; }
-.srow .rpip .rpl { left: 3px; bottom: 3px; right: 20px; font-size: 9.5px; padding: 1px 5px; }
-.srow .rpip .rpm { right: 3px; bottom: 3px; width: 15px; height: 15px; }
-.srow .rpip .rpm svg { width: 9px; height: 9px; }
-.vbox:has(> .srow.has) .ctrls { bottom: 84px; }
-.vbox:has(> .srow.has) .pstack { bottom: 158px; }
-@media (max-width: 900px), (max-height: 520px), (pointer: coarse) {
-  #s-live .topbar, .mwrap .stage .topbar { position: absolute; left: 0; right: 0; top: 0; padding-top: max(10px, env(safe-area-inset-top)); z-index: 5; }
-  #s-live .vbox, .mwrap .stage .vbox { position: absolute; inset: 0; }
-  .vbox .sgrid { top: calc(56px + env(safe-area-inset-top)); }
-  .vbox > .overlay { padding-top: 72px; }
-  .mwrap .bigtimer { top: calc(66px + env(safe-area-inset-top)); right: 12px; padding: 6px 16px 8px; border-radius: 18px; }
-  .mwrap .bigtimer b { font-size: 34px; }
-  .mwrap .bigtimer small { font-size: 11.5px; margin-top: 3px; }
-  .ctrls { bottom: calc(18px + env(safe-area-inset-bottom)); }
-  .pstack { right: 12px; bottom: calc(94px + env(safe-area-inset-bottom)); width: 28%; min-width: 86px; max-width: 150px; }
-  .pstack .pip { aspect-ratio: 3 / 4; border-radius: 14px; }
-  .srow .rpip { width: 58px; border-radius: 7px !important; }
-  .srow .rpip .rpl { display: none; }
-  .srow .rpip .rpm { width: 13px; height: 13px; }
-  .vbox > .rpips.srow { bottom: calc(6px + env(safe-area-inset-bottom)); }
-  .vbox:has(> .srow.has) .ctrls { bottom: calc(60px + env(safe-area-inset-bottom)); }
-  .vbox:has(> .srow.has) .pstack { bottom: calc(134px + env(safe-area-inset-bottom)); }
+html.stagelock, html.stagelock body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+#s-live, .mwrap { height: 100vh; height: 100dvh; }
+#s-live .topbar, .mwrap .stage .topbar { position: absolute; left: 0; right: 0; top: 0; z-index: 5; border-bottom: 0 !important;
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
+  background: linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,0)) !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
+#s-live .topbar .ttl, .mwrap .topbar .ttl { text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+#s-live .vbox, .mwrap .stage .vbox { position: absolute; inset: 0; --cb: 100px; --me: 220px; --st: 88px; }
+.vbox video.main { object-fit: contain; }
+.vbox.fill video.main { object-fit: cover; }
+.gcell video { object-fit: contain; }
+.vbox .sgrid { top: calc(56px + env(safe-area-inset-top)); }
+.vbox > .overlay { padding-top: 72px; }
+.vbox > .label { left: max(14px, env(safe-area-inset-left)); bottom: calc(var(--cb) + env(safe-area-inset-bottom)); }
+.vbox > .spk { left: max(14px, env(safe-area-inset-left)); bottom: calc(var(--cb) + env(safe-area-inset-bottom) - 2px); }
+.vbox.speaking > .label { left: calc(max(14px, env(safe-area-inset-left)) + 36px) !important; }
+.ctrls { bottom: calc(20px + env(safe-area-inset-bottom)); }
+.ctrls .cbtn.fitb { background: rgba(41,151,255,.32); }
+/* 오른쪽 아래 묶음: [운영진·연구원(작게)] [나] */
+.vbox .pstack { position: absolute; right: max(14px, env(safe-area-inset-right)); bottom: calc(var(--cb) + env(safe-area-inset-bottom)); top: auto; left: auto;
+  width: auto; min-width: 0; max-width: none; display: flex; flex-direction: row; align-items: flex-end; gap: 6px; z-index: 3; pointer-events: none; }
+.vbox .pstack .pip { position: relative; right: auto; bottom: auto; width: var(--me); min-width: 0; max-width: none; aspect-ratio: 4 / 3; flex: none; border-radius: 14px; }
+.vbox .pstack .rpips { position: static; display: flex; flex-direction: row; align-items: flex-end; gap: 6px; width: auto; min-width: 0; max-width: none; }
+.vbox .pstack .rpips:not(.has) { display: none; }
+.pstack .rpip { width: var(--st); flex: none; border-radius: 9px !important; }
+.pstack .rpip .rpl { left: 3px; bottom: 3px; right: 20px; font-size: 9.5px; padding: 1px 5px; }
+.pstack .rpip .rpm { right: 3px; bottom: 3px; width: 15px; height: 15px; }
+.pstack .rpip .rpm svg { width: 9px; height: 9px; }
+/* 멘토 남은 시간: 위 가운데, 반투명 */
+.mwrap .bigtimer { top: calc(54px + env(safe-area-inset-top)); left: 50%; right: auto; transform: translateX(-50%); transform-origin: top center;
+  padding: 6px 18px 7px; border-radius: 16px; border: 0 !important; background: rgba(0,0,0,.38) !important; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.mwrap .bigtimer b { font-size: 44px; }
+.mwrap .bigtimer small { font-size: 12px; margin-top: 3px; color: #D5D6DA; }
+/* 휴대폰 세로·좁은 화면: 작은 화면들은 버튼 위로 */
+@media (max-width: 699px) {
+  #s-live .vbox, .mwrap .stage .vbox { --cb: 96px; --me: 112px; --st: 52px; }
+  .pstack .rpip .rpl { display: none; }
+  .pstack .rpip .rpm { width: 12px; height: 12px; right: 3px; bottom: 3px; }
+  .ctrls { gap: 12px; }
+  .cbtn { width: 52px; height: 52px; }
+  .mwrap .bigtimer b { font-size: 28px; }
+  .mwrap .bigtimer small { font-size: 10.5px; }
 }
+/* 휴대폰 가로: 버튼은 작게, 오른쪽 아래 묶음은 버튼과 같은 줄 */
 @media (orientation: landscape) and (max-height: 520px) {
-  .pstack { width: 20%; max-width: 170px; }
-  .pstack .pip { aspect-ratio: 4 / 3; }
+  #s-live .vbox, .mwrap .stage .vbox { --cb: 12px; --me: 120px; --st: 46px; }
+  .pstack .rpip .rpl { display: none; }
+  .ctrls { gap: 8px; bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .cbtn { width: 44px; height: 44px; }
+  .cbtn svg { width: 19px; height: 19px; }
+  .ctrls .cbtn.help { width: 44px; padding: 0; justify-content: center; }
+  .ctrls .cbtn.help span { display: none; }
+  #s-live .topbar, .mwrap .stage .topbar { padding-top: max(6px, env(safe-area-inset-top)); padding-bottom: 8px; min-height: 0; }
+  .mwrap .bigtimer { top: 6px; padding: 4px 14px 5px; }
+  .mwrap .bigtimer b { font-size: 26px; }
+  .mwrap .bigtimer small { font-size: 10px; }
 }
-
-/* 영상은 모든 화면에서 칸을 꽉 채움 — 휴대폰 세로 영상도 좌우 검은 띠 없이(Ver.2.29) */
-.vbox video.main, .gcell video { object-fit: cover; }
 
 /* 멘토 「운영진 호출」 버튼 · 운영진·연구원 알림창(Ver.2.30) */
 .cbtn.help { width: auto; padding: 0 20px; border-radius: 980px; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }

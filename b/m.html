@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#202226">
 <title>멘토 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2223">
+<link rel="stylesheet" href="style.css?v=2225">
 <style>
   .mwrap { position: fixed; inset: 0; display: flex; background: var(--k0); color: var(--k-tx); }
   .mwrap .stage { position: relative; flex: 1; inset: auto; }
@@ -38,7 +38,7 @@
   }
   .mout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2223">
+<link rel="stylesheet" href="theme.css?v=2225">
 </head>
 <body>
 
@@ -91,13 +91,13 @@
       <div class="overlay" id="o-idle"><div><h2>다음 학생을 기다리는 중입니다</h2><p id="o-next">운영진이 학생을 연결하면 바로 화면이 나타납니다.</p></div></div>
       <div class="overlay hide" id="o-conn"><div><div class="spinner"></div><h2 id="o-conn-t">학생과 연결하는 중</h2><p id="o-conn-s">잠시만 기다려 주세요</p></div></div>
       <span class="label hide" id="v-label"></span>
-      <!-- 운영진·연구원: 맨 아래 가운데에 아주 작게 가로로 / 나: 오른쪽 아래 작은 화면(Ver.2.28) -->
-      <div class="rpips srow" id="m-rp"></div>
-      <div class="pstack"><div class="pip"><video id="v-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
+      <!-- 오른쪽 아래: 운영진·연구원(더 작게) + 나(Ver.2.31) -->
+      <div class="pstack"><div class="rpips srow" id="m-rp"></div><div class="pip"><video id="v-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
       <div class="ctrls">
         <button class="cbtn" id="b-mic"></button>
         <button class="cbtn" id="b-cam"></button>
         <button class="cbtn hide" id="b-flip"></button>
+        <button class="cbtn fitb" id="b-fit" type="button"></button>
         <button class="cbtn help" id="b-help" type="button" title="운영진·연구원 호출"></button>
       </div>
     </div>
@@ -108,12 +108,13 @@
   </aside>
 </div>
 
-<script src="config.js?v=2223"></script>
-<script src="meet.js?v=2223"></script>
+<script src="config.js?v=2225"></script>
+<script src="meet.js?v=2225"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
   UI.volume('#s-main .ctrls', 'cbtn');   // 소리 크기(내 마이크·듣는 소리)
+  var liveMode = UI.viewMode({ box: $('#s-main .vbox'), btn: $('#b-fit'), video: $('#v-remote') });   // 맞춰 보기 / 확대 보기(Ver.2.31)
   var PREFIX = C.PREFIX || '';
   var sess, links, dc, local, view = null, lastOffer = {}, curKey = '', ac = null, warned = '';
 
@@ -130,6 +131,7 @@
   function go(id) {
     ['s-gate', 's-check', 's-main'].forEach(function (s) { UI.show('#' + s, s === id); });
     document.body.classList.toggle('dark', id === 's-main');
+    UI.lockStage($('#s-main'), id === 's-main');   // 아이폰 가로에서도 화면이 밀려 잘리지 않게(Ver.2.31)
   }
 
   $('#f-gate').onsubmit = async function (e) {
@@ -180,7 +182,7 @@
     sess.start();
     setInterval(tick, 500);
     // 내 작은 화면 = 학생에게 보이는 모습 그대로(Ver.2.30)
-    UI.selfBox({ sess: sess, box: $('#v-remote'), stack: $('.vbox .pstack'), peer: function () { var c = view && view.cur, L = c && links.get('ms', c.id); return L && L.state === 'connected' ? c.id : ''; } });
+    UI.selfBox({ sess: sess, box: $('#v-remote'), stack: $('.vbox .pstack'), self: $('#v-self'), mode: liveMode, peer: function () { var c = view && view.cur, L = c && links.get('ms', c.id); return L && L.state === 'connected' ? c.id : ''; } });
   };
 
   $('#b-queue').onclick = function () { $('#queue').classList.toggle('open'); };
