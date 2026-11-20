@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>미술 심화 멘토링 · 멘토</title>
-<link rel="stylesheet" href="../b/style.css?v=2218">
-<link rel="stylesheet" href="art.css?v=2218">
+<link rel="stylesheet" href="../b/style.css?v=2220">
+<link rel="stylesheet" href="art.css?v=2220">
 <style>
   .hero { background: var(--band); color: var(--band-tx); padding: 30px 0 90px; position: relative; overflow: hidden; }
   .wrap { max-width: 520px; margin: 0 auto; padding: 0 18px; position: relative; }
@@ -26,8 +26,8 @@
   #s-gate, #s-check { min-height: 100%; }
   #s-check { display: grid; place-items: center; padding: 24px 16px; }
 </style>
-<link rel="stylesheet" href="../b/theme.css?v=2218">
-<link rel="stylesheet" href="theme.css?v=2218">
+<link rel="stylesheet" href="../b/theme.css?v=2220">
+<link rel="stylesheet" href="theme.css?v=2220">
 </head>
 <body>
 
@@ -95,10 +95,10 @@
 </div>
 <div class="amove hide" id="t-move"><div><h2 id="t-move-h"></h2><p id="t-move-p"></p></div></div>
 
-<script src="config.js?v=2218"></script>
-<script src="../b/meet.js?v=2218"></script>
-<script src="sfu.js?v=2218"></script>
-<script src="art.js?v=2218"></script>
+<script src="config.js?v=2220"></script>
+<script src="../b/meet.js?v=2220"></script>
+<script src="sfu.js?v=2220"></script>
+<script src="art.js?v=2220"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art, ICON = M.ICON;
@@ -326,6 +326,47 @@
     catch (e) { UI.toast('사진을 올리지 못했습니다. 다시 시도해 주세요.'); }
   };
 
+
+  /* ───── 화면 보기의 거울(Ver.1.14) ─────
+   * 운영 화면 「화면 보기」(o.html?watch=1)가 이 페이지를 ?mirror=1 로 띄우면, 고른 멘토에게 지금 보이는 화면을
+   * 이 페이지의 실제 그리기 코드로 그대로 그림. 접속·카메라·마이크는 쓰지 않음
+   */
+  var MIR = null;
+  try { MIR = /[?&]mirror=1/.test(location.search) && window.parent !== window ? window.parent.MeetWatchMirror : null; } catch (e) { MIR = null; }
+  if (MIR) (function () {
+    document.body.classList.add('mirror');
+    var mid = '';
+    sess = { r: MIR.room(), name: '', view: null, get id() { return MIR.sid(); }, get tok() { return MIR.tok(); },
+             now: function () { return MIR.now(); }, op: function () { return Promise.resolve({}); }, kick: function () {}, stop: function () {} };
+    closeOut = function () {
+      $('#t-move-h').innerHTML = '멘토링이 <em>모두 끝났습니다</em>';
+      $('#t-move-p').textContent = '참여해 주셔서 감사합니다. 이제 이 창을 닫아도 됩니다.';
+      UI.show('#t-move', true);
+    };
+    if (typeof setMic === 'function') setMic = function (on) { var b = $('#b-mic'); if (b) { b.innerHTML = (on ? ICON.mic : ICON.micOff) + '<span>' + (on ? '마이크 켜짐' : '마이크 꺼짐') + '</span>'; b.classList.toggle('off', !on); } };
+    cam = new MediaStream();
+    room = Object.create(A.Room.prototype);
+    room.o = { sess: sess, box: $('#stage'), noRender: true, localCam: function () { return cam; }, localScr: function () { return null; },
+      tools: function (it) {
+        if (it.p.role !== 'student' || it.kind !== 'cam') return it.kind === 'photo' ? '<button type="button">사진 내리기</button>' : '';
+        return '<button type="button">마이크 끄기</button>' + (it.p.hand ? '<button type="button">손 내리기</button>' : '');
+      } };
+    room.sess = sess; room.box = $('#stage'); room.audios = {}; room.pin = null; room.backCam = false;
+    room.streams = MIR.streams(); room.sync = function () {}; room.sfu = { close: function () {} };
+    go('s-room'); entered = true; setMic(true); if (typeof setCam === 'function') setCam(true);
+    $('#t-sub').textContent = '미술 심화 멘토링 · ' + (sess.r === 'test' ? '리허설' : sess.r + '회차');
+    function step() {
+      var t = MIR.target(); if (!t) return;
+      if (t.id !== mid) { mid = t.id; sess.name = t.name; lastRoom = null; UI.show('#t-move', false); }
+      room.streams = MIR.streams();
+      var L = MIR.local(t.id); if (L) cam = L;
+      var v = MIR.artView(t.id); if (!v) return;
+      sess.view = v;
+      onView(v);
+      document.querySelectorAll('video, audio').forEach(function (m) { m.muted = true; });   // 소리는 화면 보기 창에서만
+    }
+    setInterval(step, 1000); step();
+  })();
 })();
 </script>
 </body>

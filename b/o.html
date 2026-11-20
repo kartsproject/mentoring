@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2218">
+<link rel="stylesheet" href="style.css?v=2220">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2218">
+<link rel="stylesheet" href="theme.css?v=2220">
 </head>
 <body>
 
@@ -357,13 +357,13 @@
   </div>
 </div>
 
-<script src="config.js?v=2218"></script>
-<script src="meet.js?v=2218"></script>
-<script src="recorder.js?v=2218"></script>
-<script src="../a/sfu.js?v=2218"></script>
-<script src="wait.js?v=2218"></script>
-<script src="room.js?v=2218"></script>
-<script src="watch.js?v=2218"></script>
+<script src="config.js?v=2220"></script>
+<script src="meet.js?v=2220"></script>
+<script src="recorder.js?v=2220"></script>
+<script src="../a/sfu.js?v=2220"></script>
+<script src="wait.js?v=2220"></script>
+<script src="room.js?v=2220"></script>
+<script src="watch.js?v=2220"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -519,7 +519,7 @@
       var onStage = (v.stage || []).some(function (m) { return m.id === sess.id; });
       if (onStage) stageWantUntil = 0;
       if (stageLocal && !onStage && Date.now() > stageWantUntil) stopStage('멘토링실 연결이 끊겨 나왔습니다. 다시 들어가 주세요.');
-      // 멘토링실에 있는 연구원 → 멘토링 중인 학생에게 내 영상·음성(학생 화면에는 마이크를 켰을 때만 보임)
+      // 멘토링실에 있는 연구원 → 멘토링 중인 학생에게 내 영상·음성(학생 화면 맨 아래에 작게 — Ver.2.28)
       var rsTo = stageLocal && v.cur && v.cur.live ? v.cur.id : '';
       links.closeWhere(function (L) { return L.kind === 'rs' && L.role === 'offer' && L.peer !== rsTo; }, true);
       if (rsTo) {
@@ -816,7 +816,7 @@
     var list = view.students.filter(function (s) { return !s.done && !(cur && cur.id === s.id); });
     return list[0] || null;
   }
-  // 멘토링 진행 시간: 멘토링실 아래 큰 막대. 2분 남으면(질의응답) 노랑
+  // 멘토링 진행 시간: 멘토링실 아래 큰 막대. 종료 1분 전부터 노랑(Ver.2.28)
   function tick() {
     var cur = view && view.cur, bar = $('#tbar');
     UI.show(bar, !!cur);
@@ -824,13 +824,13 @@
     var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
     var el = Math.max(0, sess.now() - cur.at + (window.__tShift || 0)), rem = slot - el;   // __tShift: 시험용
     var over = rem < 0, last = !over && rem <= 60000, q = !over && el > fb;
-    var cls = over || q ? ' q' : '';   // 2분 남으면(질의응답) 노랑 — 종료 임박 빨강·깜빡임은 쓰지 않음(Ver.2.15)
-    var ph = over ? '시간 초과' : last ? '종료 1분 전' : q ? '질의응답' : '피드백';
+    var cls = over || last ? ' q' : '';   // 종료 1분 전부터 노랑 — 빨강·깜빡임은 쓰지 않음
+    var ph = over ? '시간 초과' : last ? '종료 1분 전' : '피드백';   // 질의응답으로 바꾸지 않음(Ver.2.28)
     $('#tb-time').textContent = over ? '+' + UI.mmss(-rem) : UI.mmss(rem);
     $('#tb-ph').textContent = ph;
     $('#tb-el').textContent = '진행 ' + UI.mmss(el) + ' / ' + UI.mmss(slot);
     $('#tb-fill').style.width = Math.min(100, el / slot * 100) + '%';
-    $('#tb-mark').style.left = (fb / slot * 100) + '%';
+    $('#tb-mark').style.left = ((slot - 60000) / slot * 100) + '%';   // 노랑으로 바뀌는 곳(종료 1분 전)
     bar.className = 'tbar' + cls;
   }
 
@@ -960,7 +960,7 @@
     var at = stageLocal.getAudioTracks()[0]; sess.info.mic = !!(at && at.enabled); sess.kick();
     paintStageBtn(); paintStage();
   }
-  // 학생에게 보내는 내 영상: 마이크를 켰을 때만 켜짐(평소엔 검은 화면·무음으로 전송량 최소)
+  // 학생에게 보내는 내 영상: 카메라가 켜져 있으면 늘 보임(학생 화면 맨 아래에 작게, Ver.2.28)
   var rsVid = null, rsMs = null;
   function rsStream() {
     if (!stageLocal) return null;
@@ -973,7 +973,7 @@
   function syncRs(noApply) {
     if (!stageLocal || !rsVid) return;
     var at = stageLocal.getAudioTracks()[0], vt = stageLocal.getVideoTracks()[0];
-    rsVid.enabled = !!(at && at.enabled && vt && vt.enabled);
+    rsVid.enabled = !!(vt && vt.enabled);   // Ver.2.28: 학생 화면 맨 아래에 작게 늘 보임(마이크와 상관없이)
   }
   function typing(el) { return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable); }
   document.addEventListener('keydown', function (e) {

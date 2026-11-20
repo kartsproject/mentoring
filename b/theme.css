@@ -345,3 +345,40 @@ body:has(#s-end.on) { background: #000; }
 html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea, select, [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 img, a, video, svg { -webkit-user-drag: none; }
+
+/* ── 멘토링실(Ver.2.28) ──
+ * 운영진·연구원: 맨 아래 가운데에 아주 작게 가로로(진행 화면을 가리지 않게) — 있으면 버튼·내 화면을 그만큼 위로
+ * 휴대폰: 영상통화처럼 상대 화면을 꽉 차게(레터박스 없이), 내 모습은 작은 화면
+ */
+.vbox > .rpips.srow { position: absolute; left: 50%; top: auto; bottom: 8px; transform: translateX(-50%); width: auto; min-width: 0; max-width: calc(100% - 16px);
+  flex-direction: row; justify-content: center; gap: 6px; z-index: 4; }
+.vbox > .rpips.srow:not(.has) { display: none; }
+.srow .rpip { width: 84px; flex: none; border-radius: 9px !important; }
+.srow .rpip .rpl { left: 3px; bottom: 3px; right: 20px; font-size: 9.5px; padding: 1px 5px; }
+.srow .rpip .rpm { right: 3px; bottom: 3px; width: 15px; height: 15px; }
+.srow .rpip .rpm svg { width: 9px; height: 9px; }
+.vbox:has(> .srow.has) .ctrls { bottom: 84px; }
+.vbox:has(> .srow.has) .pstack { bottom: 158px; }
+@media (max-width: 900px), (max-height: 520px), (pointer: coarse) {
+  #s-live .topbar, .mwrap .stage .topbar { position: absolute; left: 0; right: 0; top: 0; padding-top: max(10px, env(safe-area-inset-top)); z-index: 5; }
+  #s-live .vbox, .mwrap .stage .vbox { position: absolute; inset: 0; }
+  .vbox video.main { object-fit: cover; }
+  .vbox .sgrid { top: calc(56px + env(safe-area-inset-top)); }
+  .vbox > .overlay { padding-top: 72px; }
+  .mwrap .bigtimer { top: calc(66px + env(safe-area-inset-top)); right: 12px; padding: 6px 16px 8px; border-radius: 18px; }
+  .mwrap .bigtimer b { font-size: 34px; }
+  .mwrap .bigtimer small { font-size: 11.5px; margin-top: 3px; }
+  .ctrls { bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .pstack { right: 12px; bottom: calc(94px + env(safe-area-inset-bottom)); width: 28%; min-width: 86px; max-width: 150px; }
+  .pstack .pip { aspect-ratio: 3 / 4; border-radius: 14px; }
+  .srow .rpip { width: 58px; border-radius: 7px !important; }
+  .srow .rpip .rpl { display: none; }
+  .srow .rpip .rpm { width: 13px; height: 13px; }
+  .vbox > .rpips.srow { bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .vbox:has(> .srow.has) .ctrls { bottom: calc(60px + env(safe-area-inset-bottom)); }
+  .vbox:has(> .srow.has) .pstack { bottom: calc(134px + env(safe-area-inset-bottom)); }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .pstack { width: 20%; max-width: 170px; }
+  .pstack .pip { aspect-ratio: 4 / 3; }
+}

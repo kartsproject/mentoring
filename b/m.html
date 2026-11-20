@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#202226">
 <title>멘토 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2218">
+<link rel="stylesheet" href="style.css?v=2220">
 <style>
   .mwrap { position: fixed; inset: 0; display: flex; background: var(--k0); color: var(--k-tx); }
   .mwrap .stage { position: relative; flex: 1; inset: auto; }
@@ -38,7 +38,7 @@
   }
   .mout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2218">
+<link rel="stylesheet" href="theme.css?v=2220">
 </head>
 <body>
 
@@ -91,8 +91,9 @@
       <div class="overlay" id="o-idle"><div><h2>다음 학생을 기다리는 중입니다</h2><p id="o-next">운영진이 학생을 연결하면 바로 화면이 나타납니다.</p></div></div>
       <div class="overlay hide" id="o-conn"><div><div class="spinner"></div><h2 id="o-conn-t">학생과 연결하는 중</h2><p id="o-conn-s">잠시만 기다려 주세요</p></div></div>
       <span class="label hide" id="v-label"></span>
-      <!-- 오른쪽 아래 작은 화면 묶음: 연구원(멘토링실에 들어왔을 때) + 나 — 같은 크기(Ver.2.17) -->
-      <div class="pstack"><div class="rpips" id="m-rp"></div><div class="pip"><video id="v-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
+      <!-- 운영진·연구원: 맨 아래 가운데에 아주 작게 가로로 / 나: 오른쪽 아래 작은 화면(Ver.2.28) -->
+      <div class="rpips srow" id="m-rp"></div>
+      <div class="pstack"><div class="pip"><video id="v-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
       <div class="ctrls">
         <button class="cbtn" id="b-mic"></button>
         <button class="cbtn" id="b-cam"></button>
@@ -106,8 +107,8 @@
   </aside>
 </div>
 
-<script src="config.js?v=2218"></script>
-<script src="meet.js?v=2218"></script>
+<script src="config.js?v=2220"></script>
+<script src="meet.js?v=2220"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -268,12 +269,12 @@
     var slot = (C.SLOT_MIN || 10) * 60000, fb = (C.FEEDBACK_MIN || 8) * 60000;
     var el = sess.now() - cur.at, left = slot - el;
     var ph = $('#t-phase');
-    ph.textContent = el > slot ? '시간 초과' : el > fb ? '질의응답' : '피드백';
+    ph.textContent = el > slot ? '시간 초과' : '피드백';   // 제목은 그대로(질의응답으로 바꾸지 않음, Ver.2.28)
     // 큰 카운트다운
     var bt = $('#bt'), last = left <= 60000 && left > 0, over = left <= 0;
     $('#bt-t').textContent = over ? '+' + UI.mmss(-left) : UI.mmss(left);
-    $('#bt-s').textContent = over ? '시간 초과 — 마무리해 주세요' : last ? '종료 1분 전' : el > fb ? '질의응답 시간' : '피드백 시간';
-    bt.className = 'bigtimer' + (over || el > fb ? ' q' : '');   // 2분 남으면 노랑(종료 임박 빨강·깜빡임은 쓰지 않음)
+    $('#bt-s').textContent = over ? '시간 초과 — 마무리해 주세요' : last ? '종료 1분 전' : '피드백 시간';
+    bt.className = 'bigtimer' + (over || last ? ' q' : '');   // 종료 1분 전부터 노랑(Ver.2.28, 빨강·깜빡임은 쓰지 않음)
     if (last && warned !== cur.id) { warned = cur.id; beep(); }   // 1분 전 짧은 소리만(화면 빨강·깜빡임 없음)
   }
 

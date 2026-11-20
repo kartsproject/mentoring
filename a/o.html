@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>미술 심화 멘토링 · 운영</title>
-<link rel="stylesheet" href="../b/style.css?v=2218">
-<link rel="stylesheet" href="art.css?v=2218">
+<link rel="stylesheet" href="../b/style.css?v=2220">
+<link rel="stylesheet" href="art.css?v=2220">
 <style>
   body { background: var(--desk); }
   .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
@@ -105,8 +105,8 @@
   .wcell .tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--rec); border-radius: 5px; padding: 1px 5px; }
   @media (max-width: 1000px) { .body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; } .side { border-left: 0; } }
 </style>
-<link rel="stylesheet" href="../b/theme.css?v=2218">
-<link rel="stylesheet" href="theme.css?v=2218">
+<link rel="stylesheet" href="../b/theme.css?v=2220">
+<link rel="stylesheet" href="theme.css?v=2220">
 </head>
 <body>
 
@@ -178,11 +178,12 @@
   <div class="whob" id="who-b"></div>
 </div></div>
 
-<script src="config.js?v=2218"></script>
-<script src="../b/meet.js?v=2218"></script>
-<script src="../b/recorder.js?v=2218"></script>
-<script src="sfu.js?v=2218"></script>
-<script src="art.js?v=2218"></script>
+<script src="config.js?v=2220"></script>
+<script src="../b/meet.js?v=2220"></script>
+<script src="../b/recorder.js?v=2220"></script>
+<script src="sfu.js?v=2220"></script>
+<script src="art.js?v=2220"></script>
+<script src="../b/watch.js?v=2220"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art;
@@ -190,6 +191,9 @@
   var sess = null, role = 'ops', room = null, mic = null, listen = 'all', talking = false;
   var view = null, recOn = false, recs = {}, quad = false, recFiles = [], recBackup = false;
   var R0 = UI.param('r');
+  var WATCH = UI.param('watch') === '1';   // 화면 보기(Ver.1.14): 학생·멘토 화면을 실시간으로 보기만(마이크·카메라·녹화 없음)
+  var watchRoom = '';                      // 화면 보기: 지금 보는 사람의 방(그 방 영상은 높은 화질로)
+  if (WATCH) { document.title = '화면 보기 | 미술 심화 멘토링'; document.querySelector('#f-gate h1').innerHTML = '화면 <em>보기</em>'; }
 
   /* 입장 */
   $('#g-room').value = R0;
@@ -203,9 +207,10 @@
     var r = $('#g-room').value.replace(/회차|\s/g, '') || 'auto';
     $('#g-btn').disabled = true; $('#g-err').textContent = '';
     try {
-      sess = new M.Session({ r: r, role: role, name: $('#g-name').value.trim(), code: $('#g-code').value.trim(), interval: 1500 });
+      var nm = $('#g-name').value.trim();
+      sess = new M.Session({ r: r, role: role, name: WATCH && !/\(보기\)$/.test(nm) ? nm + '(보기)' : nm, code: $('#g-code').value.trim(), interval: 1500 });
       await sess.join();
-      try { localStorage.setItem('art_ops', sess.name); history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(sess.r)); } catch (e2) {}
+      try { localStorage.setItem('art_ops', sess.name.replace(/\(보기\)$/, '')); history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(sess.r) + (WATCH ? '&watch=1' : '')); } catch (e2) {}
       start();
     } catch (err) {
       $('#g-err').textContent = err.code === 'code' ? '코드가 맞지 않습니다.' : err.code === 'no_session' ? '날짜에 맞는 회차를 찾지 못했습니다. 「직접 입력」으로 넣어 주세요.' : '입장하지 못했습니다. (' + (err.code || err.message) + ')';
@@ -223,6 +228,17 @@
     sess.on('view', onView);
     sess.start();
     M.Speak.listen(function (id, on) { UI.$$('.rpb .tile').forEach(function (c) { if (c._it && c._it.id === id && c._it.kind === 'cam') M.Speak.mark(c, on); }); });
+    if (WATCH && window.MeetWatch) {   // 보기 전용: 마이크를 켜지 않고, 방에 들르지도 않음
+      window.MeetWatch.start({
+        field: 'a', sess: sess, label: sess.r === 'test' ? '리허설' : sess.r + '회차', view: function () { return view; },
+        streams: function () { return room.streams; },
+        focus: function (rm) { if (watchRoom !== rm) { watchRoom = rm; if (view) onView(view); } },
+        audio: function (mode, rm) { listen = mode === 'off' ? '__none' : rm; room.listen = listen; room.applyVolumes(); },
+        leave: function () { location.href = location.pathname + '?r=' + encodeURIComponent(sess.r) + '&watch=1'; }
+      });
+      await reopen();
+      return;
+    }
     try {
       mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
       mic = await M.Vol.wrapAsync(mic);   // 내 마이크 크기(소리 크기 버튼)
@@ -251,7 +267,7 @@
     room.sync(v, function (p) {
       if (p.role === 'ops' || p.role === 'research') return { mic: true, cam: recOn ? 'h' : 'q' };
       var sp = v.spot && v.spot[p.room], big = sp && sp.id === p.id;
-      var rid = recOn ? (p.role === 'mentor' || big ? 'f' : 'h') : (big ? 'h' : 'q');
+      var rid = recOn ? (p.role === 'mentor' || big ? 'f' : 'h') : (big || (WATCH && p.room === watchRoom) ? 'h' : 'q');   // 화면 보기: 보는 방은 높은 화질
       return { cam: rid, mic: true, scr: true };
     });
     room.view = v; room.applyVolumes();

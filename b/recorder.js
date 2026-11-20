@@ -64,7 +64,7 @@
     this.canvas.width = this.W; this.canvas.height = this.H;
     this.ctx = this.canvas.getContext('2d');
     this.tiles = { M: { video: null, label: '' }, S: { video: null, label: '' } };
-    this.pips = [];       // 멘토링실의 연구원·운영진 — 학생 칸 왼쪽 위에 작게(소리 포함)
+    this.pips = [];       // 멘토링실의 연구원·운영진 — 맨 아래 가운데에 작게(소리 포함, Ver.2.28)
     this.idleText = '';   // 오른쪽이 비었을 때 보일 글(예: 멘토링 대기 중)
     this.title = '';
     this.type = pickType();
@@ -130,7 +130,7 @@
   // 멘토링실의 연구원: [{key, video, label, stream, mic}] — 학생 칸 왼쪽 위 작은 화면 + 소리
   Recorder.prototype.setPips = function (items) {
     var self = this, keep = {};
-    this.pips = (items || []).slice(0, 3).map(function (it) { keep['P:' + it.key] = 1; return { video: it.video, label: it.label || '', mic: !!it.mic, tap: self.tapFor('P:' + it.key, it.stream) }; });
+    this.pips = (items || []).slice(0, 6).map(function (it) { keep['P:' + it.key] = 1; return { video: it.video, label: it.label || '', mic: !!it.mic, tap: self.tapFor('P:' + it.key, it.stream) }; });
     Object.keys(this.taps).forEach(function (k) { if (k.indexOf('P:') === 0 && !keep[k]) { self.taps[k].stop(); delete self.taps[k]; } });
     (items || []).slice(0, 3).forEach(function (it) { self.mixAudio('P:' + it.key, it.stream); });
     Object.keys(this.srcNodes).forEach(function (k) { if (k.indexOf('P:') === 0 && !keep[k]) { try { self.srcNodes[k].node.disconnect(); } catch (e) {} delete self.srcNodes[k]; } });
@@ -162,17 +162,20 @@
     c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
     var k = this.k, top = Math.round(44 * k), gap = Math.round(8 * k), tw = (W - gap) / 2, th = H - top;
     this.drawTile(this.tiles.M, 0, top, tw, th, '멘토', this.idle.M);
-    this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S);
+    this.drawTile(this.tiles.S, tw + gap, top, tw, th, '학생', this.idleText || this.idle.S, this.pips.length > 0);   // 가운데 아래 작은 화면과 겹치지 않게 이름은 오른쪽 아래로
     if (this.pips.length) {
-      var pw = Math.round(tw * 0.24), phh = Math.round(pw * 0.75), px = tw + gap + Math.round(14 * k), self2 = this;
+      // 운영진·연구원: 맨 아래 가운데에 작게 가로로(Ver.2.28)
+      var pw = Math.round(W * 0.075), phh = Math.round(pw * 0.75), pg = Math.round(6 * k), self2 = this;
+      var px0 = Math.round((W - (this.pips.length * pw + (this.pips.length - 1) * pg)) / 2), py = H - phh - Math.round(10 * k);
       this.pips.forEach(function (p, i) {
-        var py = top + Math.round(14 * k) + i * (phh + Math.round(8 * k));
+        var px = px0 + i * (pw + pg);
         c.fillStyle = p.mic ? '#3DDC84' : 'rgba(255,255,255,.35)'; c.fillRect(px - 2, py - 2, pw + 4, phh + 4);
         self2.drawTile({ video: p.video, tap: p.tap, label: '' }, px, py, pw, phh, '', '');
-        c.font = '700 ' + Math.round(12 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
-        var lw = Math.min(pw - 8 * k, c.measureText(p.label).width + 12 * k);
-        c.fillStyle = 'rgba(18,19,21,.75)'; c.fillRect(px + 4 * k, py + phh - 22 * k, lw, 18 * k);
-        c.fillStyle = '#fff'; c.fillText(p.label, px + 10 * k, py + phh - 13 * k);
+        c.font = '700 ' + Math.round(9 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
+        var lw = Math.min(pw - 6 * k, c.measureText(p.label).width + 8 * k);
+        c.fillStyle = 'rgba(18,19,21,.75)'; c.fillRect(px + 3 * k, py + phh - 16 * k, lw, 13 * k);
+        c.save(); c.beginPath(); c.rect(px + 3 * k, py + phh - 16 * k, lw, 13 * k); c.clip();
+        c.fillStyle = '#fff'; c.fillText(p.label, px + 7 * k, py + phh - 9.5 * k); c.restore();
       });
     }
     // 상단 표시줄
@@ -187,7 +190,7 @@
     c.textAlign = 'right'; c.fillStyle = '#A8ABB0'; c.fillText(ts, W - 16 * k, top / 2); c.textAlign = 'left';
   };
 
-  Recorder.prototype.drawTile = function (t, x, y, w, h, fallback, idle) {
+  Recorder.prototype.drawTile = function (t, x, y, w, h, fallback, idle, right) {
     var c = this.ctx, v = t.video || t.img, k = this.k;
     if (t.tap && t.tap.frame && Date.now() - t.tap.at < 5000) v = t.tap.frame;   // 트랙에서 바로 받은 최신 프레임(창이 가려져도 움직임)
     c.fillStyle = '#000'; c.fillRect(x, y, w, h);
@@ -206,8 +209,9 @@
     if (!label) return;
     c.font = '700 ' + Math.round(17 * k) + 'px "Pretendard Variable", Pretendard, sans-serif'; c.textBaseline = 'middle';
     var lw = c.measureText(label).width + 22 * k;
-    c.fillStyle = 'rgba(18,19,21,.72)'; c.fillRect(x + 12 * k, y + h - 44 * k, lw, 32 * k);
-    c.fillStyle = '#fff'; c.fillText(label, x + 23 * k, y + h - 28 * k);
+    var lx = right ? x + w - 12 * k - lw : x + 12 * k;
+    c.fillStyle = 'rgba(18,19,21,.72)'; c.fillRect(lx, y + h - 44 * k, lw, 32 * k);
+    c.fillStyle = '#fff'; c.fillText(label, lx + 11 * k, y + h - 28 * k);
   };
 
   Recorder.prototype.recording = function () { return !!(this.rec && this.rec.state === 'recording'); };

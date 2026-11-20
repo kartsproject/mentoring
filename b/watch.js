@@ -8,8 +8,12 @@
   'use strict';
   var M = window.Meet, UI = M.UI, PREFIX = (M.CFG && M.CFG.PREFIX) || '';
   var esc = UI.esc;
-  var api = null, sel = null, sound = false, frames = {}, el = null, lastList = '';
-  var STU = { w: 390, h: 844 }, MEN = { w: 1440, h: 900 };
+  var api = null, sel = null, sound = false, frames = {}, el = null, lastList = '', ART = false, devMode = {};
+  var PHONE = { w: 390, h: 844 }, PC = { w: 1440, h: 900 };
+  function roomName(rm) { if (window.Art && window.Art.roomName) return window.Art.roomName(rm); return !rm || rm === 'all' ? '전체' : (String.fromCharCode(64 + (Number(String(rm).replace(/\D/g, '')) || 0)) + '조'); }
+  function person(id) { var v = view(); return v && (v.people || []).filter(function (p) { return p.id === id; })[0]; }
+  // 무용 학생은 휴대폰, 그 밖(무용 멘토·미술)은 PC 모양을 기본으로(학생은 바꿀 수 있음)
+  function devOf(s) { if (!s) return PC; var d = devMode[s.k] || (s.k === 's' && !ART ? 'ph' : 'pc'); return d === 'ph' ? PHONE : PC; }
 
   function view() { return api && api.view(); }
   function stu(id) { var v = view(); return v && (v.students || []).filter(function (s) { return s.id === id; })[0]; }
@@ -19,7 +23,23 @@
   window.MeetWatchMirror = {
     now: function () { return api.sess.now(); },
     room: function () { return api.sess.r; },
-    target: function () { return sel && sel.k === 's' ? { id: sel.id, name: (stu(sel.id) || {}).name || '' } : null; },
+    target: function () {
+      if (!sel) return null;
+      if (ART) { var p = person(sel.id); return { id: sel.id, name: p ? p.name : '' }; }
+      return sel.k === 's' ? { id: sel.id, name: (stu(sel.id) || {}).name || '' } : null;
+    },
+    sid: function () { return api.sess.id; },
+    tok: function () { return api.sess.tok; },
+    // (미술) 이 창이 받은 영상: 사람 id → { cam, mic, scr }
+    streams: function () { return api.streams ? api.streams() : {}; },
+    // (미술) 운영진이 받는 진행 상태에서 그 사람 자리(방·조)만 바꿈 — 서버가 그 사람에게 주는 것과 같음
+    artView: function (id) {
+      var v = view(); if (!v) return null;
+      var p = person(id) || {}, g = 0;
+      if (p.role === 'student') g = ((v.roster || []).filter(function (x) { return x.id === id; })[0] || {}).g || 0;
+      else if (p.role === 'mentor') g = ((v.mroster || []).filter(function (x) { return x.id === id; })[0] || {}).g || 0;
+      return Object.assign({}, v, { me: id, myRoom: p.room || 'all', myGroup: g });
+    },
     rt: function () { return api.wr.rt || {}; },
     link: function (kind, peer) {
       var L = api.viewLink(peer);
@@ -27,10 +47,13 @@
     },
     // 그 사람 자신의 카메라·마이크(받은 영상): 멘토·진행 중 학생은 멘토링실 영상, 대기실 학생은 대기실 화상
     local: function (id) {
-      var v = view(), L = (id === 'M' || (v && v.cur && v.cur.id === id)) ? api.viewLink(id) : null;
       var tr = [];
-      if (L) tr = L.stream.getTracks();
-      else { var r = (api.wr.rt || {})[id] || {}; if (r.cam) tr.push(r.cam); if (r.mic) tr.push(r.mic); }
+      if (ART) { var st = (api.streams() || {})[id] || {}; ['cam', 'mic'].forEach(function (k) { if (st[k]) tr = tr.concat(st[k].getTracks()); }); }
+      else {
+        var v = view(), L = (id === 'M' || (v && v.cur && v.cur.id === id)) ? api.viewLink(id) : null;
+        if (L) tr = L.stream.getTracks();
+        else { var r = (api.wr.rt || {})[id] || {}; if (r.cam) tr.push(r.cam); if (r.mic) tr.push(r.mic); }
+      }
       var sig = tr.map(function (t) { return t.id; }).join();
       var c = cache[id];
       if (c && c.sig === sig) return c.s;
@@ -91,6 +114,9 @@
       '#watch .it b{display:block;font-size:14px;font-weight:600}#watch .it small{display:block;font-size:12px;color:#A1A1A6}' +
       '#watch .it.cur small{color:#BFA8FF}' +
       '#watch .st{position:relative;display:grid;grid-template-rows:auto 1fr;min-width:0;min-height:0;padding:16px 24px 24px}' +
+      '#watch .caprow{display:flex;align-items:center;gap:12px;margin:0 0 12px;flex-wrap:wrap}#watch .caprow .cap{flex:1;margin:0}' +
+      '#watch .dsw{display:flex;gap:4px;padding:3px;border-radius:980px;background:#1D1D1F;border:1px solid rgba(255,255,255,.12)}#watch .dsw[hidden]{display:none}' +
+      '#watch .dsw button{border:0;background:none;color:#A1A1A6;padding:6px 12px;border-radius:980px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}#watch .dsw button.on{background:#F5F5F7;color:#1D1D1F}' +
       '#watch .cap{display:flex;align-items:baseline;gap:10px;margin:0 0 12px}#watch .cap b{font-size:18px;font-weight:700}#watch .cap span{color:#A1A1A6;font-size:13px}' +
       '#watch .box{position:relative;min-height:0;display:grid;place-items:center}' +
       '#watch .dev{position:relative;background:#2a2a2d;box-shadow:inset 0 0 0 1.5px #3a3a3e,0 40px 80px -30px rgba(0,0,0,.9);overflow:hidden}' +
@@ -105,17 +131,21 @@
   function build() {
     el = document.createElement('div'); el.id = 'watch';
     el.innerHTML =
-      '<div class="wh"><span class="mk" aria-hidden="true">K</span><h1><small>무용분야 심화 멘토링 · ' + esc(api.label) + '</small>화면 보기</h1>' +
+      '<div class="wh"><span class="mk" aria-hidden="true">K</span><h1><small>' + (ART ? '미술' : '무용') + '분야 심화 멘토링 · ' + esc(api.label) + '</small>화면 보기</h1>' +
       '<span class="live">실시간</span><span class="sp"></span>' +
       '<div class="snd" role="group" aria-label="소리"><button type="button" data-v="0">소리 끔</button><button type="button" data-v="1">소리 켬</button></div>' +
       '<button class="out" type="button">나가기</button></div>' +
       '<div class="wb"><aside id="wl" aria-label="누구의 화면"></aside>' +
-      '<div class="st"><div class="cap" id="wcap"></div><div class="box" id="wbox"><div class="none">왼쪽에서 보고 싶은 사람을 고르세요</div></div></div></div>';
+      '<div class="st"><div class="caprow"><div class="cap" id="wcap"></div><div class="dsw" id="wdev" hidden><button type="button" data-d="pc">PC 화면</button><button type="button" data-d="ph">휴대폰 화면</button></div></div><div class="box" id="wbox"><div class="none">왼쪽에서 보고 싶은 사람을 고르세요</div></div></div></div>';
     document.body.appendChild(el);
     el.querySelector('.out').onclick = function () { api.leave(); };
     el.querySelector('.snd').onclick = function (e) {
       var b = e.target.closest('[data-v]'); if (!b) return;
       sound = b.dataset.v === '1'; this.classList.toggle('on', sound); applySound();
+    };
+    el.querySelector('#wdev').onclick = function (e) {
+      var b = e.target.closest('[data-d]'); if (!b || !sel) return;
+      devMode[sel.k] = b.dataset.d; var dv = el.querySelector('#wbox .dev'); if (dv) dv.remove(); pick(sel);
     };
     el.querySelector('#wl').onclick = function (e) {
       var b = e.target.closest('[data-k]'); if (!b || b.disabled) return;
@@ -123,15 +153,21 @@
     };
     addEventListener('resize', fit);
   }
+  function soundMode() {
+    if (!sound || !sel) return 'off';
+    if (ART) { var p = person(sel.id); return p ? 'r:' + (p.room || 'all') : 'off'; }   // 그 사람이 있는 방 소리
+    var v = view();
+    return sel.k === 'm' || (v && v.cur && v.cur.id === sel.id) ? 'm' : 'w';   // 멘토·진행 중 학생 = 멘토링실, 대기실 학생 = 대기실
+  }
   function applySound() {
-    if (!sound || !sel) return api.audio('off');
-    var v = view(), inLive = sel.k === 'm' || (v && v.cur && v.cur.id === sel.id);
-    api.audio(inLive ? 'm' : 'w');   // 멘토·진행 중 학생 = 멘토링실 소리, 대기실 학생 = 대기실 소리
+    var m = soundMode();
+    if (ART) api.audio(m === 'off' ? 'off' : 'on', m.slice(2));
+    else api.audio(m);
   }
   function frame(k) {
     if (frames[k]) return frames[k];
     var f = document.createElement('iframe');
-    f.src = (k === 's' ? 'index.html' : 'm.html') + '?mirror=1&v=' + Date.now();
+    f.src = (k === 's' ? 'index.html' : 'm.html') + '?mirror=1&r=' + encodeURIComponent(api.sess.r) + '&v=' + Date.now();
     f.title = k === 's' ? '학생 화면' : '멘토 화면';
     f.setAttribute('tabindex', '-1');
     frames[k] = f;
@@ -139,26 +175,65 @@
   }
   function pick(s) {
     sel = s;
-    var box = el.querySelector('#wbox'), D = s.k === 's' ? STU : MEN;
+    var box = el.querySelector('#wbox'), D = devOf(s), ph = D === PHONE;
     var dev = box.querySelector('.dev');
-    if (!dev || dev.dataset.k !== s.k) {
-      box.innerHTML = '<div class="dev ' + (s.k === 's' ? 'ph' : 'pc') + '" data-k="' + s.k + '"><div class="sc"></div></div>';
+    if (!dev || dev.dataset.k !== s.k || (dev.dataset.d === 'ph') !== ph) {
+      box.innerHTML = '<div class="dev ' + (ph ? 'ph' : 'pc') + '" data-k="' + s.k + '" data-d="' + (ph ? 'ph' : 'pc') + '"><div class="sc"></div></div>';
       var f = frame(s.k);
       f.style.width = D.w + 'px'; f.style.height = D.h + 'px';
       box.querySelector('.sc').appendChild(f);
     }
+    var sw = el.querySelector('#wdev'); sw.hidden = s.k !== 's';
+    sw.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', (b.dataset.d === 'ph') === ph); });
     fit(); paintList(); applySound();
+    if (ART && api.focus) { var p = person(s.id); api.focus(p ? p.room : ''); }
   }
   function fit() {
     var box = el && el.querySelector('#wbox'), dev = box && box.querySelector('.dev');
     if (!dev) return;
-    var D = dev.dataset.k === 's' ? STU : MEN, pad = dev.dataset.k === 's' ? 24 : 20;
+    var D = dev.dataset.d === 'ph' ? PHONE : PC, pad = dev.dataset.d === 'ph' ? 24 : 20;
     var sc = Math.min((box.clientWidth - pad - 8) / D.w, (box.clientHeight - pad - 8) / D.h, 1.2);
     var s = dev.querySelector('.sc'), f = s.querySelector('iframe');
     s.style.width = Math.round(D.w * sc) + 'px'; s.style.height = Math.round(D.h * sc) + 'px';
     f.style.transform = 'scale(' + sc + ')';
   }
+  function paintListArt() {
+    var v = view(); if (!v || !el) return;
+    var item = function (k, id, ini, name, sub, cls, dis) {
+      return '<button type="button" class="it ' + (cls || '') + (sel && sel.id === id ? ' sel' : '') + '" data-k="' + k + '" data-id="' + esc(id) + '"' + (dis ? ' disabled' : '') + '>' +
+        '<i>' + esc(ini) + '</i><span><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></span></button>';
+    };
+    var live = (v.people || []).filter(function (p) { return p.live && (p.role === 'mentor' || p.role === 'student'); });
+    var rooms = ['all'].concat((v.groups || []).map(function (g) { return 'g' + g; }));
+    live.forEach(function (p) { if (rooms.indexOf(p.room) < 0) rooms.push(p.room); });
+    var h = '';
+    rooms.forEach(function (rm) {
+      var here = live.filter(function (p) { return (p.room || 'all') === rm; })
+        .sort(function (a, b) { return (a.role === 'mentor' ? 0 : 1) - (b.role === 'mentor' ? 0 : 1) || String(a.name).localeCompare(b.name); });
+      if (!here.length) return;
+      h += '<h3>' + esc(roomName(rm)) + ' (' + here.length + ')</h3>' + here.map(function (p) {
+        var ro = p.role === 'student' ? (v.roster || []).filter(function (x) { return x.id === p.id; })[0] : (v.mroster || []).filter(function (x) { return x.id === p.id; })[0];
+        var g = ro && ro.g ? roomName('g' + ro.g) : '';
+        return item(p.role === 'mentor' ? 'm' : 's', p.id, p.role === 'mentor' ? '멘토' : String(p.name).slice(-2), (p.role === 'mentor' ? '멘토 ' : '') + p.name,
+          (g ? g + ' · ' : '') + (p.hand ? '손듦' : p.role === 'mentor' ? '멘토' : '학생'), p.role === 'mentor' ? 'men' : '', false);
+      }).join('');
+    });
+    var off = (v.roster || []).filter(function (x) { return !x.live; });
+    if (off.length) h += '<h3>접속 전 (' + off.length + ')</h3>' + off.map(function (x) { return item('s', x.id, String(x.name).slice(-2), x.name, '접속 전', '', true); }).join('');
+    if (!h) h = '<div class="none" style="padding:8px">아직 들어온 사람이 없습니다</div>';
+    if (h !== lastList) { lastList = h; el.querySelector('#wl').innerHTML = h; }
+    var cap = el.querySelector('#wcap');
+    if (sel) {
+      var p = person(sel.id);
+      if (!p || !p.live) cap.innerHTML = '<b>' + esc(p ? p.name : '') + '</b><span>접속이 끊겼습니다 — 다른 사람을 고르세요</span>';
+      else {
+        cap.innerHTML = '<b>' + (p.role === 'mentor' ? '멘토 ' : '') + esc(p.name) + (p.role === 'mentor' ? '' : ' 학생') + ' 화면</b><span>' + esc(roomName(p.room)) + ' · 지금 보이는 화면(실시간, 보기만)</span>';
+        if (api.focus) api.focus(p.room);
+      }
+    }
+  }
   function paintList() {
+    if (ART) return paintListArt();
     var v = view(); if (!v || !el) return;
     var cur = v.cur, list = v.students || [];
     var item = function (k, id, ini, name, sub, cls, dis) {
@@ -187,13 +262,18 @@
   }
   function autoPick() {
     var v = view(); if (!v || sel) return;
+    if (ART) {
+      var m = (v.people || []).filter(function (p) { return p.live && p.role === 'mentor'; })[0];
+      if (m) pick({ k: 'm', id: m.id });
+      return;
+    }
     if (v.cur && v.cur.live) pick({ k: 's', id: v.cur.id });
     else if (v.mentorLive) pick({ k: 'm', id: 'M' });
   }
 
   window.MeetWatch = {
     start: function (a) {
-      api = a;
+      api = a; ART = a.field === 'a';
       document.body.classList.add('watch');
       css(); build();
       api.audio('off');
@@ -201,7 +281,7 @@
       setInterval(function () {
         autoPick(); paintList();
         // 고른 학생이 멘토링실로 가거나 대기실로 돌아오면 듣는 소리도 따라감
-        var v = view(), mode = !sound || !sel ? 'off' : (sel.k === 'm' || (v && v.cur && v.cur.id === sel.id)) ? 'm' : 'w';
+        var mode = soundMode();
         if (mode !== lastMode) { lastMode = mode; applySound(); }
       }, 1000);
     }

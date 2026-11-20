@@ -268,14 +268,14 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await waitFor(res2, () => !document.querySelector('#b-smic').classList.contains('hide'), null, 15000, 'research joined room');
   await waitFor(mentor, () => { const v = document.querySelector('#m-rp .rpip video'); return v && v.videoWidth > 0; }, null, 40000, 'mentor sees research pip');
   log('연구원 멘토링실 들어감 → 멘토 화면 왼쪽 위 작은 화면(멘토 본인 화면과 함께)');
-  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 30000, 'student has hidden research pip');
+  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip:not(.off)'); return c && c.querySelector('video').videoWidth > 0; }, null, 30000, 'student sees research small at bottom');   // Ver.2.28: 마이크와 상관없이 맨 아래 작게
   await res2.keyboard.down('Space');
   await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip:not(.off)'); return c && c.querySelector('video').videoWidth > 0 && c.querySelector('video').srcObject.getAudioTracks().length; }, null, 20000, 'student sees research when mic on');
   await waitFor(mentor, () => !!document.querySelector('#m-rp .rpip.talk'), null, 20000, 'mentor sees research talking');
   log('연구원 스페이스바(마이크 켬) → 학생 화면 왼쪽 위에 연구원 작은 화면 + 소리, 멘토 화면 초록 테두리');
   await SHOT(sA, 'stu_live_research'); await SHOT(mentor, 'mentor_live_research'); await SHOT(res2, 'research_live_room'); await SHOT(ops, 'ops_live_research');
   await res2.keyboard.up('Space');
-  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && c.classList.contains('off'); }, null, 20000, 'student hides research when mic off');
+  await waitFor(sA, () => { const c = document.querySelector('#l-rp .rpip'); return c && !c.classList.contains('talk'); }, null, 20000, 'student: research mic off mark');
   await waitFor(ops, () => window.__rec().pips.length >= 1, null, 20000, 'recording includes research pip');
   log('마이크 끔 → 학생 화면에서 숨김, 녹화에는 연구원 작은 화면·소리 포함');
   await res2.click('#b-join');

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
 <meta name="theme-color" content="#202226">
-<link rel="stylesheet" href="style.css?v=2218">
+<link rel="stylesheet" href="style.css?v=2220">
 <style>
   .scr { display: none; }
   .scr.on { display: block; }
@@ -133,7 +133,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2218">
+<link rel="stylesheet" href="theme.css?v=2220">
 </head>
 <body>
 
@@ -234,8 +234,9 @@
     <div class="overlay" id="l-wait"><div><div class="spinner"></div><h2>멘토와 연결하는 중</h2><p>잠시만 기다려 주세요</p></div></div>
     <span class="label" id="l-rlabel">멘토</span>
     <div class="ready-banner hide" id="l-banner">멘토링이 시작되었습니다</div>
-    <!-- 오른쪽 아래 작은 화면 묶음: 연구원(마이크를 켰을 때) + 나 — 같은 크기(Ver.2.17) -->
-    <div class="pstack"><div class="rpips" id="l-rp"></div><div class="pip"><video id="l-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
+    <!-- 운영진·연구원: 맨 아래 가운데에 아주 작게 가로로 / 나: 오른쪽 아래 작은 화면(Ver.2.28) -->
+    <div class="rpips srow" id="l-rp"></div>
+    <div class="pstack"><div class="pip"><video id="l-self" autoplay playsinline muted></video><span class="pl">나</span></div></div>
     <div class="ctrls">
       <button class="cbtn" id="b-mic" title="마이크"></button>
       <button class="cbtn" id="b-cam" title="카메라"></button>
@@ -255,10 +256,10 @@
   </div>
 </div>
 
-<script src="config.js?v=2218"></script>
-<script src="meet.js?v=2218"></script>
-<script src="../a/sfu.js?v=2218"></script>
-<script src="wait.js?v=2218"></script>
+<script src="config.js?v=2220"></script>
+<script src="meet.js?v=2220"></script>
+<script src="../a/sfu.js?v=2220"></script>
+<script src="wait.js?v=2220"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -533,13 +534,13 @@
     var ok = L && L.state === 'connected' && L.stream.getVideoTracks().length;
     UI.show('#l-wait', !ok);
     if (L) UI.attach($('#l-remote'), L.stream);
-    // 멘토링실의 연구원: 마이크를 켰을 때만 왼쪽 위에 작게(소리는 연구원이 말할 때만 들림)
+    // 멘토링실의 운영진·연구원: 맨 아래에 아주 작게 가로로(Ver.2.28, 소리는 마이크를 켰을 때만 들림)
     var room = (lastV && lastV.called && lastV.room) || [];
     UI.pips($('#l-rp'), room.map(function (m) {
       var RL = links.get('rs', m.id), ev = RMIC[m.id];
       var mic = ev && Date.now() - ev.at < 6000 ? ev.on : !!m.mic;
       var st = RL && RL.state === 'connected' ? RL.stream : null;
-      return { key: m.id, label: UI.roleName(m.role) + ' ' + m.name, stream: st, mic: mic, off: !mic || !st };
+      return { key: m.id, label: UI.roleName(m.role) + ' ' + m.name, stream: st, mic: mic, off: !st };
     }));
   }
   function tick() {
@@ -548,8 +549,8 @@
     var el = sess.now() - lastCurAt;
     var tm = $('#l-timer');
     tm.textContent = UI.mmss(slot - el);
-    tm.className = 'timer' + (el > fb ? ' q' : '');   // 2분 남으면 노랑(시간 초과도 노랑)
-    $('#l-title').textContent = el > fb && el <= slot ? '질의응답 시간' : '멘토링 중';
+    tm.className = 'timer' + (slot - el <= 60000 ? ' q' : '');   // 종료 1분 전부터 노랑(시간 초과도 노랑, Ver.2.28)
+    $('#l-title').textContent = '멘토링 중';   // 제목은 그대로(질의응답으로 바꾸지 않음)
   }
 
   /* 멘토링이 시작되면 카메라·마이크를 자동으로 켬 */
