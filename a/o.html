@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>미술 심화 멘토링 · 운영</title>
-<link rel="stylesheet" href="../b/style.css?v=2200">
-<link rel="stylesheet" href="art.css?v=2200">
+<link rel="stylesheet" href="../b/style.css?v=2210">
+<link rel="stylesheet" href="art.css?v=2210">
 <style>
   body { background: var(--desk); }
   .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
@@ -105,8 +105,8 @@
   .wcell .tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--rec); border-radius: 5px; padding: 1px 5px; }
   @media (max-width: 1000px) { .body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; } .side { border-left: 0; } }
 </style>
-<link rel="stylesheet" href="../b/theme.css?v=2200">
-<link rel="stylesheet" href="theme.css?v=2200">
+<link rel="stylesheet" href="../b/theme.css?v=2210">
+<link rel="stylesheet" href="theme.css?v=2210">
 </head>
 <body>
 
@@ -178,14 +178,15 @@
   <div class="whob" id="who-b"></div>
 </div></div>
 
-<script src="config.js?v=2200"></script>
-<script src="../b/meet.js?v=2200"></script>
-<script src="../b/recorder.js?v=2200"></script>
-<script src="sfu.js?v=2200"></script>
-<script src="art.js?v=2200"></script>
+<script src="config.js?v=2210"></script>
+<script src="../b/meet.js?v=2210"></script>
+<script src="../b/recorder.js?v=2210"></script>
+<script src="sfu.js?v=2210"></script>
+<script src="art.js?v=2210"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art;
+  UI.volume('#fbar .fb-g', 'fb');   // 소리 크기(내 마이크·듣는 소리)
   var sess = null, role = 'ops', room = null, mic = null, listen = 'all', talking = false;
   var view = null, recOn = false, recs = {}, quad = false, recFiles = [], recBackup = false;
   var R0 = UI.param('r');
@@ -224,6 +225,7 @@
     M.Speak.listen(function (id, on) { UI.$$('.rpb .tile').forEach(function (c) { if (c._it && c._it.id === id && c._it.kind === 'cam') M.Speak.mark(c, on); }); });
     try {
       mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false });
+      mic = await M.Vol.wrapAsync(mic);   // 내 마이크 크기(소리 크기 버튼)
       mic.getAudioTracks().forEach(function (t) { t.enabled = false; });
     } catch (e) { UI.toast('마이크를 켜지 못해 말하기는 쓸 수 없습니다(보기·듣기는 됨).', 5000); }
     if (mic) M.Speak.track(sess.id, mic);
@@ -400,10 +402,12 @@
     var b = this; b.disabled = true;
     try {
       if (opsCam) {
-        await room.sfu.unpublish('cam'); opsCam.getTracks().forEach(function (t) { t.stop(); }); opsCam = null;
+        // 끄기는 바로: 카메라를 먼저 끄고, 방에서 내리는 일은 뒤에서(서버가 바빠도 버튼이 멈추지 않게)
+        var oc = opsCam; opsCam = null; oc.getTracks().forEach(function (t) { t.stop(); });
+        room.sfu.unpublish('cam').catch(function (e) { console.warn('cam unpublish', e); });
       } else {
         opsCam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 24 } }, audio: false });
-        await room.sfu.publish('cam', opsCam.getVideoTracks()[0]);
+        await Promise.race([room.sfu.publish('cam', opsCam.getVideoTracks()[0]), M.sleep(15000)]);
         UI.toast(A.roomName(listen) + ' 화면에 내 카메라가 보입니다');
       }
     } catch (e) { UI.toast('카메라를 켜지 못했습니다'); if (opsCam) { opsCam.getTracks().forEach(function (t) { t.stop(); }); opsCam = null; } }

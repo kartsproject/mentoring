@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
 <meta name="theme-color" content="#202226">
-<link rel="stylesheet" href="style.css?v=2200">
+<link rel="stylesheet" href="style.css?v=2210">
 <style>
   .scr { display: none; }
   .scr.on { display: block; }
@@ -134,7 +134,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2200">
+<link rel="stylesheet" href="theme.css?v=2210">
 </head>
 <body>
 
@@ -256,13 +256,14 @@
   </div>
 </div>
 
-<script src="config.js?v=2200"></script>
-<script src="meet.js?v=2200"></script>
-<script src="../a/sfu.js?v=2200"></script>
-<script src="wait.js?v=2200"></script>
+<script src="config.js?v=2210"></script>
+<script src="meet.js?v=2210"></script>
+<script src="../a/sfu.js?v=2210"></script>
+<script src="wait.js?v=2210"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
+  UI.volume('#wvid .wbar', 'wbtn'); UI.volume('#s-live .ctrls', 'cbtn');   // 소리 크기(내 마이크·듣는 소리)
   var PREFIX = C.PREFIX || '';
   var R0 = UI.param('r');                 // 리허설 등 회차를 주소로 지정할 때만(평소에는 명단에서 자동)
   var TITLE = '무용분야 심화 멘토링 대기실';

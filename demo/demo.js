@@ -435,7 +435,13 @@
     } else if (st.k === 'end') {
       await op('closeall');
       setTimeout(function () { BOTS.forEach(function (b) { b.leave(); }); }, 15000);
-    } else await op('phase', { to: st.phase });
+    } else {
+      for (var k = 0; k < 3; k++) {   // 서버가 바쁘면 잠깐 쉬었다 다시
+        var j = await op('phase', { to: st.phase });
+        if (j && j.ok) break;
+        await new Promise(function (r) { setTimeout(r, 1500); });
+      }
+    }
     paintSteps();
   }
   function artTick() {

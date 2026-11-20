@@ -483,6 +483,62 @@
     });
   };
 
+  /* ───────── 소리 크기(Ver.2.21): 내 마이크 크기 · 듣는 소리 크기 — 이 기기에 저장 ─────────
+   * 마이크: 카메라·마이크를 켤 때 소리를 한 번 거쳐(크기 조절) 보냄. 소리 장치가 준비되지 않았거나
+   *        아이폰·아이패드(소리 처리가 끊길 수 있음)에서는 원래 마이크를 그대로 보냄(조절만 안 됨)
+   * 듣는 소리: 화면의 영상·소리 크기(녹화 파일에는 영향 없음)
+   */
+  var LS = function (k, d) { try { var v = parseFloat(localStorage.getItem(k)); return isNaN(v) ? d : v; } catch (e) { return d; } };
+  var IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var Vol = {
+    mic: Math.max(0, Math.min(2, LS('meet_micvol', 1))), spk: Math.max(0, Math.min(1, LS('meet_spkvol', 1))),
+    ac: null, nodes: [],
+    can: function () { return !IOS && window.DEMO_LIGHT === undefined && !!(window.AudioContext || window.webkitAudioContext); },
+    ctx: function () {
+      if (!this.can()) return null;
+      try { if (!this.ac) this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+      if (this.ac.state !== 'running') this.ac.resume().catch(function () {});
+      return this.ac;
+    },
+    // 소리 장치가 아직 멈춰 있으면 잠깐(0.6초) 깨워 보고, 그래도 안 되면 원래 마이크 그대로
+    wrapAsync: function (stream) {
+      var self = this, ac = stream && stream.getAudioTracks().length ? this.ctx() : null;
+      if (!ac || ac.state === 'running') return Promise.resolve(this.wrap(stream));
+      return Promise.race([ac.resume().catch(function () {}), sleep(600)]).then(function () { return self.wrap(stream); });
+    },
+    wrap: function (stream) {
+      var at = stream && stream.getAudioTracks()[0], ac = at ? this.ctx() : null;
+      if (!at || !ac || ac.state !== 'running') return stream;   // 안전: 준비 안 되면 원래 마이크 그대로
+      try {
+        var src = ac.createMediaStreamSource(new MediaStream([at])), g = ac.createGain(), d = ac.createMediaStreamDestination();
+        g.gain.value = this.mic; src.connect(g); g.connect(d);
+        var out = d.stream.getAudioTracks()[0], stop0 = out.stop.bind(out);
+        out.__raw = at;
+        out.stop = function () { try { at.stop(); } catch (e) {} try { src.disconnect(); g.disconnect(); } catch (e) {} stop0(); };
+        at.addEventListener('ended', function () { stop0(); });   // 마이크가 빠지면 보내는 소리도 끝(자동 복구가 알아챔)
+        this.nodes = this.nodes.filter(function (n) { return n.out.readyState === 'live'; });
+        this.nodes.push({ g: g, out: out });
+        return new MediaStream(stream.getVideoTracks().concat([out]));
+      } catch (e) { return stream; }
+    },
+    live: function () { return this.nodes.filter(function (n) { return n.out.readyState === 'live'; }); },
+    setMic: function (v) {
+      this.mic = Math.max(0, Math.min(2, v)); try { localStorage.setItem('meet_micvol', this.mic); } catch (e) {}
+      var ac = this.ac, m = this.mic;
+      this.live().forEach(function (n) { if (ac) n.g.gain.setTargetAtTime(m, ac.currentTime, .03); else n.g.gain.value = m; });
+    },
+    setSpk: function (v) { this.spk = Math.max(0, Math.min(1, v)); try { localStorage.setItem('meet_spkvol', this.spk); } catch (e) {} this.applySpk(); },
+    applySpk: function () {
+      if (window.DEMO_LIGHT !== undefined) return;   // 시연 조종판 안에서는 조종판이 소리를 맡음
+      var v = this.spk;
+      document.querySelectorAll('video, audio').forEach(function (el) { if (!el.muted && Math.abs(el.volume - v) > .001) el.volume = v; });
+    }
+  };
+  setInterval(function () { Vol.applySpk(); }, 1000);
+  ['visibilitychange', 'pointerdown', 'keydown'].forEach(function (t) {
+    document.addEventListener(t, function () { if (Vol.ac && Vol.ac.state !== 'running' && document.visibilityState === 'visible') Vol.ac.resume().catch(function () {}); }, true);
+  });
+
   /* ───────── 장치 ───────── */
   var Media = {
     get: function (o) {
@@ -492,7 +548,7 @@
       if (o.videoId) video.deviceId = { exact: o.videoId }; else video.facingMode = o.facing || 'user';
       var audio = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
       if (o.audioId) audio.deviceId = { exact: o.audioId };
-      return navigator.mediaDevices.getUserMedia({ audio: audio, video: video });
+      return navigator.mediaDevices.getUserMedia({ audio: audio, video: video }).then(function (s) { return Vol.wrapAsync(s); });
     },
     list: async function () {
       var d = await navigator.mediaDevices.enumerateDevices();
@@ -562,7 +618,7 @@
     };
     var vt = this.stream.getVideoTracks()[0], at = this.stream.getAudioTracks()[0];
     fill(o.selCam, d.video, vt && vt.getSettings().deviceId, '카메라');
-    fill(o.selMic, d.audio, at && at.getSettings().deviceId, '마이크');
+    fill(o.selMic, d.audio, at && (at.__raw || at).getSettings().deviceId, '마이크');
     this.camCount = d.video.length;
     return this.stream;
   };
@@ -727,6 +783,7 @@
     rec: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/>',
     mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
     vol: '<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
+    sliders: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
     volOff: '<path d="M4 9v6h4l5 4V5L8 9zM17 9l5 6M22 9l-5 6"/>'
   };
   UI.ico = function (k, cls) {
@@ -859,5 +916,50 @@
     });
   })();
 
-  window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck, Speak: Speak };
+  /* 소리 크기 버튼 + 창: UI.volume(넣을 곳, 'fb'|'abtn'|'cbtn'|'wbtn') */
+  var volPop = null, volBtns = [];
+  function volClose() { if (!volPop) return; if (volPop._stop) volPop._stop(); volPop.remove(); volPop = null; volBtns.forEach(function (b) { b.classList.remove('on'); b.setAttribute('aria-expanded', 'false'); }); }
+  function volOpen(btn) {
+    volClose();
+    var p = document.createElement('div'), can = Vol.can() && Vol.live().length > 0;
+    p.className = 'volpop'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', '소리 크기');
+    p.innerHTML =
+      '<div class="vh">' + UI.ico('mic') + '<b>내 마이크</b><output id="vp-mo"></output></div>' +
+      '<input type="range" id="vp-m" min="0" max="200" step="5" aria-label="내 마이크 크기"' + (can ? '' : ' disabled') + '>' +
+      '<div class="vm"><i id="vp-lv"></i></div>' +
+      (can ? '<small>상대에게 들리는 내 목소리 크기 · 막대로 확인</small>' : '<small>' + (IOS ? '아이폰·아이패드는 기기 소리 설정으로 조절해 주세요' : '카메라·마이크를 켠 뒤 조절할 수 있습니다') + '</small>') +
+      '<div class="vh">' + UI.ico('vol') + '<b>듣는 소리</b><output id="vp-so"></output></div>' +
+      '<input type="range" id="vp-s" min="0" max="100" step="5" aria-label="듣는 소리 크기">' +
+      '<small>이 화면에서 들리는 크기 · 녹화에는 영향 없음</small>';
+    document.body.appendChild(p); volPop = p;
+    var m = p.querySelector('#vp-m'), sp = p.querySelector('#vp-s');
+    var paint = function () { m.value = Math.round(Vol.mic * 100); sp.value = Math.round(Vol.spk * 100); p.querySelector('#vp-mo').textContent = m.value + '%'; p.querySelector('#vp-so').textContent = sp.value + '%'; };
+    m.oninput = function () { Vol.setMic(Number(m.value) / 100); paint(); };
+    sp.oninput = function () { Vol.setSpk(Number(sp.value) / 100); paint(); };
+    paint();
+    var n = Vol.live().slice(-1)[0];
+    if (n) p._stop = Media.meter(new MediaStream([n.out]), p.querySelector('#vp-lv'));
+    // 버튼 위(공간이 없으면 아래)에 띄움
+    var r = btn.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+    var x = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)), y = r.top - h - 10;
+    if (y < 8) y = Math.min(innerHeight - h - 8, r.bottom + 10);
+    p.style.left = x + 'px'; p.style.top = y + 'px';
+    btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
+    m.focus({ preventScroll: true });
+  }
+  document.addEventListener('pointerdown', function (e) { if (volPop && !volPop.contains(e.target) && !volBtns.some(function (b) { return b.contains(e.target); })) volClose(); }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') volClose(); });
+  UI.volume = function (where, kind) {
+    if (typeof where === 'string') where = document.querySelector(where);
+    if (!where) return null;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = kind + ' volb'; b.title = '내 마이크 크기 · 듣는 소리 크기'; b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
+    b.innerHTML = kind === 'fb' ? '<i class="fc">' + UI.ico('sliders') + '</i><span class="fl">소리 크기</span>'
+      : kind === 'abtn' ? UI.ico('sliders') + '<span>소리 크기</span>' : UI.ico('sliders');
+    b.addEventListener('click', function (e) { e.stopPropagation(); if (volPop && b.classList.contains('on')) volClose(); else volOpen(b); });
+    where.appendChild(b); volBtns.push(b);
+    return b;
+  };
+
+  window.Meet = { CFG: CFG, api: api, Session: Session, Links: Links, Media: Media, Vol: Vol, UI: UI, ICON: ICON, sleep: sleep, NONCE: NONCE, DeviceCheck: DeviceCheck, Speak: Speak };
 })();

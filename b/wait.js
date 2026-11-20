@@ -370,7 +370,7 @@
   /* ── 운영진·연구원: 말하기·마이크 켜 두기·카메라 ── */
   WaitRoom.prototype.ensureMic = async function () {
     if (this.mic) return true;
-    try { this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false }); }
+    try { this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: false }); if (window.Meet && Meet.Vol) this.mic = await Meet.Vol.wrapAsync(this.mic); }
     catch (e) { UI.toast('마이크를 쓸 수 없습니다(브라우저 권한 확인)'); return false; }
     this.mic.getAudioTracks().forEach(function (t) { t.enabled = false; });
     if (this.sfu && this.sfu.sid) await this.sfu.publish('mic', this.mic.getAudioTracks()[0]);
@@ -395,10 +395,13 @@
     if (on && !this.cam) {
       try { this.cam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 720 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 24, max: 24 } }, audio: false }); }
       catch (e) { UI.toast('카메라를 켜지 못했습니다'); return false; }
-      if (this.sfu && this.sfu.sid) await this.sfu.publish('cam', this.cam.getVideoTracks()[0]);
+      // 서버가 바빠도 버튼이 멈춰 있지 않게: 15초까지만 기다리고 올리기는 뒤에서 계속
+      if (this.sfu && this.sfu.sid) await Promise.race([this.sfu.publish('cam', this.cam.getVideoTracks()[0]).catch(function (e) { console.warn('cam publish', e); }), M.sleep(15000)]);
     } else if (!on && this.cam) {
-      if (this.sfu && this.sfu.sid) await this.sfu.unpublish('cam');
-      this.cam.getTracks().forEach(function (t) { t.stop(); }); this.cam = null;
+      // 끄기는 바로: 카메라를 먼저 끄고, 대기실 화상에서 내리는 일은 뒤에서
+      var cam = this.cam; this.cam = null;
+      cam.getTracks().forEach(function (t) { t.stop(); });
+      if (this.sfu && this.sfu.sid) this.sfu.unpublish('cam').catch(function (e) { console.warn('cam unpublish', e); });
     }
     this.render(); return true;
   };
