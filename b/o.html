@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2211">
+<link rel="stylesheet" href="style.css?v=2212">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2211">
+<link rel="stylesheet" href="theme.css?v=2212">
 </head>
 <body>
 
@@ -357,12 +357,12 @@
   </div>
 </div>
 
-<script src="config.js?v=2211"></script>
-<script src="meet.js?v=2211"></script>
-<script src="recorder.js?v=2211"></script>
-<script src="../a/sfu.js?v=2211"></script>
-<script src="wait.js?v=2211"></script>
-<script src="room.js?v=2211"></script>
+<script src="config.js?v=2212"></script>
+<script src="meet.js?v=2212"></script>
+<script src="recorder.js?v=2212"></script>
+<script src="../a/sfu.js?v=2212"></script>
+<script src="wait.js?v=2212"></script>
+<script src="room.js?v=2212"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -599,7 +599,40 @@
   // 소리 하나만: 대기실 소리 켬 → 멘토링실 소리 끔 / 대기실 소리 끔 → 멘토링실 소리 켬(녹화 소리와는 무관)
   // 녹화 창과 대기실 창을 나눠 쓸 때도 두 창이 함께 바뀜(같은 PC·브라우저)
   var audioBC = null; try { audioBC = new BroadcastChannel('karts-room-audio'); } catch (e) {}
+  // 위 알약 = 지금 있는 방(Ver.2.22). 방을 옮기면 떠나는 방의 내 마이크·카메라는 꺼지고, 돌아오면 그대로 다시 켜짐
+  //  · 멘토링실로: 대기실 마이크·카메라 끔(기억) / 멘토링 참여 중이면 멘토링실 마이크·카메라 되살림
+  //  · 대기실로: 멘토링 참여 중이면 멘토링실 마이크·카메라 끔(기억) / 대기실 마이크·카메라 되살림
+  var wrMem = null, stMem = null;
+  function moveRoom(waiting) {
+    if (!waiting) {
+      if (wr && (wr.openMic || wr.talking || wr.cam)) {
+        wrMem = { mic: !!wr.openMic, cam: !!wr.cam };
+        wr.talking = false;
+        wr.setOpenMic(false).then(paintWr);
+        if (wr.cam) wr.setCam(false).then(paintWr);
+      }
+      if (stageLocal && stMem) {
+        var m = stMem; stMem = null;
+        stageLocal.getVideoTracks().forEach(function (t) { t.enabled = m.cam; });
+        if (m.mic) { pttMode = false; micOn(true); } else { syncRs(); paintStageBtn(); }
+      }
+    } else {
+      if (stageLocal) {
+        var at = stageLocal.getAudioTracks()[0], vt = stageLocal.getVideoTracks()[0];
+        stMem = { cam: !!(vt && vt.enabled), mic: !!(at && at.enabled && !pttMode) };
+        pttHeld = false; pttMode = true; $('#b-smic').classList.remove('down');
+        stageLocal.getVideoTracks().forEach(function (t) { t.enabled = false; });
+        micOn(false);
+      }
+      if (wr && wrMem) {
+        var w = wrMem; wrMem = null;
+        if (w.cam) wr.setCam(true).then(paintWr);
+        if (w.mic) wr.setOpenMic(true).then(paintWr);
+      }
+    }
+  }
   function applyRoomAudio(waiting, fromOther) {
+    moveRoom(waiting);
     if (wr) wr.setListen(waiting);
     soundOn = !waiting;
     $('#v-M').muted = $('#v-S').muted = !soundOn;
@@ -608,7 +641,8 @@
     if (!fromOther && audioBC) try { audioBC.postMessage({ r: r, waiting: !!waiting }); } catch (e) {}
   }
   if (audioBC) audioBC.onmessage = function (e) { if (e.data && e.data.r === r) applyRoomAudio(!!e.data.waiting, true); };
-  window.__audio = function () { return { waiting: !!(wr && wr.listen), mentoring: soundOn, vM: $('#v-M').muted }; };   // 시험용
+  window.__audio = function () { var at = stageLocal && stageLocal.getAudioTracks()[0], vt = stageLocal && stageLocal.getVideoTracks()[0];
+    return { waiting: !!(wr && wr.listen), mentoring: soundOn, vM: $('#v-M').muted, wcam: !!(wr && wr.cam), wmic: !!(wr && wr.openMic), stage: !!stageLocal, smic: !!(at && at.enabled), scam: !!(vt && vt.enabled) }; };   // 시험용
   $('#apill').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-s]'); if (!b || !wr) return;
     var w = b.dataset.s === 'w';
@@ -626,10 +660,12 @@
     else if (p.parentNode !== $('#aband')) $('#aband').appendChild(p);
   }
   window.addEventListener('resize', placePill);
-  $('#w-camb').onclick = async function () { this.disabled = true; await wr.setCam(!wr.cam); this.disabled = false; paintWr(); };
+  // 대기실 마이크·카메라는 대기실에 있을 때만: 멘토링실에 있으면 먼저 대기실로 옮겨 감
+  function toWait() { if (wr && !wr.listen) { applyRoomAudio(true); UI.toast('대기실로 옮겼습니다 — 멘토링실 마이크·카메라는 꺼집니다', 3500); } }
+  $('#w-camb').onclick = async function () { toWait(); this.disabled = true; await wr.setCam(!wr.cam); this.disabled = false; paintWr(); };
   holdBtn($('#w-open'), {
-    toggle: async function () { await wr.setOpenMic(!wr.openMic); paintWr(); UI.toast(wr.openMic ? '대기실에 내 소리가 계속 들립니다' : '대기실 마이크를 껐습니다'); },
-    talk: function (on) { wr.talk(on); }
+    toggle: async function () { toWait(); await wr.setOpenMic(!wr.openMic); paintWr(); UI.toast(wr.openMic ? '대기실에 내 소리가 계속 들립니다' : '대기실 마이크를 껐습니다'); },
+    talk: function (on) { if (on) toWait(); wr.talk(on); }
   });
   $('#b-set2').onclick = function () { $('#b-set').onclick.call($('#b-set')); this.classList.toggle('sel', $('#b-set').classList.contains('on')); };
   (function () {
@@ -638,7 +674,7 @@
     var held = false;
     document.addEventListener('keydown', function (e) {
       if (e.code !== 'Space' || !wr || !wr.on || typing(e.target)) return;
-      if (stageLocal && !wr.listen) return;   // 멘토링실 쪽: 멘토링실 말하기
+      if (!wr.listen) return;   // 멘토링실에 있을 때는 대기실에 말하지 않음(멘토링 참여 중이면 멘토링실 말하기)
       e.preventDefault();
       if (e.repeat || held) return;
       if (document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();   // 스페이스로 버튼이 눌리지 않게
@@ -960,7 +996,7 @@
   }
   function stopStage(msg) {
     if (!stageLocal) return;
-    M.Media.stop(stageLocal); stageLocal = null;
+    M.Media.stop(stageLocal); stageLocal = null; stMem = null;
     if (rsVid) { rsVid.stop(); rsVid = null; rsMs = null; }
     links.closeWhere(function (L) { return L.kind === 'ms' || L.kind === 'rs'; }, true);
     links.applyPolicy();
@@ -984,7 +1020,12 @@
     if (!j.ok) {
       M.Media.stop(stageLocal); stageLocal = null; stageWantUntil = 0;
       UI.toast(j.error === 'full' ? '멘토링실에는 3명까지 들어갈 수 있습니다' : '멘토링실에 들어가지 못했습니다');
-    } else { UI.toast('멘토링실에 들어왔습니다. 멘토에게 내 화면이 작게 보입니다. 말할 때는 스페이스바를 누르거나 「마이크 켜기」', 5000); kickOthers(); }
+    } else {
+      stMem = null;
+      if (wr && wr.listen) applyRoomAudio(false);   // 멘토링실로 옮김 — 대기실 마이크·카메라 꺼짐
+      else moveRoom(false);
+      UI.toast('멘토링실에 들어왔습니다. 대기실에는 내 화면·소리가 나가지 않습니다. 말할 때는 스페이스바를 누르거나 「마이크 켜기」', 5000); kickOthers();
+    }
     this.disabled = false; this.blur();
     links.applyPolicy(); paintStageBtn(); paintStage();
   };
