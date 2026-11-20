@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#000000">
+<title>온라인 멘토링 화면 둘러보기 | K예술영재</title>
+<style>
+  :root { --bg: #000; --c1: #161617; --c2: #1D1D1F; --line: rgba(255,255,255,.12); --t1: #F5F5F7; --t2: #A1A1A6; --t3: #6E6E73;
+    --blue: #2997FF; --pur: #A970FF; --ease: cubic-bezier(.28,.11,.32,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--t1); font: 15px/1.6 "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    letter-spacing: -.01em; word-break: keep-all; overflow-wrap: break-word; }
+  button { font: inherit; letter-spacing: inherit; cursor: pointer; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 28px 64px; }
+
+  header { display: flex; align-items: center; gap: 14px; padding: 26px 0 20px; flex-wrap: wrap; }
+  .mark { width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(135deg, var(--blue), var(--pur) 60%, #FF6482); display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.025em; }
+  header p { margin: 2px 0 0; color: var(--t2); font-size: 13.5px; }
+  .grow { flex: 1; }
+  .fpill { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 980px; background: var(--c2); border: 1px solid var(--line); min-width: 200px; }
+  .fpill::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 980px; background: linear-gradient(100deg, var(--blue), var(--pur)); transition: transform .4s var(--ease); }
+  body.fa .fpill::before { transform: translateX(100%); }
+  .fpill button { position: relative; border: 0; background: none; color: rgba(235,235,245,.6); padding: 8px 18px; border-radius: 980px; font-weight: 600; transition: color .3s; }
+  .fpill button[aria-pressed="true"] { color: #fff; }
+
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 22px; }
+  .roles button { border: 1px solid var(--line); background: transparent; color: var(--t2); border-radius: 980px; padding: 9px 18px; font-weight: 600; font-size: 14.5px; transition: background .2s, color .2s; }
+  .roles button:hover { color: var(--t1); }
+  .roles button[aria-pressed="true"] { background: var(--t1); color: #1D1D1F; border-color: var(--t1); }
+
+  .main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 28px; align-items: start; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; position: sticky; top: 16px; }
+  .steps button { width: 100%; text-align: left; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; border: 0; background: transparent; color: var(--t2);
+    padding: 11px 12px; border-radius: 14px; transition: background .2s, color .2s; }
+  .steps button:hover { background: var(--c1); color: var(--t1); }
+  .steps button[aria-current="true"] { background: var(--c2); color: var(--t1); }
+  .steps i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; border: 1px solid var(--line); color: var(--t3); margin-top: 1px; }
+  .steps button[aria-current="true"] i { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .steps b { display: block; font-weight: 600; font-size: 14.5px; }
+  .steps small { display: block; font-size: 12.5px; color: var(--t3); margin-top: 2px; }
+  .steps .soon { padding: 14px; color: var(--t3); font-size: 13.5px; border: 1px dashed var(--line); border-radius: 14px; }
+
+  .view { min-width: 0; }
+  .stage { display: grid; place-items: center; background: radial-gradient(120% 90% at 50% 0%, #1b1b1e 0%, #0b0b0c 70%); border: 1px solid var(--line); border-radius: 26px; padding: 34px 28px; min-height: 420px; }
+  /* 휴대폰 틀 */
+  .phone { width: min(330px, 78vw); border-radius: 46px; padding: 38px 12px 16px; background: #2a2a2d; box-shadow: inset 0 0 0 1.5px #3a3a3e, 0 40px 80px -30px rgba(0,0,0,.9); position: relative; }
+  .phone::before { content: ""; position: absolute; top: 13px; left: 50%; transform: translateX(-50%); width: 76px; height: 14px; border-radius: 980px; background: #000; z-index: 1; }
+  .phone img { display: block; width: 100%; border-radius: 10px 10px 30px 30px; }
+  /* 노트북 화면 틀 */
+  .laptop { width: 100%; }
+  .laptop .scr { border-radius: 16px 16px 4px 4px; padding: 10px 10px 12px; background: #2a2a2d; box-shadow: inset 0 0 0 1.5px #3a3a3e; }
+  .laptop .scr img { display: block; width: 100%; border-radius: 6px; }
+  .laptop .base { height: 14px; margin: 0 -3%; border-radius: 0 0 14px 14px; background: linear-gradient(#3a3a3e, #232326); box-shadow: 0 30px 60px -24px rgba(0,0,0,.9); }
+  /* 녹화 파일 */
+  .rec { width: 100%; position: relative; }
+  .rec img { display: block; width: 100%; border-radius: 12px; box-shadow: 0 30px 70px -26px rgba(0,0,0,.95); }
+  .rec .tag { position: absolute; left: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 980px; background: rgba(0,0,0,.66); font-size: 12.5px; font-weight: 600; }
+  .rec .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #FF453A; }
+  .stage a { display: block; cursor: zoom-in; }
+  .stage a:focus-visible { outline: 2px solid var(--blue); outline-offset: 6px; border-radius: 12px; }
+
+  .cap { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: start; padding: 22px 6px 0; }
+  .cap h2 { margin: 0 0 6px; font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+  .cap ul { margin: 0; padding-left: 18px; color: var(--t2); }
+  .cap li + li { margin-top: 4px; }
+  .nav { display: flex; gap: 8px; }
+  .nav button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--c2); color: var(--t1); display: grid; place-items: center; }
+  .nav button:disabled { opacity: .3; cursor: default; }
+  .nav svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  footer { margin-top: 40px; color: var(--t3); font-size: 12.5px; }
+
+  @media (max-width: 860px) {
+    .wrap { padding: 0 16px 48px; }
+    .main { grid-template-columns: 1fr; }
+    .steps { position: static; grid-auto-flow: column; grid-auto-columns: minmax(170px, 1fr); overflow-x: auto; padding-bottom: 4px; }
+    .stage { padding: 20px 12px; border-radius: 20px; min-height: 0; }
+    .cap { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="mark" aria-hidden="true">K</span>
+    <div><h1>온라인 멘토링 화면 둘러보기</h1><p>학생 · 멘토 · 운영진 · 연구원 화면과 실제 녹화 파일 — 화면 속 이름·번호는 모두 가상입니다</p></div>
+    <span class="grow"></span>
+    <div class="fpill" role="group" aria-label="분야"><button type="button" data-f="b" aria-pressed="true">무용</button><button type="button" data-f="a" aria-pressed="false">미술</button></div>
+  </header>
+  <div class="roles" id="roles" role="group" aria-label="보는 사람"></div>
+  <div class="main">
+    <ol class="steps" id="steps"></ol>
+    <section class="view" aria-live="polite">
+      <div class="stage" id="stage"></div>
+      <div class="cap"><div><h2 id="ttl"></h2><ul id="desc"></ul></div>
+        <div class="nav"><button type="button" id="prev" aria-label="이전 화면"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><button type="button" id="next" aria-label="다음 화면"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button></div></div>
+    </section>
+  </div>
+  <footer>2026-11-20 기준 화면(무용 Ver.2.21 · 미술 Ver.1.11) · 시연 회차에서 가상 참가자로 실제 시스템을 돌려 찍었습니다 · 화면을 누르면 원본 크기로 열립니다</footer>
+</div>
+<script>
+(function () {
+  'use strict';
+  var D = {
+    b: [
+      { k: 'stu', t: '학생', dev: 'phone', items: [
+        { img: 'b-stu-1-gate', t: '입장 — 본인 확인', s: '이름 · 생년월일', d: ['이름과 생년월일 8자리를 넣고 녹화 안내에 동의합니다.', '휴대폰에서 입력하면 위 소개 글이 접혀 입력 칸이 키보드 위로 올라옵니다.', '멘토링 당일 첫 학생 시작 30분 전부터 들어올 수 있습니다.'] },
+        { img: 'b-stu-2-check', t: '카메라 · 마이크 확인', s: '장치 점검', d: ['내 화면 미리보기와 마이크 막대로 장치를 확인합니다.', '카메라·마이크가 여러 개면 여기서 고릅니다.'] },
+        { img: 'b-stu-3-wait', t: '대기실', s: '얼굴 보며 기다리기', d: ['내 순서 · 앞 대기 인원 · 대기실·멘토링 시각과 연결 점검 표시가 위에 보입니다.', '아래 대기실 화상에서 운영진·연구원과 다른 학생을 보며 기다립니다(말하는 사람은 초록 테두리).', '아래 버튼: 마이크 · 카메라 · 소리 크기(내 마이크·듣는 소리).'] },
+        { img: 'b-stu-4-live', t: '멘토링 중', s: '차례가 되면 자동으로', d: ['운영진이 시작하면 알림과 함께 멘토링 화면으로 바뀝니다.', '멘토 화면이 크게, 오른쪽 아래에 연구원(마이크를 켰을 때)과 내 화면이 같은 크기로 보입니다.', '위 띠에 남은 시간과 녹화 표시.'] },
+        { img: 'b-stu-5-end', t: '멘토링 마침', s: '안내 후 바로 퇴장', d: ['멘토링이 끝나면 안내가 뜨고 카메라·마이크가 꺼집니다.', '대기실로 돌아가지 않습니다.'] } ] },
+      { k: 'men', t: '멘토', dev: 'laptop', items: [
+        { img: 'b-men-1-wait', t: '다음 학생 기다리는 중', s: '오늘 순서', d: ['오른쪽에 오늘 순서(대기 · 미접속 · 완료)가 보입니다.', '운영진이 학생을 시작하면 바로 학생 화면이 나타납니다(다음 학생은 미리 연결).'] },
+        { img: 'b-men-2-live', t: '멘토링 중', s: '학생 화면 크게', d: ['학생 화면이 크게, 오른쪽 위에 큰 남은 시간(2분 남으면 노랑, 1분 전 짧은 소리).', '오른쪽 아래에 멘토링에 참여한 연구원 화면과 내 화면.'] } ] },
+      { k: 'ops', t: '운영진', dev: 'laptop', items: [
+        { img: 'b-ops-1-wait', t: '운영 화면 — 대기실', s: '왼쪽 멘토링실 · 오른쪽 대기실', d: ['위 알약으로 멘토링실·대기실 중 들을 소리를 고릅니다.', '학생 칸은 명단 순서. 접속한 학생은 카메라, 접속 시각이 지난 미접속 학생은 빨간 테두리.', '아래 떠 있는 조작 막대: 마이크(스페이스바로 말하기) · 카메라 · 학생 마이크 모두 끄기 · 녹화 · 설정 · 소리 크기.'] },
+        { img: 'b-ops-2-phone', t: '학생 연락처', s: '전화 아이콘 → 번호', d: ['학생 칸 오른쪽 위 전화 아이콘을 누르면 학생·보호자 번호가 뜨고, 누르면 바로 전화가 걸립니다.'] },
+        { img: 'b-ops-3-live', t: '멘토링 진행', s: '[시작] → 멘토링실', d: ['[시작]을 누르면 멘토·학생 화면이 나란히, 아래에 진행 시간 막대.', '멘토링 중에는 학생별 파일로 항상 녹화됩니다(빨간 녹화 표시).'] },
+        { img: 'b-ops-4-research', t: '연구원이 참여했을 때', s: '멘토링실 아래 작게', d: ['연구원이 「멘토링 참여」를 하면 멘토·학생 화면 아래에 연구원 화면이 함께 보입니다.'] } ] },
+      { k: 'res', t: '연구원', dev: 'laptop', items: [
+        { img: 'b-res-1-wait', t: '연구원 화면', s: '보기 · 듣기', d: ['운영 화면과 같은 배치로 멘토링실·대기실을 봅니다.', '진행 조작과 녹화 버튼은 없습니다.'] },
+        { img: 'b-res-2-join', t: '멘토링 참여', s: '내 카메라로 함께', d: ['「멘토링 참여」를 누르면 내 카메라로 멘토링실에 들어갑니다.', '멘토 화면에 작게 보이고, 마이크를 켜면 학생에게도 보이고 들립니다(스페이스바를 누르는 동안 말하기).'] } ] },
+      { k: 'rec', t: '녹화 파일', dev: 'rec', items: [
+        { img: 'b-rec-1-live', t: '녹화 파일 화면', s: 'FHD 1920×1080', d: ['운영진 PC가 저장하는 실제 녹화 장면입니다.', '왼쪽 멘토 · 오른쪽 학생, 위에 회차·학생 이름·날짜와 시각.', '학생마다 파일이 따로 저장됩니다(예: 261206_1730_3회차_01_이름).'] },
+        { img: 'b-rec-2-research', t: '연구원이 참여했을 때', s: '왼쪽 위에 작게', d: ['멘토링에 참여한 연구원 화면과 목소리도 함께 녹화됩니다.'] } ] }
+    ],
+    a: [
+      { k: 'stu', t: '학생', dev: 'phone', items: [
+        { img: 'a-stu-1-gate', t: '입장 — 본인 확인', s: '이름 · 생년월일', d: ['이름과 생년월일 8자리를 넣고 녹화 안내에 동의합니다.', '회차 시작 30분 전부터 들어올 수 있습니다.'] },
+        { img: 'a-stu-2-check', t: '카메라 · 마이크 확인', s: '장치 점검', d: ['내 화면 미리보기와 마이크 막대로 장치를 확인합니다.'] },
+        { img: 'a-stu-3-ready', t: '입장 직후', s: '시작 전', d: ['위에 멘토 네 분, 아래에 학생이 명단 자리대로 보입니다.', '아래 버튼: 마이크 · 카메라 · 손들기 · 작품 보여주기 · 소리 크기.'] },
+        { img: 'a-stu-4-all', t: '전체 멘토링', s: '멘토 크게 · 학생 작게', d: ['멘토 영역(2×2)과 학생 영역을 바탕색으로 나눠 보입니다.', '전체 멘토링에서는 마이크가 꺼진 채로 듣고, 분반으로 옮기면 자동으로 켜집니다.'] } ], more: '분반(조별 방) · 작품 사진 · 마침 화면은 곧 추가합니다.' },
+      { k: 'men', t: '멘토', dev: 'laptop', items: [], more: '멘토 화면은 곧 추가합니다.' },
+      { k: 'ops', t: '운영진', dev: 'laptop', items: [], more: '운영 화면(진행판)은 곧 추가합니다.' },
+      { k: 'res', t: '연구원', dev: 'laptop', items: [], more: '연구원 화면은 곧 추가합니다.' },
+      { k: 'rec', t: '녹화 파일', dev: 'rec', items: [], more: '녹화 파일 화면(전체 · 분반 조별)은 곧 추가합니다.' }
+    ]
+  };
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var S = { f: 'b', r: 'stu', i: 0 };
+  // 주소로 바로 열기: #b-ops-2
+  var h = location.hash.slice(1).split('-');
+  if (D[h[0]]) { S.f = h[0]; if (h[1]) S.r = h[1]; if (h[2]) S.i = Math.max(0, Number(h[2]) - 1); }
+
+  function role() { return D[S.f].filter(function (x) { return x.k === S.r; })[0] || D[S.f][0]; }
+  function paint() {
+    var R = role(); S.r = R.k; S.i = Math.min(S.i, Math.max(0, R.items.length - 1));
+    document.body.classList.toggle('fa', S.f === 'a');
+    document.querySelectorAll('.fpill button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.f === S.f)); });
+    $('#roles').innerHTML = D[S.f].map(function (x) { return '<button type="button" data-r="' + x.k + '" aria-pressed="' + (x.k === S.r) + '">' + x.t + '</button>'; }).join('');
+    $('#steps').innerHTML = R.items.map(function (it, i) {
+      return '<li><button type="button" data-i="' + i + '" aria-current="' + (i === S.i) + '"><i>' + (i + 1) + '</i><span><b>' + esc(it.t) + '</b><small>' + esc(it.s) + '</small></span></button></li>';
+    }).join('') + (R.more ? '<li class="soon">' + esc(R.more) + '</li>' : '');
+    var it = R.items[S.i];
+    if (!it) { $('#stage').innerHTML = '<p style="color:var(--t3)">' + esc(R.more || '준비 중입니다') + '</p>'; $('#ttl').textContent = R.t; $('#desc').innerHTML = ''; $('#prev').disabled = $('#next').disabled = true; return; }
+    var src = 'img/' + it.img + '.jpg?v=1', alt = (S.f === 'b' ? '무용 ' : '미술 ') + R.t + ' — ' + it.t;
+    var img = '<a href="' + src + '" target="_blank" rel="noopener"><img src="' + src + '" alt="' + esc(alt) + '"></a>';
+    $('#stage').innerHTML = R.dev === 'phone' ? '<div class="phone">' + img + '</div>'
+      : R.dev === 'rec' ? '<div class="rec">' + img + '<span class="tag">녹화 파일 · 1920×1080</span></div>'
+      : '<div class="laptop"><div class="scr">' + img + '</div><div class="base"></div></div>';
+    $('#ttl').textContent = it.t;
+    $('#desc').innerHTML = it.d.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('');
+    $('#prev').disabled = S.i === 0; $('#next').disabled = S.i >= R.items.length - 1;
+    try { history.replaceState(null, '', '#' + S.f + '-' + S.r + '-' + (S.i + 1)); } catch (e) {}
+  }
+  document.querySelectorAll('.fpill button').forEach(function (b) { b.onclick = function () { if (S.f !== b.dataset.f) { S.f = b.dataset.f; S.i = 0; paint(); } }; });
+  $('#roles').onclick = function (e) { var b = e.target.closest('[data-r]'); if (b) { S.r = b.dataset.r; S.i = 0; paint(); } };
+  $('#steps').onclick = function (e) { var b = e.target.closest('[data-i]'); if (b) { S.i = Number(b.dataset.i); paint(); } };
+  $('#prev').onclick = function () { if (S.i > 0) { S.i--; paint(); } };
+  $('#next').onclick = function () { if (S.i < role().items.length - 1) { S.i++; paint(); } };
+  addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') $('#prev').click();
+    else if (e.key === 'ArrowRight') $('#next').click();
+  });
+  paint();
+})();
+</script>
+</body>
+</html>
