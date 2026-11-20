@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
 <meta name="theme-color" content="#202226">
-<link rel="stylesheet" href="style.css?v=2221">
+<link rel="stylesheet" href="style.css?v=2223">
 <style>
   .scr { display: none; }
   .scr.on { display: block; }
@@ -133,7 +133,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2221">
+<link rel="stylesheet" href="theme.css?v=2223">
 </head>
 <body>
 
@@ -256,10 +256,10 @@
   </div>
 </div>
 
-<script src="config.js?v=2221"></script>
-<script src="meet.js?v=2221"></script>
-<script src="../a/sfu.js?v=2221"></script>
-<script src="wait.js?v=2221"></script>
+<script src="config.js?v=2223"></script>
+<script src="meet.js?v=2223"></script>
+<script src="../a/sfu.js?v=2223"></script>
+<script src="wait.js?v=2223"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -319,7 +319,7 @@
     sess.on('ev', function (m) {
       if (m.k === 'cur') sess.setOverride(m.cur, { prev: m.prev });
       else if (m.k === 'rmic') { RMIC[m.from] = { on: !!m.on, at: Date.now() }; renderLive(); }   // 연구원 마이크 켬·끔(바로 반영)
-      else sess.kick();
+      else if (m.k !== 'box') sess.kick();
     });
     renderSched();
     sess.start();   // 카메라 확인 중에도 '접속 중'으로 표시
@@ -371,6 +371,8 @@
     setupCtrls();
     go('room');
     setInterval(tick, 500);
+    // 내 작은 화면 = 멘토에게 보이는 모습 그대로(Ver.2.30)
+    UI.selfBox({ sess: sess, box: $('#l-remote'), stack: $('#s-live .pstack'), peer: function () { var L = links && links.get('ms', 'M'); return screen === 's-live' && L && L.state === 'connected' ? 'M' : ''; } });
     if (sess.view) render(sess.view);
   }
 

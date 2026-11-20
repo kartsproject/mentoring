@@ -713,6 +713,32 @@
       });
       Array.from(box.children).forEach(function (c) { if (!keep[c.dataset.k]) { var v = c.querySelector('video'); if (v) v.srcObject = null; c.remove(); } });
     },
+    // 내 작은 화면 = 상대에게 보이는 모습 그대로(Ver.2.30)
+    // 상대 화면에서 내 영상이 차지하는 칸의 가로세로 비율을 받아, 내 작은 화면도 같은 비율로 꽉 채움 → 잘리는 부분이 똑같음
+    // o: { sess, box: 내 화면의 상대 영상 칸, stack: 내 작은 화면 묶음(.pstack), peer: function → 지금 상대 id(없으면 '') }
+    selfBox: function (o) {
+      var got = {}, sentR = 0, sentTo = '', sentAt = 0;
+      o.sess.on('ev', function (m) { if (m.k === 'box' && m.r > 0.2 && m.r < 5) { got[m.from] = m.r; fit(); } });
+      function fit() {
+        var pip = o.stack.querySelector('.pip'), p = o.peer(), r = p ? got[p] : 0;
+        var B = o.box.getBoundingClientRect();
+        if (!r || !B.width || !B.height) { o.stack.style.width = o.stack.style.minWidth = o.stack.style.maxWidth = ''; pip.style.aspectRatio = ''; return; }
+        var small = B.width < 700 || B.height < 520, land = B.width > B.height;
+        var maxW = small ? B.width * (land ? .24 : .32) : Math.min(280, B.width * .26);
+        var maxH = small ? B.height * (land ? .42 : .26) : Math.min(300, B.height * .34);
+        var w = Math.max(56, Math.min(maxW, maxH * r));
+        o.stack.style.width = Math.round(w) + 'px'; o.stack.style.minWidth = '0'; o.stack.style.maxWidth = 'none';
+        pip.style.aspectRatio = String(r);
+      }
+      setInterval(function () {
+        var p = o.peer(), B = o.box.getBoundingClientRect();
+        if (p && B.width > 10 && B.height > 10) {
+          var r = Math.round(B.width / B.height * 100) / 100;
+          if (r !== sentR || p !== sentTo || Date.now() - sentAt > 8000) { sentR = r; sentTo = p; sentAt = Date.now(); o.sess.send(p, { t: 'ev', k: 'box', r: r }); }
+        }
+        fit();
+      }, 1000);
+    },
     // 작은 화면 묶음(멘토링실의 연구원): items [{key, label, stream, muted, mirror, off(안 보이게 — 소리는 그대로)}]
     pips: function (box, items) {
       if (!box) return;

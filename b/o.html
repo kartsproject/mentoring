@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2221">
+<link rel="stylesheet" href="style.css?v=2223">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2221">
+<link rel="stylesheet" href="theme.css?v=2223">
 </head>
 <body>
 
@@ -357,13 +357,13 @@
   </div>
 </div>
 
-<script src="config.js?v=2221"></script>
-<script src="meet.js?v=2221"></script>
-<script src="recorder.js?v=2221"></script>
-<script src="../a/sfu.js?v=2221"></script>
-<script src="wait.js?v=2221"></script>
-<script src="room.js?v=2221"></script>
-<script src="watch.js?v=2221"></script>
+<script src="config.js?v=2223"></script>
+<script src="meet.js?v=2223"></script>
+<script src="recorder.js?v=2223"></script>
+<script src="../a/sfu.js?v=2223"></script>
+<script src="wait.js?v=2223"></script>
+<script src="room.js?v=2223"></script>
+<script src="watch.js?v=2223"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -500,9 +500,43 @@
   });
 
   /* ───── 상태 반영 ───── */
+  /* 멘토의 운영진 호출(Ver.2.30): 알림창 + 알림음(확인을 누를 때까지 15초마다), 멘토가 취소하면 닫힘 */
+  var helpSeen = 0, helpRang = 0, helpAc = null;
+  function helpSound() {
+    try {
+      helpAc = helpAc || new (window.AudioContext || window.webkitAudioContext)();
+      helpAc.resume();
+      [[0, 988], [0.28, 1319], [0.9, 988], [1.18, 1319]].forEach(function (x) {
+        var o = helpAc.createOscillator(), g = helpAc.createGain(), t = helpAc.currentTime + x[0];
+        o.type = 'sine'; o.frequency.value = x[1]; o.connect(g); g.connect(helpAc.destination);
+        g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.3, t + .015); g.gain.exponentialRampToValueAtTime(.0001, t + .55);
+        o.start(t); o.stop(t + .6);
+      });
+    } catch (e) {}
+  }
+  function checkHelp() {
+    if (PANEL || WATCH || !view) return;
+    var at = (view.mentorInfo && view.mentorInfo.help) || 0, box = $('#helpbox');
+    var on = at && at !== helpSeen && view.mentorLive && sess.now() - at < 180000;
+    if (!on) { if (box) box.remove(); return; }
+    if (!box) {
+      box = document.createElement('div'); box.id = 'helpbox'; box.setAttribute('role', 'alert');
+      box.innerHTML = '<span class="hb-i">' + UI.ico('bell') + '</span><div><b>멘토가 운영진·연구원을 부르고 있습니다</b><small></small></div><button type="button">확인</button>';
+      box.querySelector('button').onclick = function () { helpSeen = at; box.remove(); };
+      document.body.appendChild(box);
+      helpRang = 0;
+    }
+    var cur = view.cur, nm = cur && (view.students || []).filter(function (s) { return s.id === cur.id; })[0];
+    box.querySelector('small').textContent = (nm ? '진행 중: ' + nm.name + ' · ' : '') + (sess.now() - at < 10000 ? '방금 누름' : UI.mmss(Math.max(0, sess.now() - at)) + ' 전에 누름');
+    if (Date.now() - helpRang > 15000) { helpRang = Date.now(); helpSound(); try { navigator.vibrate && navigator.vibrate([250, 120, 250]); } catch (e) {} }
+    window.__help = at;   // 시험용
+  }
+  setInterval(checkHelp, 1000);
+
   function onView(v) {
     view = v;
     paintSessions(v);
+    checkHelp();
     if (links) {
       var isHost = v.host === sess.id;
       $('#sw-host').checked = isHost;

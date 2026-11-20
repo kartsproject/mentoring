@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#202226">
 <title>멘토 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2221">
+<link rel="stylesheet" href="style.css?v=2223">
 <style>
   .mwrap { position: fixed; inset: 0; display: flex; background: var(--k0); color: var(--k-tx); }
   .mwrap .stage { position: relative; flex: 1; inset: auto; }
@@ -38,7 +38,7 @@
   }
   .mout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2221">
+<link rel="stylesheet" href="theme.css?v=2223">
 </head>
 <body>
 
@@ -98,6 +98,7 @@
         <button class="cbtn" id="b-mic"></button>
         <button class="cbtn" id="b-cam"></button>
         <button class="cbtn hide" id="b-flip"></button>
+        <button class="cbtn help" id="b-help" type="button" title="운영진·연구원 호출"></button>
       </div>
     </div>
   </section>
@@ -107,8 +108,8 @@
   </aside>
 </div>
 
-<script src="config.js?v=2221"></script>
-<script src="meet.js?v=2221"></script>
+<script src="config.js?v=2223"></script>
+<script src="meet.js?v=2223"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -163,6 +164,7 @@
     });
     sess.on('view', onView);
     sess.on('ev', function (m) {
+      if (m.k === 'box') return;   // 학생 화면 칸 비율(내 작은 화면 맞춤용)
       if (m.k !== 'cur') return sess.kick();
       sess.setOverride(m.cur, { prev: m.prev });
       // 학생에게도 바로 전달(운영진과 직접 통로가 없는 경우 대비)
@@ -177,6 +179,8 @@
     go('s-main');
     sess.start();
     setInterval(tick, 500);
+    // 내 작은 화면 = 학생에게 보이는 모습 그대로(Ver.2.30)
+    UI.selfBox({ sess: sess, box: $('#v-remote'), stack: $('.vbox .pstack'), peer: function () { var c = view && view.cur, L = c && links.get('ms', c.id); return L && L.state === 'connected' ? c.id : ''; } });
   };
 
   $('#b-queue').onclick = function () { $('#queue').classList.toggle('open'); };
@@ -208,7 +212,8 @@
 
     var ms = cur && links.get('ms', cur.id);
     var vt = local.getVideoTracks()[0], at = local.getAudioTracks()[0];
-    sess.info = { n: M.NONCE, ms: ms ? ms.state : '', relay: ms ? ms.relay : null, cam: !!(vt && vt.enabled), mic: !!(at && at.enabled),
+    if (helpAt && Date.now() - helpAt > HELP_MS) { helpAt = 0; paintHelp(); }
+    sess.info = { n: M.NONCE, help: helpAt, ms: ms ? ms.state : '', relay: ms ? ms.relay : null, cam: !!(vt && vt.enabled), mic: !!(at && at.enabled),
                   warm: v.next ? (links.get('ms', v.next.id) || {}).state || '' : '' };
     if (cur && curKey !== cur.id + cur.at) { curKey = cur.id + cur.at; try { new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=').play().catch(function () {}); } catch (e) {} }
     paint();
@@ -289,8 +294,24 @@
     }).join('') || '<li class="muted">명단이 없습니다</li>';
   }
 
+  /* 운영진·연구원 호출(Ver.2.30): 누르면 운영진·연구원 화면에 알림창 + 알림음. 다시 누르면 취소, 3분 뒤 저절로 꺼짐 */
+  var helpAt = 0, HELP_MS = 180000;
+  function paintHelp() {
+    var b = $('#b-help'); if (!b) return;
+    b.innerHTML = UI.ico('bell') + '<span>' + (helpAt ? '호출 중 · 취소' : '운영진 호출') + '</span>';
+    b.classList.toggle('on', !!helpAt);
+  }
+  function callHelp() {
+    helpAt = helpAt ? 0 : Date.now();
+    if (sess.info) sess.info.help = helpAt;
+    sess.kick(); paintHelp();
+    UI.toast(helpAt ? '운영진·연구원에게 호출 알림을 보냈습니다' : '호출을 취소했습니다', 3000);
+  }
+  setInterval(function () { if (helpAt && Date.now() - helpAt > HELP_MS) { helpAt = 0; if (sess && sess.info) sess.info.help = 0; paintHelp(); } }, 5000);
+
   function ctrls() {
     var mic = $('#b-mic'), cam = $('#b-cam'), flip = $('#b-flip');
+    var hb = $('#b-help'); if (hb && !hb.onclick) { hb.onclick = callHelp; paintHelp(); }
     var p = function () {
       var at = local.getAudioTracks()[0], vt = local.getVideoTracks()[0];
       mic.innerHTML = at && at.enabled ? M.ICON.mic : M.ICON.micOff; mic.classList.toggle('off', !(at && at.enabled));
@@ -327,6 +348,7 @@
       var L = MIR.local('M'); if (L) local = L;
       if ($('#v-self').srcObject !== local) { UI.attach($('#v-self'), local); }
       ctrls();   // 멘토 마이크·카메라 켜짐 상태
+      helpAt = (v.mentorInfo && v.mentorInfo.help) || 0; paintHelp();   // 멘토의 호출 상태
       onView(v);
       var inf = v.mentorInfo || {};   // 멘토가 끈 마이크·카메라
       if (inf.mic === false) { $('#b-mic').innerHTML = M.ICON.micOff; $('#b-mic').classList.add('off'); }
