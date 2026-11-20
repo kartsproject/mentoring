@@ -121,6 +121,8 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   if (await res.isVisible('#b-rec') || await res.isVisible('#w-rec') || await res.isVisible('#chatForm')) throw new Error('research should not see recording/chat send');
   await sleep(1200); await SHOT(res, 'research_empty');
   if (await res.isVisible('#b-stage')) throw new Error('화면 등장 버튼은 없어야 함(멘토링실은 멘토·학생만)');
+  if (!(await res.evaluate(() => window.__audio().waiting))) throw new Error('처음 들어오면 대기실이어야 함');
+  await res.click('#apill [data-s="m"]'); await sleep(500);   // 멘토링실로 옮김
   if (!(await res.isVisible('#b-join'))) throw new Error('연구원: 멘토링실 들어가기 버튼');
   log('research: 큰 화면 등장 없음, 「멘토링실 들어가기」 버튼 있음');
   await res.close();
@@ -261,6 +263,7 @@ const text = (p, sel) => p.evaluate(s => (document.querySelector(s) || {}).textC
   await res2.click('.seg label:nth-child(2)');
   await res2.fill('#g-name', '연구원B'); await res2.fill('#g-code', 'r1234'); await res2.click('#g-btn');
   await res2.waitForSelector('#s-main:not(.hide)');
+  await res2.click('#apill [data-s="m"]');   // 처음엔 대기실 → 멘토링실로 옮긴 뒤 참여
   await res2.click('#b-join');
   await waitFor(res2, () => !document.querySelector('#b-smic').classList.contains('hide'), null, 15000, 'research joined room');
   await waitFor(mentor, () => { const v = document.querySelector('#m-rp .rpip video'); return v && v.videoWidth > 0; }, null, 40000, 'mentor sees research pip');

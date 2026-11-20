@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2212">
+<link rel="stylesheet" href="style.css?v=2213">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2212">
+<link rel="stylesheet" href="theme.css?v=2213">
 </head>
 <body>
 
@@ -357,12 +357,12 @@
   </div>
 </div>
 
-<script src="config.js?v=2212"></script>
-<script src="meet.js?v=2212"></script>
-<script src="recorder.js?v=2212"></script>
-<script src="../a/sfu.js?v=2212"></script>
-<script src="wait.js?v=2212"></script>
-<script src="room.js?v=2212"></script>
+<script src="config.js?v=2213"></script>
+<script src="meet.js?v=2213"></script>
+<script src="recorder.js?v=2213"></script>
+<script src="../a/sfu.js?v=2213"></script>
+<script src="wait.js?v=2213"></script>
+<script src="room.js?v=2213"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -432,7 +432,8 @@
     wr = new M.WaitRoom({ sess: sess, el: $('#w-grid'), role: 'staff', canMute: role === 'ops', listen: false, roster: true,
       flags: function () { return room ? room.flagMap() : {}; },
       onAct: function (a, id, b) { onAction(a, id, b); } });
-    placePill(); paintWr();
+    placePill();
+    applyRoomAudio(true, true);   // 처음 들어오면 대기실에(Ver.2.23) — 멘토링실 소리는 꺼진 채
     if (!PANEL) {
       links = new M.Links(sess, {
         getLocal: function () { return stageLocal; },
