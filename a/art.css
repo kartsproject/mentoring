@@ -62,9 +62,9 @@
 .r-top .tile.feature { aspect-ratio: 16/9; }
 /* 발표 자료가 있을 때: 양옆 멘토는 높이를 나눠 작게, 가운데 자료는 남은 폭·높이 가득 */
 .r-top.has-feature { --sw: calc((100cqh - (var(--rows) - 1) * 8px) / var(--rows) * 4 / 3); }
-.r-top.has-feature .r-side .tile { width: min(var(--sw), 18cqw); }
-.r-top.has-feature .tile.feature { width: min(calc(100cqh * 16 / 9), calc(100cqw - 2 * min(var(--sw), 18cqw) - 24px)); }
-.r-top.has-feature.one-side .tile.feature { width: min(calc(100cqh * 16 / 9), calc(100cqw - min(var(--sw), 18cqw) - 12px)); }
+.r-top.has-feature .r-side .tile { width: min(var(--sw), 13cqw); }
+.r-top.has-feature .tile.feature { width: min(calc(100cqh * 16 / 9), calc(100cqw - 2 * min(var(--sw), 13cqw) - 24px)); }
+.r-top.has-feature.one-side .tile.feature { width: min(calc(100cqh * 16 / 9), calc(100cqw - min(var(--sw), 13cqw) - 12px)); }
 .r-div { flex: none; height: 14px; position: relative; display: grid; place-items: center; }
 .r-div::before { content: ""; position: absolute; left: 12%; right: 12%; top: 50%; height: 1px; background: #E9C460; opacity: .8; }
 .r-div i::before { content: "✦"; position: relative; color: #F2C94C; font-size: 15px; font-style: normal; background: #12465C; padding: 0 8px; }
@@ -87,8 +87,8 @@
 /* 전체 방: 멘토 영역(크게, 2×2) · 학생 영역(작게, 6×2)을 나눠 보임 */
 .astage.fixed.mode-all { gap: 10px; }
 .astage.fixed.mode-all .r-div { display: none; }
-.astage.fixed.mode-all .r-top { flex: 2.3 1 0; position: relative; background: rgba(255,255,255,.07); border: 1px solid rgba(242,201,76,.35); border-radius: 14px; padding: 26px 14px 12px; }
-.astage.fixed.mode-all .r-bot { flex: 1 1 0; position: relative; background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 26px 14px 12px; gap: 6px; }
+.astage.fixed.mode-all .r-top { flex: 1 1 0; position: relative; background: rgba(255,255,255,.07); border: 1px solid rgba(242,201,76,.35); border-radius: 14px; padding: 26px 14px 12px; }
+.astage.fixed.mode-all .r-bot { flex: 1.25 1 0; position: relative; background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 26px 14px 12px; gap: 6px; }
 .astage.fixed.mode-all .r-top::before, .astage.fixed.mode-all .r-bot::before { position: absolute; left: 14px; top: 5px; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
 .astage.fixed.mode-all .r-top::before { content: "멘토"; color: #F2C94C; }
 .astage.fixed.mode-all .r-bot::before { content: "학생"; color: #C9D6DD; }
@@ -132,3 +132,18 @@
   .abtn { min-width: 54px; padding: 6px 6px; }
   .atop .ttl small { display: none; }
 }
+
+/* Ver.1.17 — 전체 방: 멘토 가로 한 줄 · 학생 칸 더 크게 / 화면 공유가 있으면 공유 화면 크게 · 전체화면 */
+.astage.fixed.mode-all .r-top.has-feature { flex: 3.2 1 0; }
+.astage.fixed.mode-all:has(.r-top.has-feature) .r-bot { flex: 1 1 0; }
+.astage.fixed.mode-group .r-top.has-feature { flex: 2.6 1 0; }
+.t-fs { position: absolute; right: 8px; top: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 980px; padding: 6px 12px 6px 10px;
+  background: rgba(0,0,0,.62); color: #fff; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.t-fs:hover { background: rgba(0,0,0,.8); }
+.t-fs svg { width: 16px; height: 16px; }
+.tile:fullscreen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; border: 0 !important; border-radius: 0 !important; background: #000; }
+.tile:-webkit-full-screen { width: 100% !important; height: 100% !important; aspect-ratio: auto !important; border: 0 !important; border-radius: 0 !important; background: #000; }
+.tile.fsx { position: fixed !important; inset: 0 !important; z-index: 5000 !important; width: auto !important; height: auto !important; aspect-ratio: auto !important; border: 0 !important; border-radius: 0 !important; background: #000; order: 0 !important; }
+.tile:fullscreen video, .tile:fullscreen img, .tile.fsx video, .tile.fsx img { object-fit: contain !important; }
+.tile:fullscreen .t-fs, .tile.fsx .t-fs { top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); font-size: 14px; padding: 9px 16px 9px 13px; }
+.tile:fullscreen .t-tools, .tile.fsx .t-tools { display: none; }

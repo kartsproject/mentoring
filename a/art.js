@@ -218,7 +218,8 @@
     // 전체 방: 멘토 3명 이상이면 가로 2 × 세로 2로 크게(멘토·학생 영역을 나눠 보임)
     var allRoom = (this.view && this.view.myRoom) === 'all';
     box.classList.toggle('mode-all', allRoom); box.classList.toggle('mode-group', !allRoom);
-    var mcols = sl.feature ? 1 : (allRoom && mid.length >= 3 ? 2 : Math.max(1, mid.length));
+    // 전체 방 멘토: PC는 가로 한 줄(4명이면 4칸), 좁은 칸(운영 화면 작은 방 등)만 2×2 (Ver.1.17)
+    var mcols = sl.feature ? 1 : (allRoom && mid.length >= 3 && box.clientWidth < 900 ? 2 : Math.max(1, mid.length));
     top.style.setProperty('--mcols', mcols);
     top.style.setProperty('--mrows', sl.feature ? 1 : Math.max(1, Math.ceil(mid.length / mcols)));
     top.style.setProperty('--rows', Math.max(1, left.length, right.length));
@@ -237,7 +238,7 @@
           c = document.createElement('div'); c.className = 'tile'; c.dataset.k = it.key;
           c.innerHTML = (it.kind === 'photo' ? '<img alt="">' : '<video autoplay playsinline' + (it.mine ? ' muted' : '') + '></video>') +
             '<div class="t-wait"></div><span class="t-label"></span><span class="t-badges"></span><span class="t-tools"></span>';
-          c.onclick = function (e) { if (e.target.closest('.t-tools')) return; if (self.o.onTileClick && c._it.p) self.o.onTileClick(c._it, c); };
+          c.onclick = function (e) { if (e.target.closest('.t-tools, .t-fs')) return; if (self.o.onTileClick && c._it.p) self.o.onTileClick(c._it, c); };
         }
         c._it = it;
         if (c.parentNode !== host) host.appendChild(c);
@@ -262,6 +263,12 @@
         c.querySelector('.t-wait').textContent = wait;
         c.querySelector('.t-label').textContent = it.label;
         c.querySelector('.t-badges').innerHTML = it.p && it.p.hand && it.kind === 'cam' ? '<b class="hand">' + UI.ico('hand') + '</b>' : '';
+        // 크게 보는 자료(화면 공유·사진): 「전체화면」 버튼(Ver.1.17)
+        var fsb = c.querySelector('.t-fs');
+        if (it.feature && it.p && (it.kind === 'scr' || it.kind === 'photo' || it.kind === 'cam')) {
+          if (!fsb) { fsb = document.createElement('button'); fsb.type = 'button'; fsb.className = 't-fs'; fsb.onclick = function (e) { e.stopPropagation(); A.fullscreen(c); }; c.appendChild(fsb); }
+          A.paintFs(fsb, c);
+        } else if (fsb) fsb.remove();
       });
     };
     put(sideL, left); put(center, mid); put(sideR, right);
@@ -270,6 +277,31 @@
   };
 
   A.Room = Room;
+
+  /* 크게 보는 자료 전체화면(Ver.1.17): 브라우저 전체화면 → 안 되면(아이폰 등) 화면 가득 덮기 */
+  function fsEl() { return document.fullscreenElement || document.webkitFullscreenElement || document.querySelector('.tile.fsx'); }
+  A.paintFs = function (b, c) {
+    var on = fsEl() === c;
+    b.innerHTML = UI.ico(on ? 'x' : 'expand') + '<span>' + (on ? '전체화면 닫기' : '전체화면') + '</span>';
+    b.title = on ? '전체화면 닫기(Esc)' : '공유 화면만 전체화면으로 크게 보기';
+  };
+  A.fullscreen = function (c) {
+    var d = document, cur = fsEl();
+    if (cur) {
+      if (cur.classList.contains('fsx')) cur.classList.remove('fsx');
+      else (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      return setTimeout(paintAllFs, 50);
+    }
+    var fake = function () { c.classList.add('fsx'); paintAllFs(); };
+    try {
+      if (c.requestFullscreen) c.requestFullscreen().then(paintAllFs).catch(fake);
+      else if (c.webkitRequestFullscreen) { c.webkitRequestFullscreen(); setTimeout(function () { if (!fsEl()) fake(); else paintAllFs(); }, 300); }
+      else fake();
+    } catch (e) { fake(); }
+  };
+  function paintAllFs() { Array.from(document.querySelectorAll('.tile .t-fs')).forEach(function (b) { A.paintFs(b, b.parentNode); }); }
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) { document.addEventListener(ev, paintAllFs); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var f = document.querySelector('.tile.fsx'); if (f) { f.classList.remove('fsx'); paintAllFs(); } } });
 
   /* ───────── 남은 시간·단계 표시 ───────── */
   A.timerText = function (v, now) {
