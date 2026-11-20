@@ -1,5 +1,5 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.7
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.8
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
@@ -12,6 +12,7 @@
  *  - (Ver.2.6) 학생 입장 시간: 멘토링 당일, 그 회차 첫 학생 멘토링 시작 30분 전부터(리허설 test는 언제나)
  *  - (Ver.2.7) 시연 회차 demo: 시연 조종판(/demo/)이 지금 시각 기준 가상 명단·시간표를 만듦.
  *              시트·기록에 남기지 않고, 운영진 코드로 멘토·연구원 입장도 됨(시연 회차에서만)
+ *  - (Ver.2.8) 대기실 화상: 운영진·연구원이 지금 있는 방(멘토링실/대기실)을 함께 알림 → 대기실 칸에 「멘토링실 접속 중」
  *
  * 비밀값은 코드에 넣지 않습니다. [프로젝트 설정 > 스크립트 속성]에 넣습니다.
  *  MENTOR_CODE        멘토 접속 코드
@@ -447,7 +448,8 @@ function view_(r, s, id, role, now) {
   }).map(function (i) {
     var p = s.parts[i], sn = seen[i];
     return { id: i, pid: p.pid, name: p.name, role: p.role, sfu: p.wr.sfu, tr: p.wr.tr || {}, talk: !!(sn && sn.info && sn.info.wtalk), at: p.wr.at || 0,
-             mic: p.role === 'student' ? !(sn && sn.info && sn.info.mic === false) : !!(sn && sn.info && sn.info.wtalk) };
+             mic: p.role === 'student' ? !(sn && sn.info && sn.info.mic === false) : !!(sn && sn.info && sn.info.wtalk),
+             room: p.role === 'student' ? '' : String(sn && sn.info && sn.info.room || '') };
   });
 
   if (role === 'student') {

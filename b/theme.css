@@ -331,3 +331,12 @@ body:has(#s-end.on) { background: #000; }
 .cbtn.volb svg, .wbtn.volb svg { width: 22px; height: 22px; }
 .wbtn.volb { display: inline-grid; place-items: center; }
 .abtn.volb .i { width: 22px; height: 22px; }
+
+/* 대기실 칸: 멘토링실로 옮겨 간 운영진·연구원(Ver.2.24) */
+.wt .wms { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 3; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 4px 11px; border-radius: 980px; background: linear-gradient(100deg, #2997FF, #A970FF); color: #fff; font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px -6px rgba(120,110,255,.7); }
+.wt .wms::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: wmsPulse 1.6s ease-in-out infinite; }
+.wt .wms[hidden] { display: none; }
+.wt.inms video, .wt.inms .wph { opacity: .45; }
+@keyframes wmsPulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .wt .wms::before { animation: none; } }

@@ -261,7 +261,7 @@
       var p = it.p, t = self.tiles[p.id], z = self.zones[it.zone];
       if (!t) {
         t = document.createElement('div'); t.className = 'wt'; t.dataset.id = p.id;
-        t.innerHTML = '<video autoplay playsinline muted></video><div class="wph"></div><div class="wix"></div><span class="wnm"></span><span class="wmo" hidden>' + MIC_OFF + '</span>' +
+        t.innerHTML = '<video autoplay playsinline muted></video><div class="wph"></div><div class="wix"></div><span class="wnm"></span><span class="wms" hidden>멘토링실 접속 중</span><span class="wmo" hidden>' + MIC_OFF + '</span>' +
           (self.canMute && !it.me && p.role === 'student' ? '<button class="wmute" type="button" title="이 학생 마이크 끄기">' + MIC_OFF + '<span>마이크 끄기</span></button>' : '');
         var mb = t.querySelector('.wmute');
         if (mb) mb.onclick = function (e) { e.stopPropagation(); self.mute(p.id, mb); };
@@ -306,6 +306,9 @@
       t.querySelector('.wph').textContent = (p.name || '').slice(-2);
       t.querySelector('.wnm').textContent = (p.role === 'ops' ? '운영진 ' : p.role === 'research' ? '연구원 ' : '') + (p.name || '') + (it.me ? ' (나)' : '');
       t.querySelector('.wmo').hidden = info || micOn;
+      // 운영진·연구원이 멘토링실로 옮겨 갔으면 대기실 칸에 「멘토링실 접속 중」(Ver.2.24)
+      var inMs = p.role !== 'student' && (it.me ? !self.listen : p.room === 'm');
+      t.querySelector('.wms').hidden = !inMs; t.classList.toggle('inms', inMs);
       var mb2 = t.querySelector('.wmute'); if (mb2) mb2.hidden = !cam;
       var x = t.querySelector('.wix'), h = it.st ? self.stuHtml(it.st, cam, f) : '';
       if (x.__h !== h) {

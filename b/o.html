@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2214">
+<link rel="stylesheet" href="style.css?v=2215">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2214">
+<link rel="stylesheet" href="theme.css?v=2215">
 </head>
 <body>
 
@@ -357,12 +357,12 @@
   </div>
 </div>
 
-<script src="config.js?v=2214"></script>
-<script src="meet.js?v=2214"></script>
-<script src="recorder.js?v=2214"></script>
-<script src="../a/sfu.js?v=2214"></script>
-<script src="wait.js?v=2214"></script>
-<script src="room.js?v=2214"></script>
+<script src="config.js?v=2215"></script>
+<script src="meet.js?v=2215"></script>
+<script src="recorder.js?v=2215"></script>
+<script src="../a/sfu.js?v=2215"></script>
+<script src="wait.js?v=2215"></script>
+<script src="room.js?v=2215"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -535,7 +535,7 @@
       paintRecWarn();
     } else sess.info = { n: M.NONCE, panel: true };
     if (wr) {
-      sess.info.wtalk = wr.talking || wr.openMic; wr.want(PANEL || !split); wr.sync(v);
+      sess.info.wtalk = wr.talking || wr.openMic; sess.info.room = wr.listen ? 'w' : 'm'; wr.want(PANEL || !split); wr.sync(v);
       var real = v.students.filter(function (x) { return !x.extra; });
       $('#w-cnt').textContent = '접속 ' + real.filter(function (x) { return x.live; }).length + ' / ' + real.length + '명 · 완료 ' + real.filter(function (x) { return x.done; }).length;
     }
@@ -635,6 +635,7 @@
   function applyRoomAudio(waiting, fromOther) {
     moveRoom(waiting);
     if (wr) wr.setListen(waiting);
+    if (sess && sess.info) { sess.info.room = waiting ? 'w' : 'm'; try { sess.kick(); } catch (e) {} }   // 다른 사람 대기실 화면에 「멘토링실 접속 중」
     soundOn = !waiting;
     $('#v-M').muted = $('#v-S').muted = !soundOn;
     if (view && !PANEL) paintStage();
