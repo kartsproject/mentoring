@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>부하 시험(가상 접속자) | 미술 심화 멘토링</title>
+<script>
+/* 요청 재기: Apps Script 관문으로 가는 모든 요청의 종류·걸린 시간·성공 여부(meet.js보다 먼저) */
+(function () {
+  var F = window.fetch.bind(window);
+  window.__req = [];
+  window.fetch = function (url, init) {
+    var t0 = performance.now(), a = '';
+    try { a = JSON.parse(init && init.body || '{}').a || ''; } catch (e) {}
+    var rec = { at: Date.now(), a: a, ms: 0, ok: false };
+    var gas = /script\.google|\/api/.test(String(url));
+    return F(url, init).then(function (res) {
+      rec.ms = performance.now() - t0; rec.ok = res.ok;
+      if (gas) return res.clone().json().then(function (j) { rec.ok = !!(j && j.ok !== false); rec.err = j && j.error; return res; }, function () { rec.ok = false; return res; });
+      return res;
+    }, function (e) { rec.ms = performance.now() - t0; rec.ok = false; rec.err = 'network'; throw e; })
+      .finally(function () { if (gas) { window.__req.push(rec); if (window.__req.length > 20000) window.__req.splice(0, 5000); } });
+  };
+})();
+</script>
+<style>
+  :root { --bg: #0B0C0E; --k1: #16171A; --k2: #1F2125; --line: rgba(255,255,255,.1); --tx: #F5F5F7; --soft: #A1A1A6; --blue: #2997FF; --green: #30D158; --yel: #FFD60A; --red: #FF453A; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--tx); font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; word-break: keep-all; font-size: 14px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 24px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color: var(--soft); margin: 0 0 18px; line-height: 1.65; }
+  .grid { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--k1); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  label.f { display: block; margin: 0 0 12px; }
+  label.f span { display: block; font-size: 12.5px; color: var(--soft); margin-bottom: 5px; }
+  input[type=number], input[type=password], select { width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--k2); color: var(--tx); font: inherit; }
+  .chk { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 10px; line-height: 1.45; }
+  .chk small { color: var(--soft); display: block; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; border: 0; border-radius: 980px; padding: 10px 18px; font-weight: 600; cursor: pointer; background: var(--k2); color: var(--tx); }
+  button.go { background: var(--blue); color: #fff; }
+  button.stop { background: var(--red); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  textarea { width: 100%; height: 110px; border-radius: 10px; border: 1px solid var(--line); background: #0F1012; color: #D9DADD; font: 12.5px/1.5 ui-monospace, Menlo, monospace; padding: 8px 10px; resize: vertical; }
+  .note { font-size: 12.5px; color: var(--soft); line-height: 1.6; margin: 8px 0 0; }
+  .warn { background: rgba(255,214,10,.1); border: 1px solid rgba(255,214,10,.35); color: #FFE27A; border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 0 0 14px; }
+  @media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--k2); border-radius: 12px; padding: 10px 12px; }
+  .kpi small { display: block; font-size: 12px; color: var(--soft); }
+  .kpi b { display: block; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .kpi b.bad { color: var(--red); } .kpi b.mid { color: var(--yel); } .kpi b.ok { color: var(--green); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--soft); font-weight: 500; font-size: 12px; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .st { display: inline-block; padding: 2px 8px; border-radius: 980px; font-size: 12px; background: rgba(255,255,255,.08); }
+  .st.ok { background: rgba(48,209,88,.16); color: #6EE79A; } .st.bad { background: rgba(255,69,58,.16); color: #FF8A80; } .st.mid { background: rgba(255,214,10,.14); color: #FFE27A; }
+  .log { max-height: 180px; overflow: auto; font: 12px/1.6 ui-monospace, Menlo, monospace; color: #C9CACD; background: #0F1012; border-radius: 10px; padding: 8px 10px; margin-top: 12px; white-space: pre-wrap; }
+  #thumbs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+  #thumbs canvas { width: 64px; height: 36px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>부하 시험 — 가상 접속자 (미술 · 리허설 전용)</h1>
+  <p class="lead">이 PC 한 대에서 가상 멘토·학생을 실제와 같은 방식으로 접속시킵니다.<br>
+  각 가상 접속자는 실제 화면처럼 Apps Script 관문에 상태를 묻고, Cloudflare로 영상·소리를 올리고, 같은 방 사람의 영상을 받습니다.<br>
+  진행(전체 → 분반 → 전체)과 녹화는 다른 PC의 <b>운영 화면</b>(<code>o.html?r=test</code>)에서 평소처럼 하면 됩니다.</p>
+
+  <div class="warn">
+    <b>리허설(test) 회차에만</b> 들어갑니다. 실제 회차에는 들어가지 않습니다.<br>
+    이 창은 <b>앞에 띄워 둔 채</b>로 두세요(최소화하거나 다른 탭 뒤로 가면 브라우저가 영상을 멈춥니다).
+    <b>녹화 PC와 다른 PC</b>에서 여는 것을 권합니다.
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>설정</h2>
+        <label class="f"><span>멘토 코드(가상 멘토 입장용 — 저장하지 않음)</span><input id="code" type="password" autocomplete="off"></label>
+        <div class="row" style="gap:10px">
+          <label class="f" style="flex:1"><span>가상 멘토 수(0~4)</span><input id="nm" type="number" min="0" max="4" value="4"></label>
+          <label class="f" style="flex:1"><span>가상 학생 수(0~12)</span><input id="ns" type="number" min="0" max="12" value="12"></label>
+        </div>
+        <label class="f"><span>보내는 영상</span>
+          <select id="q"><option value="real">실제와 같게 — 960×540 · 초당 24장 · 3단 화질</option><option value="light">가볍게 — 480×270 · 초당 15장 · 3단 화질</option></select></label>
+        <div class="chk"><input type="checkbox" id="recv" checked><label for="recv">다른 사람 영상·소리 받기<small>실제 화면처럼 같은 방 사람을 받아 Cloudflare·관문 부하를 똑같이 만듭니다(화면에 그리지는 않음)</small></label></div>
+        <div class="chk"><input type="checkbox" id="share"><label for="share">가상 멘토 1명이 화면 공유<small>시작하고 1분 뒤 공유 시작 → 3분 뒤 끝냄을 되풀이</small></label></div>
+        <div class="chk"><input type="checkbox" id="hand" checked><label for="hand">가상 학생이 가끔 손들기<small>운영·멘토 화면 알림 확인용</small></label></div>
+        <div class="row" style="margin-top:6px">
+          <button class="go" id="b-start" type="button">가상 접속 시작</button>
+          <button class="stop" id="b-stop" type="button" disabled>모두 나가기</button>
+        </div>
+        <p class="note">한 번에 몰리지 않게 0.8초 간격으로 한 명씩 들어갑니다.</p>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>먼저 시트에 넣을 줄(회차 test)</h2>
+        <p class="note" style="margin:0 0 8px">가상 학생·멘토가 들어가려면 시트 명단에 이름이 있어야 합니다. 아래를 복사해 「명단」「멘토」 시트 맨 아래에 붙여 넣으세요(생년월일 빈칸 = 아무 값이나 통과). 시험 뒤에는 지워도 됩니다.</p>
+        <span style="font-size:12.5px;color:var(--soft)">「명단」(회차 · 이름 · 생년월일 · 조)</span>
+        <textarea id="tsv-s" readonly></textarea>
+        <div class="row" style="margin:6px 0 12px"><button type="button" data-copy="tsv-s">명단 줄 복사</button></div>
+        <span style="font-size:12.5px;color:var(--soft)">「멘토」(회차 · 멘토 · 조)</span>
+        <textarea id="tsv-m" readonly style="height:84px"></textarea>
+        <div class="row" style="margin-top:6px"><button type="button" data-copy="tsv-m">멘토 줄 복사</button></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>지금 상태 <span id="elapsed" style="font-weight:400;color:var(--soft);font-size:13px;margin-left:6px"></span></h2>
+        <div class="kpis">
+          <div class="kpi"><small>들어온 가상 접속자</small><b id="k-in">0</b></div>
+          <div class="kpi"><small>관문 요청(최근 1분)</small><b id="k-rpm">0</b></div>
+          <div class="kpi"><small>관문 응답 평균 / 느린 5%</small><b id="k-lat">-</b></div>
+          <div class="kpi"><small>관문 실패(최근 1분 / 누적)</small><b id="k-err">0</b></div>
+          <div class="kpi"><small>Cloudflare 연결됨</small><b id="k-sfu">0</b></div>
+          <div class="kpi"><small>올리는 영상 / 받는 영상·소리</small><b id="k-tr">0</b></div>
+          <div class="kpi"><small>이 PC 올리는 양 / 받는 양</small><b id="k-bw">-</b></div>
+          <div class="kpi"><small>이 PC 바쁨(화면 지연)</small><b id="k-lag">-</b></div>
+        </div>
+        <div style="overflow:auto">
+          <table><thead><tr><th>가상 접속자</th><th>방</th><th>입장</th><th>Cloudflare</th><th>올림</th><th>받음</th><th>오류</th></tr></thead><tbody id="tb"></tbody></table>
+        </div>
+        <div class="row" style="margin-top:12px"><button type="button" id="b-copy">결과 요약 복사</button></div>
+        <div class="log" id="log"></div>
+        <div id="thumbs"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="config.js?v=2230"></script>
+<script src="../b/meet.js?v=2230"></script>
+<script src="sfu.js?v=2230"></script>
+<script src="art.js?v=2230"></script>
+<script>
+(function () {
+  var M = window.Meet, UI = M.UI, A = window.Art, $ = function (s) { return document.querySelector(s); };
+  var R = 'test', GROUPS = ['A', 'B', 'C', 'D'];
+  var clients = [], t0 = 0, running = false, ac = null, drawT = null;
+
+  /* 시트에 넣을 줄 */
+  function names() {
+    var ns = clamp($('#nm').value, 0, 4), nst = clamp($('#ns').value, 0, 12), out = { m: [], s: [] };
+    for (var i = 0; i < ns; i++) out.m.push({ name: '가상멘토' + GROUPS[i], g: GROUPS[i] });
+    for (var j = 0; j < nst; j++) out.s.push({ name: '가상학생' + String(j + 1).padStart(2, '0'), g: GROUPS[j % Math.max(1, Math.min(4, ns || 4))] });
+    return out;
+  }
+  function clamp(v, a, b) { v = Math.round(Number(v) || 0); return Math.max(a, Math.min(b, v)); }
+  function paintTsv() {
+    var n = names();
+    $('#tsv-s').value = n.s.map(function (x) { return [R, x.name, '', x.g].join('\t'); }).join('\n');
+    $('#tsv-m').value = n.m.map(function (x) { return [R, x.name, x.g].join('\t'); }).join('\n');
+  }
+  ['#nm', '#ns'].forEach(function (s) { $(s).addEventListener('input', paintTsv); });
+  paintTsv();
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.onclick = function () { var t = $('#' + b.dataset.copy); t.select(); try { navigator.clipboard.writeText(t.value).catch(function () { document.execCommand('copy'); }); } catch (e) { document.execCommand('copy'); } b.textContent = '복사했습니다'; setTimeout(function () { b.textContent = b.dataset.copy === 'tsv-s' ? '명단 줄 복사' : '멘토 줄 복사'; }, 1500); };
+  });
+
+  function log(s) { var el = $('#log'); el.textContent = new Date().toTimeString().slice(0, 8) + '  ' + s + '\n' + el.textContent; }
+
+  /* 가상 카메라·마이크: 캔버스(움직이는 그림 + 이름 + 시각)와 말소리처럼 켜졌다 꺼지는 낮은 소리 */
+  function makeMedia(name, idx, q, isScr) {
+    var W = isScr ? 1280 : (q === 'real' ? 960 : 480), H = isScr ? 720 : (q === 'real' ? 540 : 270), fps = isScr ? 5 : (q === 'real' ? 24 : 15);
+    var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    var g = cv.getContext('2d'), hue = (idx * 47) % 360;
+    cv._draw = function (t) {
+      g.fillStyle = isScr ? '#F4F1EA' : 'hsl(' + hue + ',45%,28%)'; g.fillRect(0, 0, W, H);
+      if (isScr) { g.fillStyle = '#12465C'; g.fillRect(W * .1, H * .15, W * .8, H * .6); g.fillStyle = '#F2C94C'; g.fillRect(W * .1 + (t / 20 % (W * .7)), H * .4, W * .1, H * .1); }
+      else { g.fillStyle = 'hsl(' + hue + ',70%,62%)'; g.beginPath(); g.arc(W / 2 + Math.sin(t / 700 + idx) * W * .25, H / 2 + Math.cos(t / 900) * H * .2, H * .18, 0, 7); g.fill(); }
+      g.fillStyle = isScr ? '#1D1D1F' : '#fff'; g.font = '700 ' + Math.round(H * .08) + 'px sans-serif'; g.fillText(name + (isScr ? ' · 화면 공유' : ''), W * .04, H * .12);
+      g.font = Math.round(H * .055) + 'px monospace'; g.fillText(new Date().toTimeString().slice(0, 8) + '.' + String(Date.now() % 1000).padStart(3, '0'), W * .04, H * .94);
+    };
+    cv._draw(performance.now());
+    var vs = cv.captureStream(fps), out = { canvas: cv, video: vs.getVideoTracks()[0] };
+    if (!isScr) {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      var o = ac.createOscillator(), gn = ac.createGain(), dst = ac.createMediaStreamDestination();
+      o.frequency.value = 180 + idx * 23; gn.gain.value = 0; o.connect(gn); gn.connect(dst); o.start();
+      out.gain = gn; out.audio = dst.stream.getAudioTracks()[0];
+    }
+    return out;
+  }
+  function drawAll() {
+    var t = performance.now();
+    clients.forEach(function (c) { if (c.media) c.media.canvas._draw(t); if (c.scrMedia) c.scrMedia.canvas._draw(t); });
+  }
+
+  /* 가상 접속자 하나 */
+  function VClient(role, name, idx, opt) {
+    this.role = role; this.name = name; this.idx = idx; this.opt = opt;
+    this.state = '대기'; this.err = 0; this.lastErr = ''; this.room = '-'; this.sfu = '-';
+  }
+  VClient.prototype.start = async function () {
+    var self = this, o = this.opt;
+    this.state = '입장 중';
+    var sess = this.sess = new M.Session({ r: R, role: this.role, name: this.name, code: this.role === 'mentor' ? o.code : '', birth: '', interval: 1500 });
+    try { await sess.join(); }
+    catch (e) {
+      this.state = '실패'; this.err++; this.lastErr = e.code || e.message;
+      log(this.name + ' 입장 실패: ' + (e.code === 'not_in_roster' ? '명단에 없음(시트에 줄 추가)' : e.code === 'code' ? '멘토 코드가 틀림' : (e.code || e.message)));
+      return;
+    }
+    this.state = '들어옴';
+    this.media = makeMedia(this.name, this.idx, o.q, false);
+    var thumb = this.media.canvas; thumb.title = this.name; $('#thumbs').appendChild(thumb);
+    var cam = this.cam = new MediaStream([this.media.video, this.media.audio]);
+    var box = document.createElement('div');
+    var room = this.rm = new A.Room({ sess: sess, noRender: true, box: box, localCam: function () { return cam; }, localScr: function () { return self.scrMedia ? new MediaStream([self.scrMedia.video]) : null; },
+      onSfuState: function (st) { self.sfu = st; if (st === 'failed') self.reopen(); } });
+    room.listen = '__none';   // 받은 소리는 이 PC에서 틀지 않음
+    sess.on('view', function (v) { self.onView(v); });
+    sess.on('replaced', function () { self.state = '다른 곳에서 들어옴'; self.err++; });
+    sess.start();
+    await this.reopen();
+    // 말소리처럼: 1~3초 켜졌다 2~6초 쉼
+    this.talkT = setInterval(function () {
+      if (!self.media || !self.media.gain) return;
+      var on = Math.random() < (self.role === 'mentor' ? .45 : .2);
+      self.media.gain.gain.setTargetAtTime(on ? .04 : 0, ac.currentTime, .05);
+    }, 2500);
+    if (this.role === 'student' && o.hand) this.handT = setInterval(function () {
+      if (Math.random() < .08) { sess.op('hand', { on: true }).catch(function () {}); setTimeout(function () { sess.op('hand', { on: false }).catch(function () {}); }, 20000); }
+    }, 30000);
+  };
+  VClient.prototype.reopen = async function () {
+    var room = this.rm, self = this;
+    try {
+      room.lastWant = '';
+      await room.sfu.open();
+      await room.sfu.publish('cam', this.media.video);
+      await room.sfu.publish('mic', this.media.audio);
+      if (this.scrMedia) await room.sfu.publish('scr', this.scrMedia.video);
+      if (this.view) this.onView(this.view);
+    } catch (e) { this.err++; this.lastErr = 'sfu ' + (e.code || e.message); log(this.name + ' 영상 연결 실패 → 4초 뒤 다시: ' + (e.code || e.message)); setTimeout(function () { if (running) self.reopen(); }, 4000); }
+  };
+  VClient.prototype.onView = function (v) {
+    this.view = v;
+    if (!this.rm) return;
+    A.fixMentors(v);
+    var myRoom = v.myRoom, room = this.rm;
+    this.room = A.roomName(myRoom) + (v.phase ? ' · ' + (A.PH[v.phase] || v.phase) : '');
+    room.view = v;   // 받은 소리 끄기(applyVolumes)에 필요
+    // 학생: 전체 땐 마이크 끔, 분반 땐 켬(실제 화면과 같음) · 멘토: 늘 켬
+    var micOn = this.role === 'mentor' || myRoom !== 'all';
+    this.cam.getAudioTracks().forEach(function (t) { t.enabled = micOn; });
+    if (!this.opt.recv) return;
+    room.sync(v, function (p) {
+      if (p.role === 'ops' || p.role === 'research') return p.room === myRoom ? { mic: true, cam: 'h' } : null;
+      if (p.room !== myRoom) return null;
+      return { cam: A.camRid(v, p, myRoom, null), mic: true, scr: true };
+    });
+    room.applyVolumes();
+  };
+  VClient.prototype.share = async function (on) {
+    if (!this.rm || !this.rm.sfu.sid) return;
+    try {
+      if (on && !this.scrMedia) {
+        this.scrMedia = makeMedia(this.name, this.idx, 'real', true);
+        await this.rm.sfu.publish('scr', this.scrMedia.video);
+        log(this.name + ' 화면 공유 시작');
+      } else if (!on && this.scrMedia) {
+        await this.rm.sfu.unpublish('scr');
+        this.scrMedia.video.stop(); this.scrMedia = null;
+        log(this.name + ' 화면 공유 끝');
+      }
+    } catch (e) { this.err++; this.lastErr = 'scr ' + (e.code || e.message); }
+  };
+  VClient.prototype.stop = function () {
+    clearInterval(this.talkT); clearInterval(this.handT);
+    try { if (this.sess) this.sess.stop(); } catch (e) {}
+    try { if (this.rm) { Object.keys(this.rm.audios).forEach(function (k) { this.rm.audio(k, null); }, this); this.rm.sfu.close(); } } catch (e) {}
+    try { if (this.media) { this.media.video.stop(); this.media.audio.stop(); this.media.canvas.remove(); } if (this.scrMedia) this.scrMedia.video.stop(); } catch (e) {}
+    this.state = '나감';
+  };
+
+  /* 시작·멈춤 */
+  $('#b-start').onclick = async function () {
+    var n = names(), code = $('#code').value.trim();
+    if (n.m.length && !code) { alertBox('가상 멘토를 넣으려면 멘토 코드를 입력하세요(멘토 0명이면 비워도 됨).'); return; }
+    var opt = { code: code, q: $('#q').value, recv: $('#recv').checked, hand: $('#hand').checked };
+    running = true; t0 = Date.now(); window.__req.length = 0;
+    $('#b-start').disabled = true; $('#b-stop').disabled = false;
+    ['#code', '#nm', '#ns', '#q', '#recv', '#share', '#hand'].forEach(function (s) { $(s).disabled = true; });
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch (e) {}
+    drawT = setInterval(drawAll, opt.q === 'real' ? 42 : 66);
+    var list = n.m.map(function (x, i) { return new VClient('mentor', x.name, i, opt); })
+      .concat(n.s.map(function (x, i) { return new VClient('student', x.name, 10 + i, opt); }));
+    clients = list;
+    log('가상 접속 시작: 멘토 ' + n.m.length + ' · 학생 ' + n.s.length + ' · 영상 ' + (opt.q === 'real' ? '실제와 같게' : '가볍게') + (opt.recv ? ' · 받기 켬' : ' · 받기 끔'));
+    for (var i = 0; i < list.length && running; i++) { list[i].start(); await new Promise(function (r) { setTimeout(r, 800); }); }
+    if ($('#share').checked && list[0] && list[0].role === 'mentor') {
+      var sh = list[0], cyc = function () { if (!running) return; sh.share(true); setTimeout(function () { if (!running) return; sh.share(false); setTimeout(cyc, 60000); }, 180000); };
+      setTimeout(cyc, 60000);
+    }
+  };
+  $('#b-stop').onclick = function () {
+    running = false; clearInterval(drawT);
+    clients.forEach(function (c) { c.stop(); });
+    log('모두 나감 — 운영 화면에서는 약 20~30초 뒤 「접속 끊김」으로 바뀝니다.');
+    $('#b-stop').disabled = true; $('#b-start').disabled = false;
+    ['#code', '#nm', '#ns', '#q', '#recv', '#share', '#hand'].forEach(function (s) { $(s).disabled = false; });
+  };
+  window.addEventListener('beforeunload', function () { if (running) clients.forEach(function (c) { c.stop(); }); });
+  function alertBox(t) { log('⚠ ' + t); $('#log').scrollTop = 0; }
+
+  /* 이 PC 바쁨: 0.25초마다 재야 할 타이머가 얼마나 늦게 오는지 */
+  var lagS = [], lastTick = performance.now();
+  setInterval(function () { var now = performance.now(); lagS.push(Math.max(0, now - lastTick - 250)); if (lagS.length > 240) lagS.shift(); lastTick = now; }, 250);
+
+  /* 주고받는 양(모든 가상 접속자의 연결 합) */
+  var bw = { at: 0, sent: 0, recv: 0, up: 0, down: 0 };
+  async function sampleBw() {
+    var sent = 0, recv = 0, vOut = 0, inTr = 0;
+    for (var i = 0; i < clients.length; i++) {
+      var pc = clients[i].rm && clients[i].rm.sfu.pc; if (!pc) continue;
+      try {
+        var st = await pc.getStats();
+        st.forEach(function (r) {
+          if (r.type === 'outbound-rtp') { sent += r.bytesSent || 0; if (r.kind === 'video' && r.bytesSent) vOut++; }
+          if (r.type === 'inbound-rtp') { recv += r.bytesReceived || 0; if (r.bytesReceived) inTr++; }
+        });
+      } catch (e) {}
+    }
+    var now = Date.now();
+    if (bw.at) { var dt = (now - bw.at) / 1000; bw.up = Math.max(0, (sent - bw.sent) * 8 / dt / 1e6); bw.down = Math.max(0, (recv - bw.recv) * 8 / dt / 1e6); }
+    bw.at = now; bw.sent = sent; bw.recv = recv; bw.vOut = vOut; bw.inTr = inTr;
+  }
+  setInterval(function () { if (clients.length) sampleBw(); }, 3000);
+
+  /* 화면 그리기 */
+  function pct(a, p) { if (!a.length) return 0; var s = a.slice().sort(function (x, y) { return x - y; }); return s[Math.min(s.length - 1, Math.floor(s.length * p))]; }
+  function stats() {
+    var now = Date.now(), last = window.__req.filter(function (r) { return now - r.at < 60000; });
+    var ms = last.map(function (r) { return r.ms; }), errs = last.filter(function (r) { return !r.ok; });
+    var byA = {}; last.forEach(function (r) { byA[r.a] = (byA[r.a] || 0) + 1; });
+    var errA = {}; window.__req.forEach(function (r) { if (!r.ok) { var k = r.a + ':' + (r.err || '?'); errA[k] = (errA[k] || 0) + 1; } });
+    return { rpm: last.length, avg: ms.length ? ms.reduce(function (a, b) { return a + b; }, 0) / ms.length : 0, p95: pct(ms, .95), max: ms.length ? Math.max.apply(null, ms) : 0,
+      err1: errs.length, errAll: window.__req.filter(function (r) { return !r.ok; }).length, byA: byA, errA: errA,
+      inN: clients.filter(function (c) { return c.state === '들어옴'; }).length, sfuN: clients.filter(function (c) { return c.sfu === 'connected'; }).length,
+      lag: pct(lagS, .95) };
+  }
+  function cls(el, v, mid, bad) { el.className = v >= bad ? 'bad' : v >= mid ? 'mid' : 'ok'; }
+  setInterval(function () {
+    if (!clients.length) return;
+    var s = stats();
+    $('#elapsed').textContent = t0 ? '시작 후 ' + UI.mmss(Date.now() - t0) : '';
+    $('#k-in').textContent = s.inN + ' / ' + clients.length;
+    $('#k-rpm').textContent = s.rpm + '회';
+    var kl = $('#k-lat'); kl.textContent = s.rpm ? Math.round(s.avg) + ' / ' + Math.round(s.p95) + 'ms' : '-'; cls(kl, s.p95, 2500, 6000);
+    var ke = $('#k-err'); ke.textContent = s.err1 + ' / ' + s.errAll; cls(ke, s.err1, 1, 10);
+    var ks = $('#k-sfu'); ks.textContent = s.sfuN + ' / ' + clients.filter(function (c) { return c.rm; }).length; ks.className = s.sfuN < clients.filter(function (c) { return c.rm; }).length ? 'mid' : 'ok';
+    $('#k-tr').textContent = (bw.vOut || 0) + ' / ' + (bw.inTr || 0);
+    $('#k-bw').textContent = bw.at ? bw.up.toFixed(1) + ' / ' + bw.down.toFixed(1) + 'Mbps' : '-';
+    var kg = $('#k-lag'); kg.textContent = Math.round(s.lag) + 'ms'; cls(kg, s.lag, 150, 500);
+    $('#tb').innerHTML = clients.map(function (c) {
+      var pub = c.rm ? Object.keys(c.rm.sfu.pub).join('·') : '-', pulled = c.rm ? Object.keys(c.rm.sfu.pulled).length : 0;
+      var stc = c.state === '들어옴' ? 'ok' : c.state === '실패' ? 'bad' : 'mid', sfc = c.sfu === 'connected' ? 'ok' : c.sfu === 'failed' ? 'bad' : 'mid';
+      return '<tr><td>' + UI.esc(c.name) + '</td><td>' + UI.esc(c.room) + '</td><td><span class="st ' + stc + '">' + UI.esc(c.state) + '</span></td><td><span class="st ' + sfc + '">' + UI.esc(c.sfu) + '</span></td>' +
+        '<td>' + UI.esc(pub || '-') + '</td><td class="num">' + pulled + '</td><td class="num" title="' + UI.esc(c.lastErr) + '">' + c.err + (c.lastErr ? ' · ' + UI.esc(c.lastErr) : '') + '</td></tr>';
+    }).join('');
+  }, 1000);
+
+  $('#b-copy').onclick = function () {
+    var s = stats(), all = window.__req, ms = all.map(function (r) { return r.ms; });
+    var txt = [
+      '[미술 부하 시험 결과] ' + new Date().toLocaleString('ko-KR'),
+      '가상 접속자: ' + clients.length + '명(멘토 ' + clients.filter(function (c) { return c.role === 'mentor'; }).length + ' · 학생 ' + clients.filter(function (c) { return c.role === 'student'; }).length + ') · 들어옴 ' + s.inN + ' · Cloudflare 연결 ' + s.sfuN,
+      '시험 시간: ' + (t0 ? UI.mmss(Date.now() - t0) : '-') + ' · 영상 ' + ($('#q').value === 'real' ? '실제와 같게' : '가볍게') + ' · 받기 ' + ($('#recv').checked ? '켬' : '끔'),
+      '관문 요청 전체 ' + all.length + '회 · 최근 1분 ' + s.rpm + '회(' + Object.keys(s.byA).map(function (k) { return k + ' ' + s.byA[k]; }).join(', ') + ')',
+      '관문 응답(전체): 평균 ' + Math.round(ms.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, ms.length)) + 'ms · 느린 5% ' + Math.round(pct(ms, .95)) + 'ms · 가장 느림 ' + Math.round(ms.length ? Math.max.apply(null, ms) : 0) + 'ms',
+      '관문 실패 누적 ' + s.errAll + '회' + (Object.keys(s.errA).length ? '(' + Object.keys(s.errA).map(function (k) { return k + ' ' + s.errA[k]; }).join(', ') + ')' : ''),
+      '이 PC 올리는 양 ' + (bw.up || 0).toFixed(1) + 'Mbps · 받는 양 ' + (bw.down || 0).toFixed(1) + 'Mbps · 화면 지연(느린 5%) ' + Math.round(s.lag) + 'ms',
+      '가상 접속자별 오류: ' + (clients.filter(function (c) { return c.err; }).map(function (c) { return c.name + ' ' + c.err + '(' + c.lastErr + ')'; }).join(', ') || '없음')
+    ].join('\n');
+    try { navigator.clipboard.writeText(txt).catch(function () {}); } catch (e) {}
+    log('결과 요약을 복사했습니다\n' + txt);
+  };
+})();
+</script>
+</body>
+</html>
