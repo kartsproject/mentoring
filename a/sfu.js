@@ -21,7 +21,26 @@
     this.onPub = o.onPub || function () {};
     this.simulcast = o.simulcast !== false;
     this.state = 'new';
+    (window.__sfuAll = window.__sfuAll || []).push(this);
   }
+  // 콘솔 진단: sfuInfo() — 연결 상태·올린 것·받는 것
+  window.sfuInfo = function () {
+    return (window.__sfuAll || []).filter(function (x) { return x.pc; }).map(function (x) {
+      return { sid: x.sid, conn: x.pc.connectionState, ice: x.pc.iceConnectionState, signal: x.pc.signalingState, pub: Object.keys(x.pub), pulled: Object.keys(x.pulled).length };
+    });
+  };
+  // Cloudflare는 연결(ICE)이 이어진 세션에서만 받기(pull)를 허락함 — 협상한 뒤에는 연결될 때까지 잠깐 기다림
+  SFU.prototype.ready = function (ms) {
+    var pc = this.pc;
+    if (!pc || !pc.remoteDescription) return Promise.resolve(true);   // 아직 아무것도 협상 안 함: 받기 요청이 연결을 만듦
+    if (pc.connectionState === 'connected') return Promise.resolve(true);
+    return new Promise(function (res) {
+      var t = setTimeout(done, ms || 10000);
+      function done() { clearTimeout(t); pc.removeEventListener('connectionstatechange', chk); res(pc.connectionState === 'connected'); }
+      function chk() { if (pc.connectionState === 'connected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') done(); }
+      pc.addEventListener('connectionstatechange', chk);
+    });
+  };
 
   // 관문을 거쳐 Cloudflare에 요청
   SFU.prototype.call = async function (op, args) {
@@ -49,6 +68,7 @@
       Object.keys(self.pulled).forEach(function (k) { var p = self.pulled[k]; if (p.mid === mid) { p.track = e.track; self.onTrack(k, e.track); } });
     };
     pc.onconnectionstatechange = function () {
+      if (pc.connectionState !== 'connected') console.info('[sfu] 연결 상태', pc.connectionState, '/ ice', pc.iceConnectionState);
       self.state = pc.connectionState; self.onState(pc.connectionState);
     };
     var r = await this.call('new');
@@ -147,6 +167,7 @@
       // ② 새로 받을 것
       var add = want.filter(function (w) { return !self.pulled[w.key] && !(self.failAt[w.key] && now - self.failAt[w.key] < 4000); });
       if (!add.length) return;
+      if (!(await self.ready(10000))) { var ne = new Error('not connected'); ne.code = 'not_connected'; throw ne; }
       var res = await self.call('pull', { tracks: add.map(function (w) { return { sessionId: w.sessionId, trackName: w.trackName, rid: w.rid || '' }; }) });
       var got = res.tracks || [];
       add.forEach(function (w) {

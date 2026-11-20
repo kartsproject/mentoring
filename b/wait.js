@@ -145,7 +145,11 @@
       if (sig !== this.lastWant) {
         this.lastWant = sig;
         var self = this;
-        this.sfu.want(want).catch(function (e) { console.warn('대기실 받기', e); self.lastWant = ''; });
+        this.sfu.want(want).catch(function (e) {
+          console.warn('대기실 받기', e); self.lastWant = '';
+          // Cloudflare가 「연결이 끊긴 세션」이라고 하거나 연결이 계속 안 되면 새 세션으로 다시 연결
+          if (e.code === 'not_connected' || /disconnected/i.test(e.message || '')) self.restart('pull-disconnected');
+        });
       }
     }
     this.render();
