@@ -82,6 +82,9 @@
     .cap { grid-template-columns: 1fr; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea, select { -webkit-user-select: text; user-select: text; }
+  img, a { -webkit-user-drag: none; }
 </style>
 </head>
 <body>

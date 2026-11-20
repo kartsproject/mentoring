@@ -340,3 +340,8 @@ body:has(#s-end.on) { background: #000; }
 .wt.inms video, .wt.inms .wph { opacity: .45; }
 @keyframes wmsPulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .wt .wms::before { animation: none; } }
+
+/* 글자 끌기·선택 막기(Ver.2.26) — 입력 칸만 선택 가능 */
+html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, select, [contenteditable]:not([contenteditable="false"]) { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+img, a, video, svg { -webkit-user-drag: none; }

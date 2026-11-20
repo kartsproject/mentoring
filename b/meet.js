@@ -545,6 +545,12 @@
     }
   };
   setInterval(function () { Vol.applySpk(); }, 1000);
+  // 글자·그림 끌기 막기(입력 칸과 끌어 옮기는 칸[draggable]은 그대로)
+  document.addEventListener('dragstart', function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest('input, textarea, [draggable="true"]')) return;
+    e.preventDefault();
+  });
   ['visibilitychange', 'pointerdown', 'keydown'].forEach(function (t) {
     document.addEventListener(t, function () { if (Vol.ac && Vol.ac.state !== 'running' && document.visibilityState === 'visible') Vol.ac.resume().catch(function () {}); }, true);
   });
