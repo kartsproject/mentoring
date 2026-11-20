@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>미술 심화 멘토링 · 운영</title>
-<link rel="stylesheet" href="../b/style.css?v=2225">
-<link rel="stylesheet" href="art.css?v=2225">
+<link rel="stylesheet" href="../b/style.css?v=2227">
+<link rel="stylesheet" href="art.css?v=2227">
 <style>
   body { background: var(--desk); }
   .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
@@ -105,8 +105,8 @@
   .wcell .tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--rec); border-radius: 5px; padding: 1px 5px; }
   @media (max-width: 1000px) { .body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; } .side { border-left: 0; } }
 </style>
-<link rel="stylesheet" href="../b/theme.css?v=2225">
-<link rel="stylesheet" href="theme.css?v=2225">
+<link rel="stylesheet" href="../b/theme.css?v=2227">
+<link rel="stylesheet" href="theme.css?v=2227">
 </head>
 <body>
 
@@ -178,12 +178,12 @@
   <div class="whob" id="who-b"></div>
 </div></div>
 
-<script src="config.js?v=2225"></script>
-<script src="../b/meet.js?v=2225"></script>
-<script src="../b/recorder.js?v=2225"></script>
-<script src="sfu.js?v=2225"></script>
-<script src="art.js?v=2225"></script>
-<script src="../b/watch.js?v=2225"></script>
+<script src="config.js?v=2227"></script>
+<script src="../b/meet.js?v=2227"></script>
+<script src="../b/recorder.js?v=2227"></script>
+<script src="sfu.js?v=2227"></script>
+<script src="art.js?v=2227"></script>
+<script src="../b/watch.js?v=2227"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art;
@@ -634,7 +634,7 @@
     if (tap && tap.frame && Date.now() - tap.at < 5000) el = tap.frame;   // 트랙에서 바로 받은 최신 프레임
     var vw = el ? (el.displayWidth || el.videoWidth || el.naturalWidth || 0) : 0, vh = el ? (el.displayHeight || el.videoHeight || el.naturalHeight || 0) : 0;
     if (!vw || !(el.displayWidth || (el.tagName === 'IMG' ? el.complete : el.readyState >= 2))) return false;
-    var portrait = vh > vw * 1.05, fit = contain || portrait;
+    var fit = !!contain;   // 카메라는 4:3 칸에 맞춰 잘라 채움(휴대폰 세로 영상도), 작품만 전체가 보이게(Ver.1.16)
     var sc = fit ? Math.min(w / vw, h / vh) : Math.max(w / vw, h / vh), dw = vw * sc, dh = vh * sc;
     c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
     try { c.drawImage(el, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); } catch (e) {}
@@ -664,13 +664,15 @@
   // 한 줄에 칸 놓기(크게 볼 것은 2배 폭) — 가운데 정렬
   function drawRow(c, items, R, k, labelH) {
     if (!items.length) return;
-    var gap = 14 * k, sumW = 0, maxW = 1;
-    items.forEach(function (it) { var wt = it.feature ? 2 : 1; sumW += wt; maxW = Math.max(maxW, wt); });
-    var unit = Math.min((R.w - gap * (items.length - 1)) / sumW, (R.h - labelH) * 16 / 9 / maxW);
+    // 카메라 칸 4:3, 크게 볼 것(작품)은 16:9로 1.5배 높이
+    var gap = 14 * k, sumW = 0, maxS = 1;
+    var ar = function (it) { return it.feature ? 16 / 9 : 4 / 3; }, sc = function (it) { return it.feature ? 1.5 : 1; };
+    items.forEach(function (it) { sumW += ar(it) * sc(it); maxS = Math.max(maxS, sc(it)); });
+    var unit = Math.min((R.w - gap * (items.length - 1)) / sumW, (R.h - labelH) / maxS);   // unit = 카메라 칸 높이
     var total = unit * sumW + gap * (items.length - 1), x = R.x + (R.w - total) / 2;
-    var hMax = unit * maxW * 9 / 16;
+    var hMax = unit * maxS;
     items.forEach(function (it) {
-      var w = unit * (it.feature ? 2 : 1), h = w * 9 / 16;
+      var h = unit * sc(it), w = h * ar(it);
       drawCell(c, it, x, R.y + (R.h - labelH - hMax) / 2 + (hMax - h) / 2, w, h, k, labelH);
       x += w + gap;
     });
@@ -678,7 +680,7 @@
   // 발표 자료가 있을 때: 가운데 자료 크게, 멘토는 양옆에 작게(위아래로 쌓음)
   function drawFeatureTop(c, ms, feat, R, k, labelH) {
     var gap = 14 * k, half = Math.ceil(ms.length / 2), L = ms.slice(0, half), Rt = ms.slice(half), rows = Math.max(1, L.length, Rt.length);
-    var sh = ms.length ? (R.h - rows * labelH - (rows - 1) * 6 * k) / rows : 0, sw = Math.min(sh * 16 / 9, R.w * .2); sh = sw * 9 / 16;
+    var sh = ms.length ? (R.h - rows * labelH - (rows - 1) * 6 * k) / rows : 0, sw = Math.min(sh * 4 / 3, R.w * .2); sh = sw * 3 / 4;
     var sides = (L.length ? sw + gap : 0) + (Rt.length ? sw + gap : 0);
     var fw = Math.min((R.h - labelH) * 16 / 9, R.w - sides), fh = fw * 9 / 16;
     var total = sides + fw, x = R.x + (R.w - total) / 2;
@@ -693,7 +695,7 @@
   function drawGrid(c, items, R, k, labelH) {
     var n = items.length; if (!n) return;
     var rows = n <= 5 ? 1 : n <= 14 ? 2 : 3, cols = Math.ceil(n / rows), gap = 14 * k, rowH = R.h / rows;
-    var w = Math.min((R.w - gap * (cols - 1)) / cols, (rowH - labelH - 10 * k) * 16 / 9), h = w * 9 / 16;
+    var w = Math.min((R.w - gap * (cols - 1)) / cols, (rowH - labelH - 10 * k) * 4 / 3), h = w * 3 / 4;
     for (var r = 0; r < rows; r++) {
       var row = items.slice(r * cols, (r + 1) * cols), total = w * row.length + gap * (row.length - 1), x = R.x + (R.w - total) / 2;
       var y = R.y + r * rowH + (rowH - labelH - h) / 2;
@@ -741,7 +743,7 @@
   // 정해진 열 수로 크게(멘토 2×2)
   function drawGrid2(c, items, R, k, labelH, cols) {
     var rows = Math.ceil(items.length / cols), gx = 18 * k, gy = 8 * k, rowH = (R.h - gy * (rows - 1)) / rows;
-    var w = Math.min((R.w - gx * (cols - 1)) / cols, (rowH - labelH) * 16 / 9), h = w * 9 / 16;
+    var w = Math.min((R.w - gx * (cols - 1)) / cols, (rowH - labelH) * 4 / 3), h = w * 3 / 4;
     for (var r = 0; r < rows; r++) {
       var row = items.slice(r * cols, (r + 1) * cols), total = w * row.length + gx * (row.length - 1), x = R.x + (R.w - total) / 2;
       var y = R.y + r * (rowH + gy) + (rowH - labelH - h) / 2;

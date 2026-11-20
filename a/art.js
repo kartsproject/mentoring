@@ -227,6 +227,7 @@
     var n = sl.students.length, cols = n <= 4 ? Math.max(1, n) : n <= 14 ? Math.ceil(n / 2) : Math.ceil(n / 3);   // 학생 12명이면 가로 6 × 세로 2
     if (innerWidth < 700) cols = Math.min(cols, 3);
     bot.style.setProperty('--cols', cols);
+    bot.style.setProperty('--rows', Math.max(1, Math.ceil(n / cols)));
     var all = {};
     topList.concat(sl.students).forEach(function (it) { all[it.key] = 1; });
     var put = function (host, list) {
