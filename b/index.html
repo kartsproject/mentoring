@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
 <meta name="theme-color" content="#202226">
-<link rel="stylesheet" href="style.css?v=2217">
+<link rel="stylesheet" href="style.css?v=2218">
 <style>
   .scr { display: none; }
   .scr.on { display: block; }
@@ -133,7 +133,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2217">
+<link rel="stylesheet" href="theme.css?v=2218">
 </head>
 <body>
 
@@ -255,10 +255,10 @@
   </div>
 </div>
 
-<script src="config.js?v=2217"></script>
-<script src="meet.js?v=2217"></script>
-<script src="../a/sfu.js?v=2217"></script>
-<script src="wait.js?v=2217"></script>
+<script src="config.js?v=2218"></script>
+<script src="meet.js?v=2218"></script>
+<script src="../a/sfu.js?v=2218"></script>
+<script src="wait.js?v=2218"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -650,11 +650,63 @@
   (async function () {
     var s = null;
     try { s = JSON.parse(sessionStorage.getItem('meet_stu') || 'null'); } catch (e) {}
-    if (!s || !s.name) return;
+    if (!s || !s.name || /[?&]mirror=1/.test(location.search)) return;   // 화면 보기의 거울은 접속하지 않음
     try {
       await login(s.name, s.birth, s.r);
       go('s-check'); startCheck();
     } catch (e) { try { sessionStorage.removeItem('meet_stu'); } catch (e2) {} if (e.code === 'not_time') $('#g-err').innerHTML = UI.notTime(e.data); }
+  })();
+
+  /* ───── 화면 보기의 거울(Ver.2.27) ─────
+   * 운영 화면 「화면 보기」(o.html?watch=1)가 이 페이지를 ?mirror=1 로 띄우면, 고른 학생에게 지금 보이는 화면을
+   * 이 페이지의 실제 그리기 코드로 그대로 그림. 접속·카메라·마이크는 쓰지 않고, 영상은 화면 보기 창이 받은 것을 씀
+   */
+  var MIR = null;
+  try { MIR = /[?&]mirror=1/.test(location.search) && window.parent !== window ? window.parent.MeetWatchMirror : null; } catch (e) { MIR = null; }
+  if (MIR) (function () {
+    document.body.classList.add('mirror');
+    var mid = '';
+    finish = function () { if (screen !== 's-end') go('s-end'); };
+    beep = function () {}; nudge = function () {}; dingdong = function () {};
+    alertCalled = function () { UI.show('#l-banner', true); setTimeout(function () { UI.show('#l-banner', false); }, 3500); };
+    sess = { id: '', name: '', r: '', info: {}, interval: 2500, view: null, now: function () { return MIR.now(); },
+             kick: function () {}, on: function () {}, stop: function () {}, send: function () {} };
+    links = { get: function (k, peer) { return MIR.link(k, peer); }, applyPolicy: function () {}, replaceLocal: function () {}, closeWhere: function () {}, close: function () {} };
+    local = new MediaStream();
+    dc = { start: async function () {}, stopMeterOnly: function () {}, flip: async function () {}, camCount: 1, get stream() { return local; } };
+    wr = new M.WaitRoom({ sess: sess, el: $('#wgrid'), role: 'student', getLocal: function () { return local; },
+      onChange: function (n) { $('#wcnt').textContent = n ? n + '명' : ''; } });
+    wr.on = true; wr.playAudio = function () {}; wr.want = function () {}; wr.replaceLocal = function () {};
+    wr.sync = function (v) { this.view = v; this.rt = MIR.rt(); this.render(); };
+    setupCtrls();
+    go('room');
+    setInterval(tick, 500);
+    function step() {
+      var t = MIR.target();
+      if (!t) return;
+      if (t.id !== mid) {
+        mid = t.id; sess.id = t.id; sess.name = t.name; sess.r = MIR.room();
+        lastCurAt = 0; ringSeen = null; allSeen = null; render.wasNext = false;
+        go('room');
+      }
+      ME = MIR.me(t.id); renderSched();
+      var L = MIR.local(t.id); if (L) local = L;
+      var v = MIR.studentView(t.id); if (!v) return;
+      sess.view = v;
+      if (!v.done && screen === 's-end') go('room');
+      render(v);
+      if ($('#w-self').srcObject !== local) UI.attach($('#w-self'), local);
+      if ($('#l-self').srcObject !== local) UI.attach($('#l-self'), local);
+      paintCtrls();
+      var inf = MIR.info(t.id) || {};   // 학생이 끈 마이크·카메라는 받은 영상으로는 알 수 없어 학생이 알려 준 상태로 표시
+      [['#b-mic', '#w-mic', inf.mic, M.ICON.mic, M.ICON.micOff, '마이크'], ['#b-cam', '#w-cam', inf.cam, M.ICON.cam, M.ICON.camOff, '카메라']].forEach(function (x) {
+        if (x[2] !== false) return;
+        $(x[0]).innerHTML = x[4]; $(x[0]).classList.add('off');
+        $(x[1]).innerHTML = x[4] + '<span>' + x[5] + ' 꺼짐</span>'; $(x[1]).classList.add('off');
+      });
+      document.querySelectorAll('video, audio').forEach(function (m) { m.muted = true; });   // 소리는 화면 보기 창에서만
+    }
+    setInterval(step, 1000); step();
   })();
 })();
 </script>
@@ -668,6 +720,7 @@
   document.addEventListener('touchend', function (e) { var now = Date.now(); if (now - lastTap < 320 && !e.target.closest('input,textarea,a,button,select')) e.preventDefault(); lastTap = now; }, { passive: false });
   window.addEventListener('wheel', function (e) { if (e.ctrlKey || e.metaKey) e.preventDefault(); }, { passive: false });
   window.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0', '_'].indexOf(e.key) >= 0) e.preventDefault(); });
+
 })();
 </script>
 <script>/* 발언자 표시 */ Meet.Speak.auto('#l-remote', '.vbox'); Meet.Speak.auto('#l-self', '.pip');</script>

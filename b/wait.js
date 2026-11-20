@@ -113,7 +113,7 @@
     this.render();
   };
   WaitRoom.prototype.announce = function (names) {
-    if (!this.sfu || !this.sfu.sid) return;
+    if (!this.sfu || !this.sfu.sid || this.silent) return;   // silent: 화면 보기 창(받기만, 내 칸 없음)
     var self = this;
     this.annAt = Date.now();
     call(this.sess, { a: 'wr', cmd: 'pub', sfu: this.sfu.sid, tr: names || this.sfu.names() }).then(function (j) { if (j && j.ok) self.sess.kick(); else self.annAt = 0; }).catch(function () { self.annAt = 0; });

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2217">
+<link rel="stylesheet" href="style.css?v=2218">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2217">
+<link rel="stylesheet" href="theme.css?v=2218">
 </head>
 <body>
 
@@ -357,24 +357,27 @@
   </div>
 </div>
 
-<script src="config.js?v=2217"></script>
-<script src="meet.js?v=2217"></script>
-<script src="recorder.js?v=2217"></script>
-<script src="../a/sfu.js?v=2217"></script>
-<script src="wait.js?v=2217"></script>
-<script src="room.js?v=2217"></script>
+<script src="config.js?v=2218"></script>
+<script src="meet.js?v=2218"></script>
+<script src="recorder.js?v=2218"></script>
+<script src="../a/sfu.js?v=2218"></script>
+<script src="wait.js?v=2218"></script>
+<script src="room.js?v=2218"></script>
+<script src="watch.js?v=2218"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
   UI.volume('#fbar .fb-m', 'fb'); UI.volume('#fbar .fb-w', 'fb');   // 소리 크기(내 마이크·듣는 소리)
   var PREFIX = C.PREFIX || '';
   var PANEL = UI.param('mode') === 'room';      // 대기실 창(영상·녹화 없이 학생·알림·채팅만)
+  var WATCH = UI.param('watch') === '1' && !PANEL;   // 화면 보기(Ver.2.27): 학생·멘토 화면을 실시간으로 보기만(마이크·카메라·녹화 없음, 대기실에 내 칸 없음)
   var TITLE = PANEL ? '대기실 운영 | K예술영재 온라인 멘토링' : '운영 화면 | K예술영재 온라인 멘토링';
   var sess, links = null, rec = null, view = null, r = '', room = null;
   var lastOffer = {}, testing = null, testTried = {}, recKey = '', manualStop = '', armed = {}, gapRec = false;   // gapRec: 운영자가 「녹화 시작」을 눌러 멘토링 아닌 시간도 녹화
   var IS_REC = false, recOn = false, leaving = false, lastHostAsk = 0;   // IS_REC: 자동 녹화하는 운영진 녹화 창 · recOn: 이 창에서 녹화함
   var savedZoom = '', soundOn = true, role = 'ops', stageLocal = null, stageWantUntil = 0, tab = 'chat';
   document.title = TITLE;
+  if (WATCH) { document.title = '화면 보기 | K예술영재 온라인 멘토링'; $('#g-title').textContent = '화면 보기'; $('#g-lead').textContent = '멘토링 중 학생·멘토에게 지금 보이는 화면을 실시간으로 보기만 하는 창입니다. 마이크·카메라·녹화는 쓰지 않고, 다른 사람 화면에 내 칸이 나타나지 않습니다.'; }
   if (PANEL) { document.body.classList.add('pmode'); $('#g-title').textContent = '대기실 창'; $('#g-lead').textContent = '대기실(학생 칸·대기실 화상)을 따로 띄워 보는 창입니다(영상·녹화 없음).'; }
 
   document.querySelectorAll('input[name=role]').forEach(function (x) {
@@ -395,10 +398,10 @@
 
   async function login(rr, rl, name, code) {
     r = rr; role = rl;
-    sess = new M.Session({ r: r, role: role, name: name, code: code, interval: PANEL ? 2000 : 1800, panel: PANEL });
+    sess = new M.Session({ r: r, role: role, name: WATCH && !/\(보기\)$/.test(name) ? name + '(보기)' : name, code: code, interval: PANEL ? 2000 : 1800, panel: PANEL });
     await sess.join();
     r = sess.r;   // 자동으로 찾은 회차
-    try { history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(r) + (PANEL ? '&mode=room' : '')); } catch (e3) {}
+    try { history.replaceState(null, '', location.pathname + '?r=' + encodeURIComponent(r) + (PANEL ? '&mode=room' : '') + (WATCH ? '&watch=1' : '')); } catch (e3) {}
     try { localStorage.setItem('meet_ops', sess.name); } catch (e2) {}
     remember();
     start();
@@ -422,7 +425,7 @@
     $('#h-title').textContent = (PANEL ? '대기실 창 · ' : '운영 화면 · ') + roomLabel();
     $('#h-me').innerHTML = UI.ico('user') + UI.esc(UI.roleName(role) + ' ' + sess.name);
     // 운영진 녹화 창은 모두 자동 녹화(폴더 자동 저장이 되는 PC 크롬·엣지만 — 휴대폰은 메모리가 넘칠 수 있어 녹화하지 않음)
-    var want = !PANEL && role === 'ops' && C.AUTO_RECORD_OPS !== false;
+    var want = !PANEL && !WATCH && role === 'ops' && C.AUTO_RECORD_OPS !== false;
     IS_REC = want && window.MeetRecorder.autoSaveSupported();
     if (want && !IS_REC) setTimeout(function () { UI.toast('이 브라우저는 폴더 자동 저장이 안 돼 이 창에서는 녹화하지 않습니다. 녹화는 PC 크롬에서 해 주세요.', 6000); }, 800);
     if (IS_REC) { $('#h-me').innerHTML = UI.ico('rec') + UI.esc('운영 ' + sess.name + ' · 녹화'); $('#sw-host').parentNode.querySelector('span').textContent = '연결 점검 맡기'; $('#sw-auto').checked = true; $('#sw-auto').parentNode.style.display = 'none'; }   // 녹화 창: 멘토링은 항상 자동 녹화
@@ -432,6 +435,7 @@
     wr = new M.WaitRoom({ sess: sess, el: $('#w-grid'), role: 'staff', canMute: role === 'ops', listen: false, roster: true,
       flags: function () { return room ? room.flagMap() : {}; },
       onAct: function (a, id, b) { onAction(a, id, b); } });
+    if (WATCH) wr.silent = true;   // 보기 전용: 대기실에 내 칸을 만들지 않음(받기만)
     placePill();
     applyRoomAudio(true, true);   // 처음 들어오면 대기실에(Ver.2.23) — 멘토링실 소리는 꺼진 채
     if (!PANEL) {
@@ -451,6 +455,15 @@
     sess.start();
     setInterval(tick, 500);
     if (IS_REC) recSetup();
+    if (WATCH && window.MeetWatch) window.MeetWatch.start({
+      sess: sess, wr: wr, label: roomLabel(), view: function () { return view; },
+      viewLink: function (id) { var L = links && links.get('view', id, 'offer'); return L && L.state === 'connected' && L.stream ? L : null; },
+      audio: function (mode) {   // 'off' | 'm'(멘토링실) | 'w'(대기실)
+        if (mode === 'off') { wr.setListen(false); soundOn = false; $('#v-M').muted = $('#v-S').muted = true; if (view) paintStage(); }
+        else applyRoomAudio(mode === 'w', true);
+      },
+      leave: function () { $('#b-out').click(); }
+    });
     window.addEventListener('beforeunload', function (e) { if (rec && rec.recording()) { e.preventDefault(); e.returnValue = '녹화 중입니다'; } });
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden' && rec && rec.recording()) document.title = '● 녹화 중 — 창을 띄워 두세요';
@@ -897,7 +910,7 @@
   };
   function goOut() {
     try { sessionStorage.removeItem('meet_ops_login'); } catch (e) {}
-    location.href = location.pathname + (r ? '?r=' + encodeURIComponent(r) : '') + (PANEL ? (r ? '&' : '?') + 'mode=room' : '');
+    location.href = location.pathname + (r ? '?r=' + encodeURIComponent(r) : '') + (PANEL ? (r ? '&' : '?') + 'mode=room' : '') + (WATCH ? (r ? '&' : '?') + 'watch=1' : '');
   }
   $('#b-out').onclick = function () {
     if (rec && rec.recording()) {
