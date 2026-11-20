@@ -65,6 +65,13 @@
     if (t && t.applyConstraints) t.applyConstraints({ width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 24 } }).catch(function () {});
   };
   A.MSUF = (M.CFG.MENTOR_SUFFIX != null ? M.CFG.MENTOR_SUFFIX : ' 교수님');
+  // 한 조에 멘토가 여럿일 때(예: A조 2명) 들어오기 전에도 모두 이름이 보이게: 명단(멘토 시트)의 조 배정을 합침(Ver.1.15)
+  A.fixMentors = function (v) {
+    if (!v || v._mf) return v;
+    var mo = v.mentorsOf = v.mentorsOf || {};
+    (v.mroster || []).forEach(function (m) { if (m.g) { var l = mo[m.g] = mo[m.g] || []; if (l.indexOf(m.name) < 0) l.push(m.name); } });
+    v._mf = 1; return v;
+  };
   A.slots = function (v, room, o) {
     o = o || {};
     var people = v.people || [], byId = {}, me = o.me || v.me, streams = o.streams || {};

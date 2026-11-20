@@ -261,6 +261,7 @@
 
   /* 상태 받기 */
   function onView(v) {
+    A.fixMentors(v);   // 한 조 여러 멘토 이름(Ver.1.15)
     view = v;
     // 받을 화질: 녹화 PC는 멘토·크게 보기 f, 학생 h(녹화 칸 크기에 맞춤) / 다른 운영 화면은 q(크게 보기만 h). 소리는 모두 받고 고른 방만 들림
     room.listen = listen;

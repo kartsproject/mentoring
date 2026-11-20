@@ -198,6 +198,7 @@
     document.title = '멘토링 종료 | 미술 심화 멘토링';
   }
   function onView(v) {
+    A.fixMentors(v);   // 한 조 여러 멘토 이름(Ver.1.15)
     if (v.closed && v.phase === 'end') { closeOut(); return; }
     var me = meP(v), myRoom = v.myRoom;
     // 받을 영상: 내 방 사람들. 멘토·크게 보는 사람은 높은 화질
