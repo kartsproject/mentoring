@@ -2,12 +2,11 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<script>/* 시연 조종판(/demo/) 안에서 열릴 때만: 가상 카메라·마이크로 바꿈. 평소에는 아무것도 안 함 */try{if(window.parent!==window&&window.parent.DEMO_HOOK)window.parent.DEMO_HOOK(window)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex, nofollow">
 <title>무용분야 심화 멘토링 대기실</title>
 <meta name="theme-color" content="#202226">
-<link rel="stylesheet" href="style.css?v=2215">
+<link rel="stylesheet" href="style.css?v=2216">
 <style>
   .scr { display: none; }
   .scr.on { display: block; }
@@ -134,7 +133,7 @@
   button, a, input { touch-action: manipulation; }
   .lout { background: transparent; color: #fff; border-color: rgba(255,255,255,.3); }
 </style>
-<link rel="stylesheet" href="theme.css?v=2215">
+<link rel="stylesheet" href="theme.css?v=2216">
 </head>
 <body>
 
@@ -256,10 +255,10 @@
   </div>
 </div>
 
-<script src="config.js?v=2215"></script>
-<script src="meet.js?v=2215"></script>
-<script src="../a/sfu.js?v=2215"></script>
-<script src="wait.js?v=2215"></script>
+<script src="config.js?v=2216"></script>
+<script src="meet.js?v=2216"></script>
+<script src="../a/sfu.js?v=2216"></script>
+<script src="wait.js?v=2216"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -311,6 +310,7 @@
     await sess.join();
     ME = sess.me || {};
     sess.on('view', render);
+    sess.on('replaced', replacedOut);   // 같은 이름으로 다른 기기·창에서 들어옴 → 이 화면은 종료
     sess.on('net', function (ok, fails) {
       $('#conn').classList.toggle('off', !ok);
       $('#conn').querySelector('span').textContent = ok ? '실시간 연결됨' : '연결 확인 중…';
@@ -468,6 +468,15 @@
     setTimeout(function () { try { sess.stop(); } catch (e) {} }, 1500);
     go('s-end');
     document.title = '멘토링이 끝났습니다';
+  }
+
+  // 다른 기기·창에서 같은 학생으로 들어와 이 화면의 접속을 넘김: 카메라·마이크 끄고 안내(새로고침해도 자동으로 다시 들어가지 않음)
+  function replacedOut() {
+    finish();
+    $('#s-end h1').textContent = '다른 기기에서 접속했습니다';
+    $('#s-end .lead').innerHTML = '같은 이름으로 다른 기기(또는 다른 창)에서 들어와 이 화면은 종료했습니다.<br>카메라와 마이크를 껐습니다. 이 창은 닫아 주세요.';
+    $('#s-end .big').style.background = 'var(--kblue, #2997FF)';
+    document.title = '다른 기기에서 접속 중';
   }
 
   function beep(seq) {

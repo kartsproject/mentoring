@@ -48,6 +48,7 @@
     var body = Object.assign({ a: 'sfu', r: s.r, id: s.id, tok: s.tok, op: op, sid: this.sid }, args || {});
     var j = await api(body, 30000);
     if (!j.ok && j.error === 'auth') { await s.rejoin(); body.id = s.id; body.tok = s.tok; j = await api(body, 30000); }
+    if (!j.ok && j.error === 'replaced' && s.replaced) s.replaced(body.tok);
     if (!j.ok) { var e = new Error(j.detail || j.error); e.code = j.error; throw e; }
     return j.res || {};
   };
@@ -131,8 +132,6 @@
 
   /* 받을 목록 맞추기 — want: [{ key, sessionId, trackName, rid }] (key가 같으면 같은 것으로 봄) */
   SFU.prototype.want = function (want) {
-    // 시연 조종판의 가상 참가자: 다른 사람 영상은 받지 않음(시연 PC 부담 줄이기). 크게 볼 때만 DEMO_LIGHT=false로 받음
-    if (window.DEMO_LIGHT !== undefined) { this._wantAll = want; (window.__sfus = window.__sfus || []).indexOf(this) < 0 && window.__sfus.push(this); if (window.DEMO_LIGHT) want = []; }
     var self = this;
     return this.serial(async function () {
       if (!self.pc || !self.sid) return;

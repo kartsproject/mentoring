@@ -1,6 +1,6 @@
 /**
- * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.5
- *  Ver.1.5: 시연 회차 demo — 시연 조종판(/demo/)이 가상 명단(학생·멘토)·시간표를 만듦. 시트·기록에 남기지 않고, 운영진 코드로 멘토·연구원 입장도 됨(시연 회차에서만)
+ * K예술영재 미술 온라인 멘토링 — 관문(Apps Script)  Ver.1.6
+ *  Ver.1.6: 같은 학생이 다른 기기·창에서 다시 들어오면 먼저 들어와 있던 화면은 종료(replaced). 시연 회차 기능은 뺌
  *  Ver.1.4: 학생은 회차 당일 「시작」 30분 전부터 입장(그 전엔 not_time + 날짜·시각), 한 번 들어온 학생은 그날 다시 입장 가능
  *
  * 하는 일
@@ -31,7 +31,6 @@ var SFU_BASE = 'https://rtc.live.cloudflare.com/v1/apps/';
 var PHOTO_DIR = 'K예술영재_미술멘토링_작품사진';
 var PHASES = ['ready', 'all', 'group', 'end'];
 var OPEN_BEFORE_MIN = 30;   // 학생 입장: 회차 당일 「시작」 몇 분 전부터
-var DEMO = 'demo';          // 시연 회차(시트 없이 가상 명단)
 
 var ROSTER_HEAD = ['회차', '이름', '생년월일', '조', '학생 연락처', '보호자 연락처'];
 var MENTOR_HEAD = ['회차', '멘토', '조'];
@@ -60,12 +59,11 @@ function handle_(req) {
       case 'sfu':   return sfu_(r, req);
       case 'photo': return photo_(r, req);
       case 'img':   return img_(r, req);
-      case 'demo':  return demo_(req);
       default: return { ok: false, error: 'bad_action' };
     }
   } catch (err) {
     var msg = String(err && err.message || err);
-    if (msg === 'auth' || msg === 'forbidden') return { ok: false, error: msg };
+    if (msg === 'auth' || msg === 'forbidden' || msg === 'replaced') return { ok: false, error: msg };
     return { ok: false, error: 'server', detail: msg };
   }
 }
@@ -90,7 +88,8 @@ function withLock_(fn) { var l = LockService.getScriptLock(); l.waitLock(15000);
 function token_() { return Utilities.getUuid().replace(/-/g, '').slice(0, 20); }
 function auth_(r, req) {
   var id = String(req.id || ''), tok = cache_().get('tk|' + r + '|' + id);
-  if (!id || !tok || tok !== String(req.tok || '')) throw new Error('auth');
+  // 학생: 같은 이름으로 다른 기기·창이 새로 들어와 접속증이 바뀌었으면 「replaced」(먼저 들어온 화면은 종료)
+  if (!id || !tok || tok !== String(req.tok || '')) throw new Error(tok && /^S_/.test(id) ? 'replaced' : 'auth');
   return id;
 }
 function isStaff_(role) { return role === 'ops' || role === 'research'; }
@@ -114,8 +113,7 @@ function sheetRows_(name, withHead) {
   return withHead ? { head: all[0], rows: all.slice(1) } : all.slice(1);
 }
 // 명단·멘토·회차를 한 번에 읽어 1분 보관
-function data_() { return withDemo_(dataSheet_()); }
-function dataSheet_() {
+function data_() {
   var hit = cget_('data');
   if (hit) return hit;
   var d = { roster: {}, mentors: {}, sess: {} };
@@ -145,7 +143,7 @@ function mins_(hm) { var p = String(hm || '').split(':'); return p.length < 2 ? 
 function addMin_(hm, d) { var m = mins_(hm); if (m < 0) return ''; m = Math.max(0, m + d); return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2); }
 // 학생이 지금 들어올 수 있는지: 회차 당일 「시작」 30분 전부터. 날짜가 비었거나 리허설(test)이면 언제나
 function studentOpen_(r) {
-  if (r === 'test' || r === DEMO) return { ok: true };
+  if (r === 'test') return { ok: true };
   var se = data_().sess[r] || {}, date = se.date || '';
   if (!date) return { ok: true };
   var open = se.start ? addMin_(se.start, -OPEN_BEFORE_MIN) : '', td = today_();
@@ -156,14 +154,13 @@ function studentOpen_(r) {
 function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
 function autoRoom_() {
   var se = data_().sess, td = today_();
-  var list = Object.keys(se).filter(function (k) { return k !== 'test' && k !== DEMO && se[k].date; }).map(function (k) { return se[k]; });
+  var list = Object.keys(se).filter(function (k) { return k !== 'test' && se[k].date; }).map(function (k) { return se[k]; });
   var t = list.filter(function (x) { return x.date === td; })[0]; if (t) return t.r;
   var up = list.filter(function (x) { return x.date > td; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; })[0]; if (up) return up.r;
   var past = list.sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
   return past ? past.r : '';
 }
 function log_(r, kind, name, text) {
-  if (r === DEMO) return;   // 시연은 기록하지 않음
   try {
     var ss = ss_(); if (!ss) return;
     var sh = ss.getSheetByName('기록') || ss.insertSheet('기록');
@@ -190,7 +187,7 @@ function join_(r, req) {
     me = { g: x ? x.g : 0, test: !ro.length };
   } else if (role === 'mentor' || role === 'ops' || role === 'research') {
     var key = role === 'mentor' ? 'MENTOR_CODE' : role === 'ops' ? 'OPS_CODE' : 'RESEARCH_CODE';
-    if (String(req.code || '') !== String(p.getProperty(key) || '__none__') && !(r === DEMO && demoCode_(req.code))) return { ok: false, error: 'code' };
+    if (String(req.code || '') !== String(p.getProperty(key) || '__none__')) return { ok: false, error: 'code' };
     if (!name) return { ok: false, error: 'name' };
     id = (role === 'mentor' ? 'M_' : role === 'ops' ? 'O_' : 'R_') + name.slice(0, 12);
   } else return { ok: false, error: 'bad_role' };
@@ -369,7 +366,7 @@ function op_(r, req) {
   return res;
 }
 function memo_(r, who, where, text) {
-  if (!text || r === DEMO) return;
+  if (!text) return;
   var ss = ss_(); if (!ss) return;
   var sh = ss.getSheetByName('관찰 메모') || ss.insertSheet('관찰 메모');
   if (sh.getLastRow() === 0) sh.appendRow(['시각', '회차', '단계·조', '연구원', '메모']);
@@ -435,7 +432,7 @@ function sfu_(r, req) {
 /* ───────────── 작품 사진(드라이브 보관, 공개 링크 없음) ───────────── */
 function photoFolder_(r) {
   var it = DriveApp.getFoldersByName(PHOTO_DIR), root = it.hasNext() ? it.next() : DriveApp.createFolder(PHOTO_DIR);
-  var name = r === 'test' ? '리허설' : r === DEMO ? '시연' : r + '회차', it2 = root.getFoldersByName(name);
+  var name = r === 'test' ? '리허설' : r + '회차', it2 = root.getFoldersByName(name);
   return it2.hasNext() ? it2.next() : root.createFolder(name);
 }
 function photo_(r, req) {
@@ -536,35 +533,5 @@ function setup() {
   Logger.log('TURN 설정: ' + (p.getProperty('CF_TURN_KEY_ID') ? '있음' : '없음(STUN만)'));
   var d = data_();
   Logger.log('명단: ' + Object.keys(d.roster).map(function (k) { return k + '회차 ' + d.roster[k].length + '명'; }).join(', '));
-}
-/* ───────────── 시연 회차(demo) ─────────────
- * 시연 조종판이 { a:'demo', code: 운영진 코드, cmd:'plan', n, groups } 로 가상 명단(학생 n명을 groups개 조로)·멘토(조마다 1명)를 만들고,
- * cmd:'reset' 으로 진행 상태를 비움. 이름·연락처는 모두 지어낸 것
- */
-var DEMO_NAMES = ['김하늘', '이서준', '박지우', '최하은', '정도윤', '강서연', '조민준', '윤지아', '장예준', '임수아', '한시우', '오채원', '서지호', '신유나', '권태윤', '황다은'];
-var DEMO_MENTORS = ['강민서', '윤재원', '송하린', '임도경'];
-function demoCode_(code) { var c = String(props_().getProperty('OPS_CODE') || ''); return !!c && String(code || '') === c; }
-function withDemo_(d) {
-  var pl = cget_('demo|plan'); if (!pl) return d;
-  var o = JSON.parse(JSON.stringify(d));
-  o.roster[DEMO] = DEMO_NAMES.slice(0, pl.n).map(function (nm, i) {
-    return { name: nm, birth: '20120101', g: (i % pl.groups) + 1, sPhone: '010-0000-' + (1001 + i * 2), pPhone: '010-0000-' + (1002 + i * 2) };
-  });
-  o.mentors[DEMO] = DEMO_MENTORS.slice(0, pl.groups).map(function (nm, i) { return { name: nm, g: i + 1 }; });
-  o.sess[DEMO] = { r: DEMO, date: today_(), start: pl.start, end: pl.end };
-  return o;
-}
-function demo_(req) {
-  if (!demoCode_(req.code)) return { ok: false, error: 'code' };
-  var cmd = String(req.cmd || '');
-  if (cmd === 'plan' || cmd === 'reset') withLock_(function () { cache_().remove('st|' + DEMO); });
-  if (cmd === 'plan') {
-    var n = Math.max(1, Math.min(DEMO_NAMES.length, Number(req.n) || 16)), g = Math.max(1, Math.min(DEMO_MENTORS.length, Number(req.groups) || 4));
-    var now = new Date(), start = Utilities.formatDate(now, TZ, 'HH:mm'), end = Utilities.formatDate(new Date(now.getTime() + 90 * 60000), TZ, 'HH:mm');
-    cput_('demo|plan', { n: n, groups: g, start: start, end: end, at: Date.now() });
-  }
-  if (cmd === 'off') cache_().remove('demo|plan');
-  var d = data_();
-  return { ok: true, plan: cget_('demo|plan'), roster: d.roster[DEMO] || [], mentors: d.mentors[DEMO] || [] };
 }
 function resetTestRoom() { cache_().removeAll(['st|test', 'data']); Logger.log('test 회차 초기화 완료'); }

@@ -49,7 +49,6 @@
       self.id = j.id; self.tok = j.tok; self.ice = j.ice; self.name = j.name; if (j.pid) self.pid = j.pid;
       if (j.r) self.r = j.r;
       self.me = j.me || null;
-      if (j.demoSlot) { CFG.SLOT_MIN = j.demoSlot; CFG.FEEDBACK_MIN = Math.max(1, j.demoSlot - 2); }   // 시연 회차: 짧은 멘토링 시간
       self.offset = j.now - Date.now();
       return j;
     });
@@ -60,6 +59,13 @@
     if (this._rj) return this._rj;   // 여러 요청이 동시에 다시 입장하지 않게
     this._rj = this.join().then(function () { self.emit('rejoin'); }).finally(function () { self._rj = null; });
     return this._rj;
+  };
+  // 같은 학생이 다른 기기·창에서 들어와 이 화면의 접속이 넘어감(서버 replaced) — 보낸 접속증이 지금 것과 같을 때만
+  Session.prototype.replaced = function (sentTok) {
+    if (sentTok !== this.tok || this.gone) return false;   // 그 사이 이 화면이 다시 들어왔으면(접속증 바뀜) 무시
+    this.gone = true; this.running = false;
+    this.emit('replaced');
+    return true;
   };
   Session.prototype.boost = function (ms) { this.fastUntil = Math.max(this.fastUntil, Date.now() + (ms || 10000)); };
   // 이미 연결된 상대에게는 영상 연결 안의 데이터 통로로 바로 보내고, 없으면 서버 메시지함으로
@@ -110,8 +116,9 @@
         var batch = this.outbox.splice(0, 8);
         for (var i = 0; i < 4; i++) {
           try {
-            var j = await api({ a: 'send', r: this.r, id: this.id, tok: this.tok, msgs: batch });
+            var st = this.tok, j = await api({ a: 'send', r: this.r, id: this.id, tok: st, msgs: batch });
             if (j.ok) break;
+            if (j.error === 'replaced' && (this.replaced(st) || this.gone)) return;
             if (j.error === 'auth') await this.rejoin().catch(function () {});
           } catch (e) { await sleep(700 * (i + 1)); }
         }
@@ -123,8 +130,11 @@
     var j = null;
     for (var i = 0; i < 3; i++) {
       try {
+        if (this.gone) return { ok: false, error: 'replaced' };
         body.id = this.id; body.tok = this.tok;
+        var st = this.tok;
         j = await api(body, timeout);
+        if (!j.ok && j.error === 'replaced') { if (this.replaced(st) || this.gone) return j; continue; }
         if (!j.ok && j.error === 'auth') { await this.rejoin(); continue; }
         if (!j.ok && j.error === 'server') { await sleep(600 * (i + 1)); continue; }
         return j;
@@ -173,7 +183,8 @@
     while (this.running) {
       var t0 = Date.now();
       try {
-        var j = await api({ a: 'poll', r: this.r, id: this.id, tok: this.tok, info: this.info, since: this.chat.last, gv: this.chat.gv }, 15000);
+        var st = this.tok, j = await api({ a: 'poll', r: this.r, id: this.id, tok: st, info: this.info, since: this.chat.last, gv: this.chat.gv }, 15000);
+        if (!j.ok && j.error === 'replaced') { if (this.replaced(st)) break; continue; }
         if (j.ok) {
           if (j.chat) this.mergeChat(j.chat);
           fails = 0;
@@ -493,7 +504,7 @@
   var Vol = {
     mic: Math.max(0, Math.min(2, LS('meet_micvol', 1))), spk: Math.max(0, Math.min(1, LS('meet_spkvol', 1))),
     ac: null, nodes: [],
-    can: function () { return !IOS && window.DEMO_LIGHT === undefined && !!(window.AudioContext || window.webkitAudioContext); },
+    can: function () { return !IOS && !!(window.AudioContext || window.webkitAudioContext); },
     ctx: function () {
       if (!this.can()) return null;
       try { if (!this.ac) this.ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
@@ -529,7 +540,6 @@
     },
     setSpk: function (v) { this.spk = Math.max(0, Math.min(1, v)); try { localStorage.setItem('meet_spkvol', this.spk); } catch (e) {} this.applySpk(); },
     applySpk: function () {
-      if (window.DEMO_LIGHT !== undefined) return;   // 시연 조종판 안에서는 조종판이 소리를 맡음
       var v = this.spk;
       document.querySelectorAll('video, audio').forEach(function (el) { if (!el.muted && Math.abs(el.volume - v) > .001) el.volume = v; });
     }
