@@ -362,7 +362,6 @@ img, a, video, svg { -webkit-user-drag: none; }
 @media (max-width: 900px), (max-height: 520px), (pointer: coarse) {
   #s-live .topbar, .mwrap .stage .topbar { position: absolute; left: 0; right: 0; top: 0; padding-top: max(10px, env(safe-area-inset-top)); z-index: 5; }
   #s-live .vbox, .mwrap .stage .vbox { position: absolute; inset: 0; }
-  .vbox video.main { object-fit: cover; }
   .vbox .sgrid { top: calc(56px + env(safe-area-inset-top)); }
   .vbox > .overlay { padding-top: 72px; }
   .mwrap .bigtimer { top: calc(66px + env(safe-area-inset-top)); right: 12px; padding: 6px 16px 8px; border-radius: 18px; }
@@ -382,3 +381,6 @@ img, a, video, svg { -webkit-user-drag: none; }
   .pstack { width: 20%; max-width: 170px; }
   .pstack .pip { aspect-ratio: 4 / 3; }
 }
+
+/* 영상은 모든 화면에서 칸을 꽉 채움 — 휴대폰 세로 영상도 좌우 검은 띠 없이(Ver.2.29) */
+.vbox video.main, .gcell video { object-fit: cover; }

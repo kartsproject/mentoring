@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2220">
+<link rel="stylesheet" href="style.css?v=2221">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -152,7 +152,7 @@
   .rrow .rpip { width: calc(var(--tw) * .65); flex: none; border-radius: 10px; box-shadow: none; }
   .rrow .rpip .rpl { font-size: 12.5px; }
   @media (max-width: 1000px) { #c-stage > .panel:first-of-type .duo { flex: none; container-type: normal; } .duo-in, .duo-in.has-r { --tw: calc((100vw - 42px) / 2); grid-template-columns: 1fr 1fr; width: 100%; } }
-  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }   /* 칸을 꽉 채움(세로 영상도 좌우 검은 띠 없이, Ver.2.29) */
   .tile .overlay { font-size: 14px; }
   .tile .st2 { position: absolute; right: 10px; top: 10px; z-index: 2; }
   .tbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; margin: 2px 12px 10px; padding: 10px 16px; border-radius: 12px; background: var(--k2); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2220">
+<link rel="stylesheet" href="theme.css?v=2221">
 </head>
 <body>
 
@@ -357,13 +357,13 @@
   </div>
 </div>
 
-<script src="config.js?v=2220"></script>
-<script src="meet.js?v=2220"></script>
-<script src="recorder.js?v=2220"></script>
-<script src="../a/sfu.js?v=2220"></script>
-<script src="wait.js?v=2220"></script>
-<script src="room.js?v=2220"></script>
-<script src="watch.js?v=2220"></script>
+<script src="config.js?v=2221"></script>
+<script src="meet.js?v=2221"></script>
+<script src="recorder.js?v=2221"></script>
+<script src="../a/sfu.js?v=2221"></script>
+<script src="wait.js?v=2221"></script>
+<script src="room.js?v=2221"></script>
+<script src="watch.js?v=2221"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
