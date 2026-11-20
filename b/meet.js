@@ -49,6 +49,7 @@
       self.id = j.id; self.tok = j.tok; self.ice = j.ice; self.name = j.name; if (j.pid) self.pid = j.pid;
       if (j.r) self.r = j.r;
       self.me = j.me || null;
+      if (j.demoSlot) { CFG.SLOT_MIN = j.demoSlot; CFG.FEEDBACK_MIN = Math.max(1, j.demoSlot - 2); }   // 시연 회차: 짧은 멘토링 시간
       self.offset = j.now - Date.now();
       return j;
     });

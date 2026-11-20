@@ -111,6 +111,8 @@
 
   /* 받을 목록 맞추기 — want: [{ key, sessionId, trackName, rid }] (key가 같으면 같은 것으로 봄) */
   SFU.prototype.want = function (want) {
+    // 시연 조종판의 가상 참가자: 다른 사람 영상은 받지 않음(시연 PC 부담 줄이기). 크게 볼 때만 DEMO_LIGHT=false로 받음
+    if (window.DEMO_LIGHT !== undefined) { this._wantAll = want; (window.__sfus = window.__sfus || []).indexOf(this) < 0 && window.__sfus.push(this); if (window.DEMO_LIGHT) want = []; }
     var self = this;
     return this.serial(async function () {
       if (!self.pc || !self.sid) return;

@@ -1,5 +1,5 @@
 /**
- * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.6
+ * K예술영재 무용 온라인 멘토링 — 관문(Apps Script)  Ver.2.7
  *
  * 하는 일
  *  - 멘토·학생·운영진·연구원 브라우저가 서로 영상 연결 정보를 주고받도록 중계(영상은 브라우저끼리 직접 연결)
@@ -10,6 +10,8 @@
  *  - 시트 「명단」「회차」 읽기, 「기록」「채팅」 남기기
  *  - (Ver.2.5) 연구원 멘토링실 참여: 멘토링 중에도 멘토링실에 남아 카메라·마이크로 함께함(학생에게는 마이크를 켰을 때만 보임)
  *  - (Ver.2.6) 학생 입장 시간: 멘토링 당일, 그 회차 첫 학생 멘토링 시작 30분 전부터(리허설 test는 언제나)
+ *  - (Ver.2.7) 시연 회차 demo: 시연 조종판(/demo/)이 지금 시각 기준 가상 명단·시간표를 만듦.
+ *              시트·기록에 남기지 않고, 운영진 코드로 멘토·연구원 입장도 됨(시연 회차에서만)
  *
  * 비밀값은 코드에 넣지 않습니다. [프로젝트 설정 > 스크립트 속성]에 넣습니다.
  *  MENTOR_CODE        멘토 접속 코드
@@ -34,6 +36,7 @@ var BC_MAX = 10;           // 상단 고정 공지 보관 개수
 var SLOT_MIN = 10;         // 1인 멘토링 시간(분) — 「멘토링 시간」에 끝 시각이 없을 때 사용
 var OPEN_BEFORE_MIN = 30;  // 학생 입장: 멘토링 당일 첫 학생 멘토링 시작 몇 분 전부터
 var TZ = 'Asia/Seoul';
+var DEMO = 'demo';          // 시연 회차(시트 없이 가상 명단)
 var SFU_BASE = 'https://rtc.live.cloudflare.com/v1/apps/';
 
 var ROSTER_HEAD = ['회차', '순서', '이름', '생년월일', '대기실 접속', '멘토링 시간', '학생 연락처', '보호자 연락처'];
@@ -73,6 +76,7 @@ function handle_(req) {
       case 'ice':  auth_(r, req); return { ok: true, ice: iceServers_() };
       case 'sfu':  return sfu_(r, req);
       case 'wr':   return wr_(r, req);
+      case 'demo': return demo_(req);
       default: return { ok: false, error: 'bad_action' };
     }
   } catch (err) {
@@ -110,6 +114,7 @@ function putState_(r, s) {
   backup_('st|' + r, s);
 }
 function backup_(k, v) {
+  if (/\|demo$/.test(k)) return;   // 시연 회차는 예비 저장 안 함
   try {
     var t = JSON.stringify(v);
     if (t.length > 8800 && v && v.parts) {   // 속성 한 칸 9KB 제한: 대기실 화상 정보는 빼고(다시 올리면 채워짐)
@@ -155,7 +160,7 @@ function mins_(hm) { var p = String(hm || '').split(':'); return p.length < 2 ? 
 
 // 학생이 지금 들어올 수 있는지: 멘토링 당일, 첫 학생 멘토링 시작 30분 전부터. 날짜가 비었거나 리허설(test)이면 언제나
 function studentOpen_(r) {
-  if (r === 'test') return { ok: true };
+  if (r === 'test' || r === DEMO) return { ok: true };
   var se = sessions_()[r] || {}, date = se.date || '';
   if (!date) return { ok: true };
   var first = '';
@@ -186,6 +191,11 @@ function colMap_(head) {
 }
 
 function rosterAll_() {
+  var all = rosterSheet_(), d = demoRoster_();
+  if (d) all[DEMO] = d;
+  return all;
+}
+function rosterSheet_() {
   var hit = cget_('ro|all');
   if (hit) return hit;
   var all = {};
@@ -214,7 +224,7 @@ function roster_(r) { return rosterAll_()[r] || []; }
 
 function sessions_() {
   var hit = cget_('se|all');
-  if (hit) return hit;
+  if (hit) return withDemoSess_(hit);
   var out = {};
   var ss = ss_(), sh = ss && ss.getSheetByName('회차');
   if (sh && sh.getLastRow() > 1) {
@@ -226,8 +236,13 @@ function sessions_() {
       out[r] = { r: r, date: d, mentor: String(v[2] || '').trim(), brk: Number(v[3]) || 0 };
     });
   }
-  Object.keys(rosterAll_()).forEach(function (r) { if (!out[r]) out[r] = { r: r, date: '', mentor: '', brk: 0 }; });
+  Object.keys(rosterSheet_()).forEach(function (r) { if (!out[r]) out[r] = { r: r, date: '', mentor: '', brk: 0 }; });
   cache_().put('se|all', JSON.stringify(out), 60);
+  return withDemoSess_(out);
+}
+function withDemoSess_(out) {
+  var pl = demoPlan_();
+  if (pl) out[DEMO] = { r: DEMO, date: today_(), mentor: DEMO_MENTOR, brk: 0 };
   return out;
 }
 
@@ -236,7 +251,7 @@ function today_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
 // 날짜로 회차 고르기(리허설 test 제외): 오늘 → 가장 가까운 앞으로의 회차 → 가장 최근 회차
 function autoRoom_() {
   var se = sessions_(), td = today_();
-  var list = Object.keys(se).filter(function (k) { return k !== 'test' && se[k].date; })
+  var list = Object.keys(se).filter(function (k) { return k !== 'test' && k !== DEMO && se[k].date; })
     .map(function (k) { return se[k]; });
   var today = list.filter(function (x) { return x.date === td; })[0];
   if (today) return today.r;
@@ -248,6 +263,7 @@ function autoRoom_() {
 
 /* ───────────── 기록 ───────────── */
 function log_(r, kind, name, text) {
+  if (r === DEMO) return;   // 시연은 기록하지 않음
   try {
     var ss = ss_();
     if (!ss) return;
@@ -257,6 +273,7 @@ function log_(r, kind, name, text) {
   } catch (err) { /* 기록 실패는 진행에 영향 없음 */ }
 }
 function chatLog_(r, kind, name, text) {
+  if (r === DEMO) return;
   try {
     var ss = ss_();
     if (!ss) return;
@@ -275,12 +292,12 @@ function join_(r, req) {
   if (r === 'auto' && role !== 'student') { r = autoRoom_(); if (!r) return { ok: false, error: 'no_session' }; }
 
   if (role === 'mentor') {
-    if (String(req.code || '') !== String(p.getProperty('MENTOR_CODE') || '__none__')) return { ok: false, error: 'code' };
+    if (String(req.code || '') !== String(p.getProperty('MENTOR_CODE') || '__none__') && !(r === DEMO && demoCode_(req.code))) return { ok: false, error: 'code' };
     id = 'M';
     name = name || '멘토';
   } else if (role === 'ops' || role === 'research') {
     var codeKey = role === 'ops' ? 'OPS_CODE' : 'RESEARCH_CODE';
-    if (String(req.code || '') !== String(p.getProperty(codeKey) || '__none__')) return { ok: false, error: 'code' };
+    if (String(req.code || '') !== String(p.getProperty(codeKey) || '__none__') && !(r === DEMO && demoCode_(req.code))) return { ok: false, error: 'code' };
     if (!name) return { ok: false, error: 'name' };
     // 같은 사람이 녹화 창 + 대기실 창을 함께 열 수 있도록 창 종류별로 구분
     id = (role === 'ops' ? 'O_' : 'R_') + normName_(name).slice(0, 12) + (req.panel ? '~p' : '');
@@ -290,6 +307,7 @@ function join_(r, req) {
     var all = rosterAll_(), cands = [];
     Object.keys(all).forEach(function (k) {
       if (r !== 'auto' && k !== r) return;
+      if (r === 'auto' && k === DEMO) return;   // 시연 명단은 주소에 r=demo 일 때만
       all[k].forEach(function (x) { if (x.name === nm) cands.push({ r: k, x: x }); });
     });
     if (!cands.length) {
@@ -343,7 +361,9 @@ function join_(r, req) {
   });
   cput_('sn|' + r + '|' + id, { t: Date.now(), info: {} });
   log_(r, '입장', name, role + (req.panel ? '(대기실 창)' : '') + (res.isNew ? '' : ' (재접속)'));
-  return { ok: true, id: id, tok: tok, pid: pid, name: name, role: role, r: r, me: me, ice: iceServers_(), now: Date.now() };
+  var out = { ok: true, id: id, tok: tok, pid: pid, name: name, role: role, r: r, me: me, ice: iceServers_(), now: Date.now() };
+  if (r === DEMO) out.demoSlot = (demoPlan_() || {}).slot || 0;   // 시연: 1인 멘토링 시간(분)을 화면 타이머에 맞춤
+  return out;
 }
 
 /* ───────────── poll ───────────── */
@@ -824,6 +844,40 @@ function setup() {
   }
   var all = rosterAll_();
   Logger.log('명단: ' + Object.keys(all).map(function (k) { return k + '회차 ' + all[k].length + '명'; }).join(', '));
+}
+
+/* ───────────── 시연 회차(demo) ─────────────
+ * 시연 조종판이 { a:'demo', code: 운영진 코드, cmd:'plan', n, slot, lead } 로 지금 시각 기준 시간표를 만들고,
+ * cmd:'reset' 으로 진행 상태를 비움. 가상 명단은 시트에 넣지 않음(이름·연락처는 모두 지어낸 것)
+ */
+var DEMO_MENTOR = '정다온';   // 시연 조종판(demo/demo.js)의 가상 멘토 이름과 같게
+var DEMO_NAMES = ['김하늘', '이서준', '박지우', '최하은', '정도윤', '강서연', '조민준', '윤지아', '장예준', '임수아', '한시우', '오채원', '서지호', '신유나', '권태윤', '황다은'];
+function demoCode_(code) { var c = String(props_().getProperty('OPS_CODE') || ''); return !!c && String(code || '') === c; }
+function demoPlan_() { return cget_('demo|plan'); }
+function demoRoster_() {
+  var pl = demoPlan_(); if (!pl) return null;
+  var out = [], t0 = pl.first;
+  for (var i = 0; i < pl.n; i++) {
+    var time = addMin_(t0, i * pl.slot);
+    out.push({ no: i + 1, name: DEMO_NAMES[i], birth: '20120101', wait: addMin_(time, -Math.max(3, pl.slot)), time: time, end: addMin_(time, pl.slot),
+      sPhone: '010-0000-' + ('000' + (1001 + i * 2)).slice(-4), pPhone: '010-0000-' + ('000' + (1002 + i * 2)).slice(-4) });
+  }
+  return out;
+}
+function demo_(req) {
+  if (!demoCode_(req.code)) return { ok: false, error: 'code' };
+  var cmd = String(req.cmd || '');
+  if (cmd === 'plan' || cmd === 'reset') {
+    withLock_(function () { cache_().removeAll(['st|' + DEMO, 'ch|' + DEMO, 'bc|' + DEMO]); });
+  }
+  if (cmd === 'plan') {
+    var n = Math.max(1, Math.min(DEMO_NAMES.length, Number(req.n) || 12)), slot = Math.max(1, Math.min(15, Number(req.slot) || 4));
+    var lead = Math.max(1, Math.min(60, Number(req.lead) || 5));
+    var first = Utilities.formatDate(new Date(Date.now() + lead * 60000 + 59000), TZ, 'HH:mm');
+    cput_('demo|plan', { n: n, slot: slot, first: first, at: Date.now() });
+  }
+  if (cmd === 'off') cache_().remove('demo|plan');
+  return { ok: true, plan: demoPlan_(), roster: demoRoster_() || [] };
 }
 
 /** 리허설(test) 회차의 진행 상태·채팅·공지를 비웁니다. 편집기에서 resetTestRoom 선택 → 실행 */
