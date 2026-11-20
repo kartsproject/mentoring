@@ -6,8 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>미술 심화 멘토링 · 운영</title>
-<link rel="stylesheet" href="../b/style.css?v=2230">
-<link rel="stylesheet" href="art.css?v=2230">
+<link rel="stylesheet" href="../b/style.css?v=2231">
+<link rel="stylesheet" href="art.css?v=2231">
 <style>
   body { background: var(--desk); }
   .app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
@@ -105,8 +105,8 @@
   .wcell .tag { font-size: 11px; font-weight: 800; color: #fff; background: var(--rec); border-radius: 5px; padding: 1px 5px; }
   @media (max-width: 1000px) { .body { grid-template-columns: 1fr; grid-template-rows: 55vh auto; } .side { border-left: 0; } }
 </style>
-<link rel="stylesheet" href="../b/theme.css?v=2230">
-<link rel="stylesheet" href="theme.css?v=2230">
+<link rel="stylesheet" href="../b/theme.css?v=2231">
+<link rel="stylesheet" href="theme.css?v=2231">
 </head>
 <body>
 
@@ -178,12 +178,12 @@
   <div class="whob" id="who-b"></div>
 </div></div>
 
-<script src="config.js?v=2230"></script>
-<script src="../b/meet.js?v=2230"></script>
-<script src="../b/recorder.js?v=2230"></script>
-<script src="sfu.js?v=2230"></script>
-<script src="art.js?v=2230"></script>
-<script src="../b/watch.js?v=2230"></script>
+<script src="config.js?v=2231"></script>
+<script src="../b/meet.js?v=2231"></script>
+<script src="../b/recorder.js?v=2231"></script>
+<script src="sfu.js?v=2231"></script>
+<script src="art.js?v=2231"></script>
+<script src="../b/watch.js?v=2231"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$, A = window.Art;
@@ -336,7 +336,7 @@
         el.innerHTML = '<div class="rph"><b></b><small></small><span class="sp"></span>' +
           '<button class="hear" type="button" title="이 방 소리 듣기 — 말하기도 이 방으로">' + UI.ico('vol') + '<span>듣기</span></button></div><div class="rpb"></div>';
         box.appendChild(el);
-        el.querySelector('.hear').onclick = function () { setListen(rm); };
+        el.querySelector('.hear').onclick = function () { setListen(listen === rm ? '__none' : rm); };   // 켜기·끄기(Ver.1.19)
       }
       var ppl = v.people.filter(function (p) { return p.room === rm && (p.role === 'student' || p.role === 'mentor') && p.live; })
         .sort(function (a, b) { return (a.role === 'mentor' ? 0 : 1) - (b.role === 'mentor' ? 0 : 1) || a.name.localeCompare(b.name, 'ko'); });
@@ -346,7 +346,8 @@
         (ppl.some(function (p) { return p.hand; }) ? ' · 손든 학생 있음' : '');
       el.classList.toggle('hear', listen === rm);
       var hb = el.querySelector('.hear'); hb.classList.toggle('on', listen === rm);
-      hb.innerHTML = UI.ico(listen === rm ? 'vol' : 'volOff') + '<span>' + (listen === rm ? '듣는 중' : '듣기') + '</span>';
+      hb.innerHTML = UI.ico(listen === rm ? 'vol' : 'volOff') + '<span>' + (listen === rm ? '듣는 중 · 끄기' : '듣기') + '</span>';
+      hb.title = listen === rm ? '누르면 소리를 끕니다(아무 방도 듣지 않음)' : '이 방 소리 듣기 — 말하기도 이 방으로';
       // 칸: 위 멘토(+크게 볼 것) · 아래 학생 — 명단 자리 고정, 들어오지 않은 사람은 검은 칸에 이름
       var sl = A.slots(v, rm, { streams: room.streams, me: v.me, localCam: opsCam });
       // 학생·멘토 화면과 같은 배치로 그림(전체: 멘토 2×2 크게·학생 6×2 작게, 영역 구분 / 분반: 멘토 크게·학생 한 줄)
@@ -363,16 +364,25 @@
     });
     Array.from(box.children).forEach(function (el) { if (!keep[el.dataset.room]) el.remove(); });
   }
+  // 듣는 방 바꾸기 — '__none'이면 아무 방도 듣지 않음(내 마이크도 꺼짐, 카메라를 켰다면 마지막 방에 그대로 보임)
+  var visitRoom = 'all';
   function setListen(rm) {
     if (listen === rm) return;
     listen = rm; room.listen = rm; room.applyVolumes();
-    sess.op('visit', { room: rm });   // 말하면 이 방에 들림
-    paintRooms();
+    if (rm === '__none') {
+      if (micOpen || talking) { micOpen = false; talk(false); }
+      UI.toast('소리를 껐습니다 — 다시 들으려면 방의 「듣기」를 누르세요', 3000);
+    } else {
+      visitRoom = rm;
+      sess.op('visit', { room: rm });   // 말하면 이 방에 들림
+    }
+    paintRooms(); paintMyBtns();
   }
 
   /* 말하기: 누르고 있는 동안(스페이스 또는 버튼) */
   function talk(on) {
     if (!mic) return;
+    if (on && listen === '__none') { UI.toast('듣는 방이 없어 말할 수 없습니다 — 방의 「듣기」를 먼저 누르세요', 3000); return; }
     talking = on;
     var live = on || micOpen;
     mic.getAudioTracks().forEach(function (t) { t.enabled = live; });
@@ -409,6 +419,7 @@
       if (holding) { holding = false; talk(false); }
       else if (armed && e.type === 'pointerup') {
         if (!mic) { UI.toast('마이크를 쓸 수 없습니다(브라우저 권한 확인)'); }
+        else if (!micOpen && listen === '__none') { UI.toast('듣는 방이 없어 말할 수 없습니다 — 방의 「듣기」를 먼저 누르세요', 3000); }
         else { micOpen = !micOpen; talk(false); UI.toast(micOpen ? A.roomName(listen) + '에 내 소리가 들립니다' : '마이크를 껐습니다(스페이스바를 누르는 동안은 말할 수 있습니다)'); }
       }
       armed = false;
@@ -425,7 +436,7 @@
       } else {
         opsCam = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24, max: 24 } }, audio: false });
         await Promise.race([room.sfu.publish('cam', opsCam.getVideoTracks()[0]), M.sleep(15000)]);
-        UI.toast(A.roomName(listen) + ' 화면에 내 카메라가 보입니다');
+        UI.toast(A.roomName(visitRoom) + ' 화면에 내 카메라가 보입니다');
       }
     } catch (e) { UI.toast('카메라를 켜지 못했습니다'); if (opsCam) { opsCam.getTracks().forEach(function (t) { t.stop(); }); opsCam = null; } }
     b.disabled = false; paintMyBtns(); paintRooms(); if (recOn) recSync();
@@ -518,7 +529,7 @@
   /* 관찰 메모 */
   $('#b-memo').onclick = async function () {
     var t = $('#memo').value.trim(); if (!t) return;
-    var where = A.PH[view.phase] + ' · ' + A.roomName(listen);
+    var where = A.PH[view.phase] + ' · ' + (listen === '__none' ? A.roomName(visitRoom) + '(소리 끔)' : A.roomName(listen));
     var j = await sess.op('memo', { text: t, where: where });
     if (j.ok) { $('#memo').value = ''; UI.toast('메모를 저장했습니다'); } else UI.toast('메모를 저장하지 못했습니다');
   };
@@ -571,6 +582,11 @@
   window.__retire = function (k) { retire(k); };   // 시험용: 이어 녹화(새 파일 먼저 시작 → 앞 파일 멈춤)
   window.__recs = function () { return recs; };
   window.__quad = function (on) { quad = !!on; recSync(); };   // 시험용
+  window.__recPreview = function (rooms, title) {   // 시험용: 녹화 화면 한 장 그려 보기
+    var cv = document.createElement('canvas'); cv.width = 1920; cv.height = 1080;
+    painterFor({ plan: rooms.map(sectionOf), r: { title: title } })(cv.getContext('2d'), 1920, 1080);
+    return cv.toDataURL('image/jpeg', .8);
+  };
 
   function vidFor(key, stream) {
     var v = vids[key];
@@ -623,11 +639,11 @@
     });
     if (rm === listen && mic) aud.push({ key: 'me|mic', stream: mic });   // 내 마이크는 말할 때만 켜짐
     return { room: rm, mode: rm === 'all' ? 'all' : 'group', sub: rm === 'all' ? '' : '소그룹 멘토링 ' + A.gname(rm.slice(1)).replace('조', ''),
-             top: sl.mentors.map(conv), feat: sl.feature ? conv(sl.feature) : null, bot: sl.students.map(conv), audio: aud };
+             top: sl.mentors.map(conv), feat: sl.feature ? conv(sl.feature) : null, bot: sl.students.map(conv), staff: (sl.staff || []).map(conv), audio: aud };
   }
 
-  /* 녹화 화면 그리기(1920×1080) — 프로젝트 틀(img/rec-bg.jpg) 위에 위 멘토 · 아래 학생, 빈 자리는 검은 칸에 이름 */
-  var BG = new Image(); BG.src = 'img/rec-bg.jpg';
+  /* 녹화 화면 그리기(1920×1080) — 무용 녹화본과 같은 모양(Ver.1.19): 어두운 바탕 · 위 제목 줄(빨간 점·제목·시각) · 분야 색 띠
+   * 위 멘토 · 아래 학생, 빈 자리는 검은 칸에 이름 · 운영진·연구원은 경계 가운데에 작게 */
   var FONT = '"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", sans-serif';
   function drawMedia(c, el, x, y, w, h, contain) {
     var tap = el && el.__tap;
@@ -706,7 +722,7 @@
     c.strokeStyle = 'rgba(233,196,96,.85)'; c.lineWidth = Math.max(1, 1.5 * k);
     c.beginPath(); c.moveTo(cx - half, y); c.lineTo(cx + half, y); c.stroke();
     var star = function (x, r) { c.beginPath(); for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4, rr = i % 2 ? r * 0.28 : r; c.lineTo(x + Math.sin(a) * rr, y - Math.cos(a) * rr); } c.closePath(); c.fill(); };
-    c.fillStyle = '#12465C'; c.fillRect(cx - 70 * k, y - 18 * k, 140 * k, 36 * k);
+    c.fillStyle = '#121315'; c.fillRect(cx - 70 * k, y - 18 * k, 140 * k, 36 * k);
     c.fillStyle = '#F2C94C'; star(cx, 22 * k); star(cx - 42 * k, 12 * k); star(cx + 42 * k, 12 * k);
   }
   // 방 하나를 R 안에 그림(전체: 위 멘토 줄·아래 학생 2줄 / 소그룹: 위 멘토 크게·아래 학생 1줄)
@@ -732,6 +748,7 @@
       if (sec.feat) drawFeatureTop(c, sec.top, sec.feat, inM, k, labelH);
       else drawRow(c, sec.top, inM, k, labelH);   // 멘토는 가로 한 줄(Ver.1.17)
       drawGrid(c, sec.bot, inS, k * .9, labelH * .85);
+      drawFloat(c, sec.staff, R.x + R.w / 2, sz.y, k, .35);
       return;
     }
     var topR = { x: R.x, y: R.y + R.h * .02, w: R.w, h: R.h * .585 };
@@ -739,6 +756,26 @@
     if (sec.feat) drawFeatureTop(c, sec.top, sec.feat, topR, k, labelH); else drawRow(c, sec.top, topR, k, labelH);
     drawDivider(c, R.x + R.w / 2, R.y + R.h * .622, R.w * .39, k);
     drawRow(c, sec.bot, botR, k, labelH);
+    drawFloat(c, sec.staff, R.x + R.w / 2, R.y + R.h * .622, k, -.02);   // 멘토 이름표를 가리지 않게 구분선 바로 아래부터
+  }
+  // 운영진·연구원: 경계(가운데 y) 위에 작게 떠 있는 칸(Ver.1.19)
+  function drawFloat(c, items, cx, y, k, up) {
+    if (!items || !items.length) return;
+    var w = 132 * k, h = w * 3 / 4, gap = 8 * k, pad = 6 * k, tot = items.length * w + (items.length - 1) * gap;
+    var x0 = cx - tot / 2, y0 = y - h * (up == null ? .5 : up);
+    c.save(); c.shadowColor = 'rgba(0,0,0,.6)'; c.shadowBlur = 22 * k; c.fillStyle = 'rgba(18,20,24,.85)';
+    c.beginPath(); if (c.roundRect) c.roundRect(x0 - pad, y0 - pad, tot + 2 * pad, h + 2 * pad, 10 * k); else c.rect(x0 - pad, y0 - pad, tot + 2 * pad, h + 2 * pad); c.fill(); c.restore();
+    items.forEach(function (it, i) {
+      var x = x0 + i * (w + gap);
+      c.fillStyle = '#7CC0FF'; c.fillRect(x - 2 * k, y0 - 2 * k, w + 4 * k, h + 4 * k);
+      c.fillStyle = '#000'; c.fillRect(x, y0, w, h);
+      if (!it.absent) drawMedia(c, it.video, x, y0, w, h, false);
+      c.font = '700 ' + Math.round(11 * k) + 'px ' + FONT; c.textBaseline = 'middle'; c.textAlign = 'left';
+      var lw = Math.min(w - 8 * k, c.measureText(it.label).width + 10 * k);
+      c.fillStyle = 'rgba(0,0,0,.65)'; c.fillRect(x + 4 * k, y0 + h - 19 * k, lw, 15 * k);
+      c.save(); c.beginPath(); c.rect(x + 4 * k, y0 + h - 19 * k, lw, 15 * k); c.clip();
+      c.fillStyle = '#fff'; c.fillText(it.label, x + 9 * k, y0 + h - 11.5 * k); c.restore();
+    });
   }
   // 정해진 열 수로 크게(멘토 2×2)
   function drawGrid2(c, items, R, k, labelH, cols) {
@@ -752,14 +789,21 @@
   }
   function painterFor(x) {
     return function (c, W, H) {
-      if (BG.complete && BG.naturalWidth) c.drawImage(BG, 0, 0, W, H);
-      else { c.fillStyle = '#F1D069'; c.fillRect(0, 0, W, H); c.fillStyle = '#12465C'; c.fillRect(22, 22, W - 44, H - 44); }
-      var secs = x.plan || [], S = W / 1920;
-      var C0 = { x: 96 * S, y: 128 * S, w: 1730 * S, h: 868 * S };
+      var secs = x.plan || [], S = W / 1920, top = Math.round(44 * S);
+      c.fillStyle = '#121315'; c.fillRect(0, 0, W, H);
+      // 위 제목 줄(무용과 같음)
+      c.fillStyle = '#1A1C1F'; c.fillRect(0, 0, W, top);
+      ['#4F8AC9', '#D0628A', '#D46C3C', '#4E9B55'].forEach(function (col, i) { c.fillStyle = col; c.fillRect(i * W / 4, top - Math.round(3 * S), W / 4, Math.round(3 * S)); });
+      c.fillStyle = '#E84958'; c.beginPath(); c.arc(22 * S, top / 2, 6 * S, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#F3F1EC'; c.font = '600 ' + Math.round(18 * S) + 'px ' + FONT; c.textBaseline = 'middle'; c.textAlign = 'left';
+      c.fillText((x.r && x.r.title) || '2026 K예술영재 · 미술 심화 멘토링', 38 * S, top / 2);
+      var d = new Date(), p2 = function (n) { return String(n).padStart(2, '0'); };
+      c.textAlign = 'right'; c.fillStyle = '#A8ABB0';
+      c.fillText(d.getFullYear() + '.' + p2(d.getMonth() + 1) + '.' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()), W - 16 * S, top / 2);
+      c.textAlign = 'left';
+      var C0 = { x: 24 * S, y: top + 16 * S, w: W - 48 * S, h: H - top - 30 * S };
       if (secs.length === 1) {
-        var sec = secs[0];
-        if (sec.sub) { c.fillStyle = '#fff'; c.font = '700 ' + Math.round(22 * S) + 'px ' + FONT; c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillText(sec.sub, 1826 * S, 127 * S); c.textAlign = 'left'; }
-        drawRoomPlan(c, sec, sec.sub ? { x: C0.x, y: C0.y + 14 * S, w: C0.w, h: C0.h - 14 * S } : C0, S);
+        drawRoomPlan(c, secs[0], C0, S);
       } else {   // 4분할(PC가 버거울 때): 소그룹 4개를 한 화면에
         var rowsN = Math.ceil(secs.length / 2), gw = (C0.w - 20 * S) / 2, gh = (C0.h - 20 * S * (rowsN - 1)) / rowsN;
         secs.forEach(function (sec, i) {

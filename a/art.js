@@ -94,14 +94,15 @@
       if (seen[p.id] || !inRoom(p) || (p.role !== 'mentor' && p.role !== 'student') || (!p.live && p.id !== me)) return;
       (p.role === 'mentor' ? mentors : students).push(mk(p.id, p.name, p.role));
     });
-    // 카메라를 켠 운영진·연구원(그 방에 있을 때) — 학생 줄 끝에
+    // 카메라를 켠 운영진·연구원(그 방에 있을 때) — 멘토·학생 경계 가운데에 작게 떠 있음(Ver.1.19)
+    var staff = [];
     people.forEach(function (p) {
       if ((p.role !== 'ops' && p.role !== 'research') || !inRoom(p) || !p.live) return;
       var mine = p.id === me, has = mine ? !!o.localCam : !!(p.tr && p.tr.cam);
       if (!has) return;
       var it = mk(p.id, p.name, 'staff');
       it.label = (p.role === 'ops' ? '운영 ' : '연구원 ') + p.name + (mine ? ' (나)' : '');
-      students.push(it);
+      staff.push(it);
     });
     // 크게 볼 것
     var here = people.filter(function (p) { return inRoom(p) && (p.role === 'mentor' || p.role === 'student') && (p.live || p.id === me); });
@@ -123,7 +124,7 @@
     }
     if (feat) { feat.feature = true; feat.spot = !!feat.isSpot; }
     mentors.concat(students).forEach(function (x) { x.spot = !!(spot && spot.kind === 'cam' && spot.id === x.id); });
-    return { mentors: mentors, students: students, feature: feat, photos: cand.filter(function (c) { return c.kind === 'photo'; }) };
+    return { mentors: mentors, students: students, staff: staff, feature: feat, photos: cand.filter(function (c) { return c.kind === 'photo'; }) };
   };
 
   /* ───────── 방: 받기·배치 ───────── */
@@ -229,8 +230,9 @@
     if (innerWidth < 700) cols = Math.min(cols, 3);
     bot.style.setProperty('--cols', cols);
     bot.style.setProperty('--rows', Math.max(1, Math.ceil(n / cols)));
-    var all = {};
-    topList.concat(sl.students).forEach(function (it) { all[it.key] = 1; });
+    var all = {}, fl = bot.querySelector('.r-float');
+    if (!fl) { fl = document.createElement('div'); fl.className = 'r-float'; bot.insertBefore(fl, bot.firstChild); }
+    topList.concat(sl.students, sl.staff || []).forEach(function (it) { all[it.key] = 1; });
     var put = function (host, list) {
       list.forEach(function (it, i) {
         var c = box.querySelector('[data-k="' + CSS.escape(it.key) + '"]');
@@ -273,6 +275,7 @@
     };
     put(sideL, left); put(center, mid); put(sideR, right);
     put(bot, sl.students);
+    put(fl, sl.staff || []);
     Array.from(box.querySelectorAll('.tile')).forEach(function (c) { if (!all[c.dataset.k]) c.remove(); });
   };
 

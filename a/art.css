@@ -147,3 +147,12 @@
 .tile:fullscreen video, .tile:fullscreen img, .tile.fsx video, .tile.fsx img { object-fit: contain !important; }
 .tile:fullscreen .t-fs, .tile.fsx .t-fs { top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); font-size: 14px; padding: 9px 16px 9px 13px; }
 .tile:fullscreen .t-tools, .tile.fsx .t-tools { display: none; }
+
+/* Ver.1.19 — 운영진·연구원: 멘토·학생 경계 가운데에 작게 떠 있음(자리 차지 안 함) */
+.r-bot { position: relative; }
+.r-float { position: absolute; left: 50%; top: 0; transform: translate(-50%, -60%); z-index: 6; display: flex; gap: 6px; padding: 5px; border-radius: 10px;
+  background: rgba(18,20,24,.78); box-shadow: 0 10px 26px rgba(0,0,0,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.r-float:empty { display: none; }
+.r-bot .r-float .tile, .astage.fixed .r-bot .r-float .tile { width: clamp(64px, 9cqw, 132px); aspect-ratio: 4/3; border-width: 2px; border-color: #7CC0FF; flex: none; }
+.r-float .tile .t-label { font-size: 10px; padding: 1px 6px; left: 4px; bottom: 4px; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) { .r-bot .r-float .tile, .astage.fixed .r-bot .r-float .tile { width: 22vw; } .r-float { transform: translate(-50%, -55%); } }
