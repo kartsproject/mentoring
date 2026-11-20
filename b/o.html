@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#202226">
 <title>운영 화면 | K예술영재 온라인 멘토링</title>
-<link rel="stylesheet" href="style.css?v=2213">
+<link rel="stylesheet" href="style.css?v=2214">
 <style>
   :root { --muted2: var(--gray); --line2: var(--line); --line3: #D4D0C7; }
   body { background: var(--desk); }
@@ -207,7 +207,7 @@
   .rs-dir { background: var(--desk); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 600; color: var(--ink-2); margin: -6px 0 16px; }
   html, body { touch-action: pan-x pan-y; }
 </style>
-<link rel="stylesheet" href="theme.css?v=2213">
+<link rel="stylesheet" href="theme.css?v=2214">
 </head>
 <body>
 
@@ -357,12 +357,12 @@
   </div>
 </div>
 
-<script src="config.js?v=2213"></script>
-<script src="meet.js?v=2213"></script>
-<script src="recorder.js?v=2213"></script>
-<script src="../a/sfu.js?v=2213"></script>
-<script src="wait.js?v=2213"></script>
-<script src="room.js?v=2213"></script>
+<script src="config.js?v=2214"></script>
+<script src="meet.js?v=2214"></script>
+<script src="recorder.js?v=2214"></script>
+<script src="../a/sfu.js?v=2214"></script>
+<script src="wait.js?v=2214"></script>
+<script src="room.js?v=2214"></script>
 <script>
 (function () {
   var M = window.Meet, UI = M.UI, C = M.CFG, $ = UI.$;
@@ -1210,11 +1210,11 @@
     var on = !!(rec && rec.recording()), cur = view && view.cur, lock = on && IS_REC && cur;
     var bad = $('#h-rec').classList.contains('bad') && !on;
     var other = !on && view && view.host && view.host !== sess.id ? view.hostName : '';
-    var label = lock ? '녹화 중 · 학생별' : on ? '녹화 중 · 멈추기' : bad ? '녹화 안 됨!' : other ? '다른 PC 녹화 중' : '녹화 시작';
+    var label = lock ? '녹화 중 · 학생별' : on ? '녹화 중 · 멈추기' : bad ? '녹화 안 됨!' : '녹화 시작';   // 다른 PC가 녹화해도 이 PC에서 따로 녹화 가능(Ver.2.23)
     ['#b-rec', '#w-rec'].forEach(function (id) {
       fbSet(id, REC_ICO, label, on || bad ? 'off' : '');
       var b = $(id); b.classList.toggle('lock', !!lock); b.classList.toggle('blink', !!bad);
-      b.title = lock ? '멘토링 중에는 학생별로 항상 녹화합니다(학생이 끝나면 자동 저장)' : on ? '누르면 녹화를 멈추고 저장합니다' : other ? '녹화는 ' + other + ' 님 PC에서 하고 있습니다. 누르면 이 PC에서도 녹화합니다' : '누르면 녹화를 시작합니다(멘토링 사이 시간은 「대기」 파일)';
+      b.title = lock ? '멘토링 중에는 학생별로 항상 녹화합니다(학생이 끝나면 자동 저장)' : on ? '누르면 녹화를 멈추고 저장합니다' : other ? '다른 운영진 PC와 상관없이 이 PC에서도 따로 녹화합니다' : '누르면 녹화를 시작합니다(멘토링 사이 시간은 「대기」 파일)';
     });
     if (PANEL) { UI.show('#b-rec', false); UI.show('#w-rec', false); }
   }
